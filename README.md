@@ -10,6 +10,12 @@ A modern, cross-platform G-Code sender for Laser and CNC machine controller writ
 
 GCodeKit5 is a Rust-based CNC machine controller providing a modern alternative to Universal G-Code Sender. It supports multiple controller firmware types including GRBL, grblHAL, TinyG, g2core, Smoothieware, and FluidNC through a unified, intuitive interface built with the GTK4 UI framework.
 
+## New version tested on Linux (Kubuntu 24.04) with improvements to the Designer module
+- Now you can: correctly import DXF and SVG files
+- Import raster images with the ability to create compositions from multiple images and vector objects, whether created or imported; order canvas objects using the Objects panel, which is used for G-code workflow; and configure G-code generation independently for each image, allowing you to change speed, power, inversion, etc., according to the image's characteristics.
+- You can also independently configure the working properties of vector objects, so with multiple objects on the canvas, you can define a global configuration for them or a specific configuration for some. For example, several objects might use one speed and power for engraving, and then a different object could be defined with a different speed and power for cutting.
+
+
 ## Architecture
 
 GCodeKit5 is organized as a Cargo workspace with 7 crates for modular compilation and better code organization:

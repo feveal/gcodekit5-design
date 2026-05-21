@@ -1219,3 +1219,7 @@ msgstr "Tramado:"
 
 msgid "Halftone Threshold:"
 msgstr "Umbral Semitonos:"
+
+# gcodekit5/crates/gcodekit5-ui/src/ui/gtk/designer_layers_rs
+msgid "Objects"
+msgstr "Objetos"

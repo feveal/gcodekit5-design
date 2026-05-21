@@ -1,6 +1,6 @@
-//! # Designer Layers Panel
+//! # Designer Layers Panel (Objets)
 //!
-//! UI panel for managing design layers in the visual designer.
+//! UI panel for managing design objects in the visual designer.
 //! Supports layer visibility toggling, ordering, and selection.
 
 use gtk4::gdk::ModifierType;
@@ -78,7 +78,7 @@ impl LayersPanel {
 
         // Header with title and buttons
         let header = Box::new(Orientation::Horizontal, 6);
-        let title = Label::new(Some(&t!("Layers")));
+        let title = Label::new(Some(&t!("Objects")));
         title.set_halign(gtk4::Align::Start);
         title.add_css_class("heading");
         header.append(&title);
