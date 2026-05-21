@@ -1,0 +1,136 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: GCodeKit5\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-12-12 09:36+0700\n"
+"PO-Revision-Date: 2025-12-11 12:00+0000\n"
+"Last-Translator: \n"
+"Language-Team: French\n"
+"Language: fr_FR\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+
+msgid "About"
+msgstr "À propos"
+
+msgid "CAM Tools"
+msgstr "Outils FAO"
+
+msgid "CNC Tools"
+msgstr "Outils CNC"
+
+msgid "Connect"
+msgstr "Connecter"
+
+msgid "Copy"
+msgstr "Copier"
+
+msgid "Cut"
+msgstr "Couper"
+
+msgid "Designer"
+msgstr "Concepteur"
+
+msgid "Device Config"
+msgstr "Config périphérique"
+
+msgid "Device Manager"
+msgstr "Gestionnaire de périphériques"
+
+msgid "Disconnect"
+msgstr "Déconnecter"
+
+msgid "Documentation"
+msgstr "Documentation"
+
+msgid "Edit"
+msgstr "Édition"
+
+msgid "Emergency stop (Ctrl-X)"
+msgstr ""
+
+msgid "Export G-Code..."
+msgstr "Exporter G-Code..."
+
+msgid "Export SVG..."
+msgstr "Exporter SVG..."
+
+msgid "File"
+msgstr "Fichier"
+
+#. Polling is now handled centrally by MachineControlView to avoid race conditions on serial read
+#. Add Editor to Stack
+msgid "G-Code Editor"
+msgstr "Éditeur G-Code"
+
+msgid "GCode Toolkit for CNC/Laser Machines"
+msgstr "Boîte à outils GCode pour machines CNC/Laser"
+
+msgid "GCodeKit Contributors"
+msgstr "Tim Hawkins avec les contributeurs GCodeKit"
+
+msgid "GCodeKit5"
+msgstr "GCodeKit5"
+
+msgid "Help"
+msgstr "Aide"
+
+msgid "Home"
+msgstr "Origine"
+
+msgid "Import"
+msgstr "Importer"
+
+msgid "Machine"
+msgstr "Machine"
+
+msgid "Machine Control"
+msgstr "Contrôle machine"
+
+msgid "Materials"
+msgstr "Matériaux"
+
+msgid "New"
+msgstr "Nouveau"
+
+msgid "Open"
+msgstr "Ouvrir"
+
+msgid "Paste"
+msgstr "Coller"
+
+msgid "Preferences"
+msgstr "Préférences"
+
+msgid "Quit"
+msgstr "Quitter"
+
+msgid "Redo"
+msgstr "Rétablir"
+
+msgid "Reset"
+msgstr "Réinitialiser"
+
+msgid "Run"
+msgstr "Exécuter"
+
+msgid "Save"
+msgstr "Enregistrer"
+
+msgid "Save As..."
+msgstr "Enregistrer sous..."
+
+msgid "Undo"
+msgstr "Annuler"
+
+#. 4. Visualizer (Already created)
+msgid "Visualizer"
+msgstr "Visualiseur"
+
+#~ msgid "Device Console"
+#~ msgstr "Console du périphérique"
+
+#~ msgid "Device Info"
+#~ msgstr "Info périphérique"

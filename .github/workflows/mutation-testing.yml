@@ -1,0 +1,125 @@
+# Mutation testing with cargo-mutants
+# Runs periodically to validate test effectiveness
+# Target: 85%+ mutation kill rate in core crates
+name: Mutation Testing
+
+on:
+  schedule:
+    # Run weekly on Sundays at 02:00 UTC
+    - cron: '0 2 * * 0'
+  workflow_dispatch:
+    inputs:
+      package:
+        description: 'Specific package to test (leave empty for all core crates)'
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  mutation-test:
+    name: Mutation Testing
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev libudev-dev
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-mutation-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-mutation-
+
+      - name: Install cargo-mutants
+        run: cargo install cargo-mutants
+
+      - name: Run mutation testing (specific package)
+        if: ${{ inputs.package != '' }}
+        run: |
+          cargo mutants -p ${{ inputs.package }} --output mutants-results -- \
+            --release 2>&1 | tee mutants-output.txt
+
+      - name: Run mutation testing (core crates)
+        if: ${{ inputs.package == '' }}
+        run: |
+          cargo mutants \
+            -p gcodekit5-core \
+            -p gcodekit5-designer \
+            -p gcodekit5-visualizer \
+            -p gcodekit5-communication \
+            --output mutants-results -- \
+            --release 2>&1 | tee mutants-output.txt
+
+      - name: Check mutation kill rate
+        if: always()
+        run: |
+          if [ -f mutants-results/outcomes.json ]; then
+            echo "## Mutation Testing Results" >> $GITHUB_STEP_SUMMARY
+
+            TOTAL=$(jq '[.outcomes[] | select(.scenario != "Baseline")] | length' mutants-results/outcomes.json)
+            KILLED=$(jq '[.outcomes[] | select(.scenario != "Baseline") | select(.summary == "CaughtMutant")] | length' mutants-results/outcomes.json)
+            SURVIVED=$(jq '[.outcomes[] | select(.scenario != "Baseline") | select(.summary == "MissedMutant")] | length' mutants-results/outcomes.json)
+            TIMEOUT=$(jq '[.outcomes[] | select(.scenario != "Baseline") | select(.summary == "Timeout")] | length' mutants-results/outcomes.json)
+            UNVIABLE=$(jq '[.outcomes[] | select(.scenario != "Baseline") | select(.summary == "Unviable")] | length' mutants-results/outcomes.json)
+
+            if [ "$TOTAL" -gt 0 ]; then
+              TESTABLE=$((TOTAL - UNVIABLE))
+              if [ "$TESTABLE" -gt 0 ]; then
+                KILL_RATE=$(( (KILLED + TIMEOUT) * 100 / TESTABLE ))
+              else
+                KILL_RATE=100
+              fi
+            else
+              KILL_RATE=0
+            fi
+
+            echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| Total mutants | $TOTAL |" >> $GITHUB_STEP_SUMMARY
+            echo "| Killed | $KILLED |" >> $GITHUB_STEP_SUMMARY
+            echo "| Survived | $SURVIVED |" >> $GITHUB_STEP_SUMMARY
+            echo "| Timeout | $TIMEOUT |" >> $GITHUB_STEP_SUMMARY
+            echo "| Unviable | $UNVIABLE |" >> $GITHUB_STEP_SUMMARY
+            echo "| **Kill rate** | **${KILL_RATE}%** |" >> $GITHUB_STEP_SUMMARY
+
+            echo ""
+            echo "Kill rate: ${KILL_RATE}% (target: 85%)"
+
+            if [ "$KILL_RATE" -lt 85 ]; then
+              echo "::warning::Mutation kill rate ${KILL_RATE}% is below 85% target"
+              echo ""
+              echo "### Survived mutants (need stronger tests):" >> $GITHUB_STEP_SUMMARY
+              jq -r '.outcomes[] | select(.scenario != "Baseline") | select(.summary == "MissedMutant") | "- \(.scenario)"' mutants-results/outcomes.json >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "No mutation testing results found"
+            exit 1
+          fi
+
+      - name: Upload mutation results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mutation-testing-results
+          path: |
+            mutants-results/
+            mutants-output.txt
+          retention-days: 30

@@ -1,0 +1,29 @@
+# Pick And Place List
+# eMail=
+#
+# Project=CosmicRayGun
+# Date=00:16:00
+# CreatedBy=Fritzing 1.0.6..
+#
+# Coordinates in mils, always center of component
+# Origin 0/0=Lower left corner of PCB. Rotation in degree (0-360, math. pos.)
+RefDes,Description,Package,X,Y,Rotation,Side,Mount
+Description: resistance;capacitance;inductance;voltage;current;power;mpn;mn;
+Arduino,";;;;;;;;","",1364.53,1054.18,0,Top,MANUAL
+Speaker,";;;;;;;;","",2258.66,1554.18,90,Top,MANUAL
+S1,";;;;;;;;","THT",408.656,604.182,0,Top,THT
+LED6,";;;;0.030A;;;;","5 mm [THT]",258.656,1026.98,180,Top,THT
+LED5,";;;;0.030A;;;;","5 mm [THT]",658.656,1026.98,180,Top,THT
+R8,"1k;;;;;0.25W;;;","THT",1208.66,604.182,180,Top,THT
+LED4,";;;;0.030A;;;;","5 mm [THT]",1058.66,1026.98,180,Top,THT
+R7,"1k;;;;;0.25W;;;","THT",1830.76,604.182,0,Top,THT
+R1 ,"220;;;;;0.25W;;;","THT",958.656,1504.18,90,Top,THT
+LED3,";;;;0.030A;;;;","5 mm [THT]",1458.66,1026.98,180,Top,THT
+R2,"220;;;;;0.25W;;;","THT",1158.66,1504.18,90,Top,THT
+R3,"220;;;;;0.25W;;;","THT",1358.66,1504.18,90,Top,THT
+LED2,";;;;0.030A;;;;","5 mm [THT]",1858.66,1026.98,180,Top,THT
+S2,";;;;;;;;","THT",2305.76,604.182,180,Top,THT
+R4,"220;;;;;0.25W;;;","THT",1558.66,1504.18,90,Top,THT
+R5,"220;;;;;0.25W;;;","THT",1758.66,1504.18,90,Top,THT
+LED1,";;;;0.030A;;;;","5 mm [THT]",2258.66,1026.98,180,Top,THT
+R6,"220;;;;;0.25W;;;","THT",1958.66,1504.18,90,Top,THT

@@ -1,0 +1,33 @@
+# Mutation testing configuration for cargo-mutants
+# Run periodically (not in every CI run) to validate test effectiveness
+# Target: 85%+ mutation kill rate in core crates
+
+# Skip functions that are UI-only, logging, or trivially correct
+skip_calls = [
+    "tracing::info!",
+    "tracing::debug!",
+    "tracing::warn!",
+    "tracing::error!",
+    "tracing::trace!",
+    "eprintln!",
+    "println!",
+    "log::info!",
+    "log::debug!",
+    "log::warn!",
+    "log::error!",
+]
+
+# Exclude UI crate (requires GTK runtime), settings, and device DB
+# Focus on core logic crates
+exclude_globs = [
+    "crates/gcodekit5-ui/**",
+    "crates/gcodekit5-settings/**",
+    "crates/gcodekit5-devicedb/**",
+    "crates/gcodekit5-camtools/**",
+    "crates/gcodekit5-gcodeeditor/**",
+]
+
+# Timeout settings — builds can be slow
+minimum_test_timeout = 60
+build_timeout_multiplier = 3.0
+timeout_multiplier = 3.0

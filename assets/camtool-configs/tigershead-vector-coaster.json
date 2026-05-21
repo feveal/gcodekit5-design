@@ -1,0 +1,22 @@
+{
+  "cross_hatch": true,
+  "cut_power": "100",
+  "desired_width": 47.0,
+  "dwell_time": "0.1",
+  "enable_dwell": false,
+  "enable_hatch": true,
+  "engrave_power": "50",
+  "feed_rate": "600",
+  "hatch_angle": "45",
+  "hatch_spacing": 1.2000000476837158,
+  "hatch_tolerance": 0.10000000149011612,
+  "invert_power": false,
+  "multi_pass": false,
+  "num_passes": "1",
+  "offset_x": 10.0,
+  "offset_y": 10.0,
+  "power_scale": "1000",
+  "travel_rate": "3000",
+  "vector_path": "/home/thawkins/Projects/gcodekit5/assets/svg/tigershead.svg",
+  "z_increment": 0.5
+}

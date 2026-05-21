@@ -1,0 +1,93 @@
+{
+  "version": "1.0",
+  "metadata": {
+    "name": "cncprobe",
+    "created": "2025-12-10T17:43:22.498959193Z",
+    "modified": "2025-12-10T17:43:22.498959193Z",
+    "author": "",
+    "description": ""
+  },
+  "viewport": {
+    "zoom": 3.174,
+    "pan_x": 52.900000000000034,
+    "pan_y": 32.84000000000003
+  },
+  "shapes": [
+    {
+      "id": 1,
+      "shape_type": "rectangle",
+      "x": 8.314134373030866,
+      "y": 9.163762208569587,
+      "width": 60.28473534971644,
+      "height": 58.1359286389414,
+      "points": [],
+      "selected": false,
+      "use_custom_values": false,
+      "operation_type": "profile",
+      "pocket_depth": 10.0,
+      "start_depth": 0.0,
+      "step_down": 0.2,
+      "step_in": 1.17,
+      "text_content": "",
+      "font_size": 0.0,
+      "path_data": "",
+      "group_id": null,
+      "corner_radius": 4.0,
+      "is_slot": false,
+      "rotation": 0.0
+    },
+    {
+      "id": 3,
+      "shape_type": "rectangle",
+      "x": 20.190219524139344,
+      "y": 9.44562408626961,
+      "width": 48.289474259057464,
+      "height": 45.92548737533942,
+      "points": [],
+      "selected": false,
+      "use_custom_values": false,
+      "operation_type": "pocket",
+      "pocket_depth": 5.0,
+      "start_depth": 0.0,
+      "step_down": 0.2,
+      "step_in": 1.17,
+      "text_content": "",
+      "font_size": 0.0,
+      "path_data": "",
+      "group_id": null,
+      "corner_radius": 0.0,
+      "is_slot": false,
+      "rotation": 0.0
+    },
+    {
+      "id": 4,
+      "shape_type": "circle",
+      "x": 12.06169758191562,
+      "y": 44.71821833648384,
+      "width": 18.514541981726524,
+      "height": 18.514541981726524,
+      "points": [],
+      "selected": false,
+      "use_custom_values": false,
+      "operation_type": "pocket",
+      "pocket_depth": 10.0,
+      "start_depth": 0.0,
+      "step_down": 0.2,
+      "step_in": 1.17,
+      "text_content": "",
+      "font_size": 0.0,
+      "path_data": "",
+      "group_id": null,
+      "corner_radius": 0.0,
+      "is_slot": false,
+      "rotation": 0.0
+    }
+  ],
+  "default_properties": null,
+  "toolpath_params": {
+    "feed_rate": 1000.0,
+    "spindle_speed": 3000.0,
+    "tool_diameter": 3.175,
+    "cut_depth": -5.0
+  }
+}

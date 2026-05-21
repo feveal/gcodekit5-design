@@ -1,0 +1,35 @@
+//! # GTK4 UI Module
+//!
+//! Root module for all GTK4 user interface components.
+//! Organizes the UI into sub-modules for each panel, dialog,
+//! and functional area of the application.
+
+pub mod cam_tools;
+pub mod command_history;
+pub mod common;
+pub mod designer;
+pub mod designer_canvas;
+pub mod designer_layers;
+pub mod designer_properties;
+pub mod designer_toolbox;
+pub mod device_console;
+pub mod device_manager;
+pub mod editor;
+pub mod fast_shape_gallery;
+pub mod file_dialog;
+pub mod help_browser;
+pub mod machine_control;
+pub mod nav_cube;
+pub mod osd_format;
+pub mod platform;
+pub mod renderer_3d;
+pub mod settings;
+pub mod shaders;
+pub mod status_bar;
+pub mod stock_texture;
+pub mod visualizer;
+//pub mod designer_file_ops; // Temporarily disabled - needs shape struct updates
+pub mod config_settings;
+pub mod device_info;
+pub mod materials_manager;
+pub mod tools_manager;

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<style-scheme id="gcode-bright" _name="G-Code Bright" version="1.0">
+  <author>GCodeKit</author>
+  <description>Bright and vibrant colors for G-Code</description>
+
+  <!-- Base colors -->
+  <color name="bg" value="#1e1e1e"/>
+  <color name="fg" value="#ffffff"/>
+  <color name="line-numbers" value="#666666"/>
+  <color name="current-line" value="#2a2a2a"/>
+  
+  <!-- Syntax colors -->
+  <color name="comment" value="#808080"/>
+  <color name="gcode" value="#00bfff"/> <!-- Deep Sky Blue -->
+  <color name="mcode" value="#ff4500"/> <!-- Orange Red -->
+  <color name="coordinate" value="#32cd32"/> <!-- Lime Green -->
+  <color name="parameter" value="#da70d6"/> <!-- Orchid -->
+  <color name="value" value="#00ffff"/> <!-- Cyan -->
+
+  <style name="text" background="bg" foreground="fg"/>
+  <style name="selection" background="#264f78"/>
+  <style name="cursor" foreground="#ffffff"/>
+  <style name="current-line" background="current-line"/>
+  <style name="line-numbers" foreground="line-numbers"/>
+
+  <!-- Mapping to standard defs used in gcode.lang -->
+  <style name="def:comment" foreground="comment"/>
+  <style name="def:keyword" foreground="gcode" bold="true"/>
+  <style name="def:builtin" foreground="mcode" bold="true"/>
+  <style name="def:type" foreground="coordinate" bold="true"/>
+  <style name="def:decimal" foreground="value"/>
+  <style name="def:identifier" foreground="line-numbers"/>
+  <style name="def:constant" foreground="parameter"/>
+  <style name="def:variable" foreground="parameter"/>
+
+  <!-- Search highlighting -->
+  <style name="search-match" background="#264f78" foreground="#ffffff"/>
+  <style name="current-search-match" background="#ffcc00" foreground="#000000"/>
+
+</style-scheme>

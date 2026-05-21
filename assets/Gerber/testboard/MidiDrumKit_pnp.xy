@@ -1,0 +1,26 @@
+# Pick And Place List
+# eMail=
+#
+# Project=MidiDrumKit
+# Date=17:45:15
+# CreatedBy=Fritzing 1.0.6..
+#
+# Coordinates in mils, always center of component
+# Origin 0/0=Lower left corner of PCB. Rotation in degree (0-360, math. pos.)
+RefDes,Description,Package,X,Y,Rotation,Side,Mount
+Description: resistance;capacitance;inductance;voltage;current;power;mpn;mn;
+MIDI Drum Kit,";;;;;;;;","",1356.95,1054.04,0,Top,MANUAL
+J1,";;;;;;;;","",2098.17,604.04,0,Top,MANUAL
+J1,";;;;;;;;","",2298.17,604.04,0,Top,MANUAL
+DIN1,";;;;;;;;","THT",357.198,754.045,90,Top,THT
+R2,"220;;;;;0.25W;;;","THT",1298.17,404.04,0,Top,THT
+R1,"1M;;;;;0.25W;;;","THT",1848.17,504.04,90,Top,THT
+Zener2,";;;;;;;;","300 mil [THT]",1942.8,555.196,90,Top,THT
+S1,";;;;;;;;","[THT]",1086.75,1482,-90,Top,THT
+R1,"100k;;;;;0.25W;;;","THT",1298.17,1404.04,90,Top,THT
+Zener1,";;;;;;;;","300 mil [THT]",2448.17,555.04,90,Top,THT
+R1,"1M;;;;;0.25W;;;","THT",2548.17,504.04,90,Top,THT
+S2,";;;;;;;;","[THT]",1586.75,1482,-90,Top,THT
+R1,"100k;;;;;0.25W;;;","THT",1798.17,1404.04,90,Top,THT
+S3,";;;;;;;;","[THT]",2136.75,1482,-90,Top,THT
+R1,"100k;;;;;0.25W;;;","THT",2348.17,1404.04,90,Top,THT

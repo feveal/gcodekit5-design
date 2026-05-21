@@ -1,0 +1,512 @@
+# GTK4 & Rust Insights
+
+## GTK Dialogs
+- **Transient Parent**: Always set a transient parent for dialogs to ensure proper window management and avoid "GtkDialog mapped without a transient parent" warnings. Use `dialog.set_transient_for(Some(&parent_window))`.
+- **Sizing**: Ensure dialogs have sufficient minimum size to avoid "Trying to measure GtkDialog..." warnings if content requires more space than allocated.
+
+## Viewport & Canvas Sizing
+- **Issue**: When using a `DrawingArea` with a backend `Viewport` or `Canvas` struct that manages zoom/pan, the backend needs to be explicitly updated with the widget's dimensions.
+- **Solution**: Use `widget.set_draw_func` to update the backend size on every draw (which happens on resize), or use `connect_resize` / `connect_map`.
+- **Gotcha**: `DrawingArea` dimensions might be 0 or default during early initialization. Use `connect_map` with a small timeout or check dimensions before applying "Fit to View" logic to ensure correct aspect ratio and padding.
+
+## Coordinate Systems
+- **Designer**: Uses Cartesian coordinates (Y-up).
+- **GTK/Cairo**: Uses Screen coordinates (Y-down).
+- **Transformation**: Always handle Y-flip in the `Viewport` logic.
+
+## Notes / Learnings
+- Cairo text drawing with a Y-flip needs the rotation angle negated before flipping Y to match model/G-code orientation.
+
+## SourceView5 Search Implementation
+- **SearchContext**: The `SearchContext` is central to search operations. It runs asynchronously.
+- **Counting Matches**: To implement "n of m" (current match index of total matches), you must iterate through occurrences. `context.forward()` and `context.backward()` are useful but require careful handling of iterators.
+- **Iterating**: To find the "current" match index relative to the cursor:
+    1. Get the start of the buffer.
+    2. Loop using `context.forward(iter)` until the match start is >= the cursor position (or the current match).
+    3. Count the iterations.
+- **Button State**: Use the count and total matches (from `context.occurrences_count()`) to enable/disable "Next"/"Previous" buttons.
+- **API Gotchas**:
+    - `buffer.get_selection_bound()` in C is `buffer.selection_bound()` in the Rust bindings.
+    - `buffer.get_insert()` in C is `buffer.insert()` in the Rust bindings.
+    - `search_settings.set_search_text(Some("text"))` is required; passing `None` clears it.
+
+## Useful GTK4 UI Patterns
+- **libadwaita**: `adw::Window` does not support `gtk_window_set_titlebar()`; use `adw::HeaderBar` / `WindowTitle` patterns instead of manually setting a titlebar.
+- **Theme palette colors in Cairo**: prefer `widget.style_context().lookup_color("accent_color"|"success_color"|"warning_color")` over hard-coded RGB.
+- **OSD overlays**: `Overlay` + `Box` with a shared CSS class works well for floating controls, status, and small progress panels.
+- **Non-blocking background work**:
+  - Put heavy work on `std::thread::spawn`.
+  - Communicate completion via `Arc<Mutex<Option<T>>>` polled with `glib::timeout_add_local`.
+  - For closures connected to GTK signals (`connect_*`), clone captured values before moving into nested closures (to satisfy `Fn` requirements).
+- **Hide/show panel UX**: use a normal “Hide” button inside the panel and a floating “Show …” button in an overlay; persist visibility in settings.
+- **Modal on startup**: for “About on startup”, set the transient parent to the main window and center it (and optionally auto-close with `glib::timeout_add_local_once`).
+- **Workspace versioning**: bump `[workspace.package].version` in the root `Cargo.toml`; `cargo check` will refresh `Cargo.lock` workspace package versions.
+
+## In-app Help Browser (Markdown from GResources)
+- **Approach**: Store help topics as markdown files in `crates/gcodekit5-ui/resources/markdown/` and add them to `resources/gresources.xml`.
+- **Loading**: Use `gio::resources_lookup_data("/com/gcodekit5/help/<topic>.md", ...)` to fetch the document text.
+- **Rendering**: For a lightweight solution without a full markdown renderer, convert a small markdown subset to Pango markup and display using a wrapping `gtk::Label`.
+- **Navigation**: Use `Label::connect_activate_link` with `help:<topic>` links to switch topics (and keep back/forward history in-memory).
+
+
+## Live Previews for Geometry Operations
+- **Implementation**: To implement live previews for destructive operations (like Offset, Fillet, Chamfer), add a `preview_shapes: Rc<RefCell<Vec<Shape>>>` to the `DesignerCanvas`.
+- **Rendering**: In the `draw` function, iterate over `preview_shapes` and render them with a distinct color (e.g., `warning_color` / yellow) and a fixed line width.
+- **Interaction (Inspector-based)**:
+    1. Add a "Geometry Operations" section to the `PropertiesPanel` (Inspector).
+    2. Use `Entry` widgets for parameters (Distance, Radius).
+    3. Connect to the `Entry::changed` signal.
+    4. In the handler, parse the current value and generate the preview shapes using the backend geometry engine (e.g., `gcodekit5_designer::ops`).
+    5. Update the shared `preview_shapes` and trigger a redraw.
+    6. Add an "Apply" button to commit the operation to the actual shape state.
+    7. **Cleanup**: Ensure `preview_shapes` is cleared when the selection changes or when the "Apply" button is clicked (after the operation is performed).
+- **Benefits**: This approach provides a more integrated workflow than popup dialogs, as the user can see the preview while editing other properties and doesn't have to deal with modal windows.
+- **Standard Buttons**: Use `dialog.add_button("Cancel", ResponseType::Cancel)` and `dialog.add_button("Apply", ResponseType::Ok)` if using dialogs, but prefer the Inspector-based approach for a smoother workflow.
+
+## Materials/Tools List Patterns
+- **Empty state panes**: For editor-style tabs, a `gtk4::Stack` with an `empty` page + `edit` page makes selection-driven UIs feel much clearer.
+- **ListBox placeholders**: `ListBox::set_placeholder(Some(&Label))` is an easy way to show “No results” when filtering/searching.
+- **Store row metadata**: Prefer `ListBoxRow::set_data("key", value)` over hidden widgets for IDs; retrieve via `row.data::<T>("key")`.
+- **Icon+label buttons**: Build a `Box` with `Image::from_icon_name` + `Label` and set it as `Button::set_child` for consistent look (avoid emoji labels).
+
+## Unit-Aware UI Components
+- **Dimension Rows**: Use a helper like `create_dimension_row` to create a consistent UI for length inputs. It should include an `Entry` for the value and a `Label` for the unit (mm/inch).
+- **Dynamic Unit Switching**: Listen for `measurement_system` changes in settings. When the system changes:
+    1. Parse the current value in the *old* system.
+    2. Format it in the *new* system.
+    3. Update the entry text and the unit label.
+- **Validation**: Always use `units::parse_length` to handle both decimal points and potential unit suffixes, and provide sensible defaults on failure.
+
+## Drill Press CAMTool Implementation
+- **Helical Interpolation**: For holes larger than the tool, use `G2` (or `G3`) with a `Z` component to create a spiral. The pitch of the spiral can be tied to the "Peck Depth" parameter.
+- **Peck Drilling**: For deep holes, retract to the surface (`top_z`) to clear chips, then rapid back to just above the last cut depth (`current_z + 0.5mm`) before continuing.
+- **UI Layout**: A `Paned` layout with a descriptive sidebar (40%) and a scrollable settings area (60%) works well for complex CAM tools.
+- **Parameter Persistence**: Use `serde_json` to save/load tool parameters to/from `.json` files, allowing users to reuse specific hole/tool configurations.
+
+## GTK Label Selection
+- **Issue**: `gtk::Label` with `selectable` set to true might show all text selected by default or when content changes if not handled carefully.
+- **Solution**: Use `glib::idle_add_local` to defer `label.select_region(0, 0)` after setting markup. Immediate calls might be overridden by layout or focus events.
+- **Gotcha**: Toggling `set_selectable(false)` then `true` might not clear selection or might trigger selection behavior in some contexts. Explicitly clearing selection is safer.
+
+## Versioning
+- **Workspace**: Bump `[workspace.package].version` in root `Cargo.toml`.
+- **Lockfile**: Run `cargo check` to update `Cargo.lock`.
+
+### Gesture Conflicts and Right-Click Context Menus
+- **Issue**: Right-click context menus may fail to appear if there are conflicts between right-click gestures (`GestureClick` with button 3) and drag gestures (`GestureDrag`).
+- **Root Cause**: Using `connect_pressed` for right-click gestures can interfere with drag operations that start on press events. Drag gestures may consume the event before the right-click handler runs.
+- **Solution**: 
+  - Use `connect_released` instead of `connect_pressed` for right-click gestures to ensure the menu appears after the drag operation completes (or doesn't start).
+  - Explicitly set the drag gesture to button 1 only (`drag_gesture.set_button(1)`) to prevent it from triggering on right-click (button 3).
+- **Benefit**: This resolves context menu failures, especially with multi-selection scenarios where users expect reliable menu display.
+
+### UI Refresh Patterns After File Load
+- **Issue**: UI widgets (Entry, SpinButton, etc.) may not reflect loaded state values after file operations like "Open File".
+- **Root Cause**: Widgets are typically populated at creation time using closures that read from shared state. These closures are called once during UI setup but not again after the state is mutated by file loading.
+- **Pattern**: Store "update_display" closures in a collection and provide a `refresh_*()` method to invoke them all.
+- **Implementation**:
+  ```rust
+  // In the UI component struct:
+  refresh_callbacks: Rc<RefCell<Vec<Rc<dyn Fn()>>>>,
+  
+  // When creating Entry widgets with state-bound displays:
+  let update_display: Rc<dyn Fn()> = Rc::new({
+      let entry = entry.clone();
+      let state = state.clone();
+      move || {
+          let value = state.borrow().some_property;
+          entry.set_text(&format!("{:.2}", value));
+      }
+  });
+  update_display();  // Initial population
+  refresh_callbacks.borrow_mut().push(update_display.clone());
+  
+  // Public method to refresh all UI:
+  pub fn refresh_settings(&self) {
+      for callback in self.refresh_callbacks.borrow().iter() {
+          callback();
+      }
+  }
+  ```
+- **Usage**: After loading a file, call `component.refresh_settings()` to update all bound widgets.
+- **Benefit**: Centralizes UI refresh logic and ensures consistency between state and display after any state-mutating operation.
+
+### Inspector Properties
+- **Extensibility**: When adding new shape types (e.g., `Shape::Path`), ensure they are handled in `PropertiesPanel::update_from_selection` (to display values) and `PropertiesPanel::update_shape_position_and_size` (to apply changes).
+- **Path Handling**: For complex shapes like paths, use bounding box center for position (X/Y) and bounding box dimensions for size (Width/Height). Implement scaling and translation relative to the bounding box center to support parametric-like editing.
+- **Multi-Selection Properties**: For multi-selection, show bounding box properties (X, Y, Width, Height) that operate on the collective bounding box of all selected shapes. Disable rotation for multi-selection as it's complex to handle. Use `DesignerState::set_selected_position_and_size_with_flags` to apply changes with position/size flags. Update the UI visibility logic to show position/size frames for multi-selection while hiding shape-specific frames (corner radius, text, polygon properties).
+
+## FFI and Unsafe Code
+- **Panic in Callbacks**: Panics inside GTK callbacks (FFI boundaries) often result in "panic in a function that cannot unwind" and abort the process.
+- **Avoid Unsafe**: Avoid `unsafe { std::mem::transmute_copy }` when dealing with opaque types from external crates (like `gerber-types`). Use safe alternatives like `Debug` formatting or `serde` serialization if available, even if less efficient, to prevent undefined behavior and hard-to-debug crashes.
+- **Gerber Types**: `gerber-types` `CoordinateNumber` is opaque. Use `format!("{:?}", c)` to extract values if other traits are missing.
+
+### Parsing Opaque Types via Debug Trait
+When working with external crates that expose opaque types (private fields) but implement `Debug`, you can sometimes parse the `Debug` output as a workaround. However, be aware that the `Debug` format can vary (e.g., `Struct { field: value }` vs `Struct(value)`). Always handle multiple formats or inspect the actual output carefully.
+- Example: `gerber_types::CoordinateNumber` outputs `CoordinateNumber { nano: 123456 }` but we were expecting `CoordinateNumber(123456)`.
+- Solution: Use regex or robust string parsing to extract values from the `Debug` string.
+
+## Cavalier Contours
+- `cavalier_contours` operations (like `boolean` and `parallel_offset`) can panic on invalid or degenerate geometry.
+- Always wrap these operations in `std::panic::catch_unwind` to prevent application crashes.
+- Use `std::panic::AssertUnwindSafe` if necessary.
+- Sanitize input geometry (remove duplicates, check orientation) before passing to `cavalier_contours`.
+- **Prefer Arcs over Segments**: When creating shapes with rounded parts (like circles or stadiums) for boolean operations, use `PlineVertex` with `bulge` (arcs) instead of linearizing them into many small segments. This significantly reduces vertex count (e.g., 4 vertices vs 36+ for a stadium) and improves stability, preventing panics like `EndPointOnFinalOffsetVertex` during boolean or offset operations.
+
+
+## Gerber Processing
+- **Trace Generation**: Generating individual shapes (rectangles/stadiums) for each Gerber segment (`D01`) leads to disjoint geometry that fails to merge correctly, especially at sharp corners.
+- **Solution**: Buffer consecutive `D01` commands into a single continuous `Polyline` (center line). When the path ends (e.g., `D02`, `D03`, aperture change), generate the "stroke" by offsetting the polyline by `aperture_radius` on both sides (`parallel_offset(r)` and `parallel_offset(-r)`), then joining the ends with arcs to form a closed loop. This ensures correct corner handling and continuous geometry.
+- **Cavalier Contours**:
+    - `parallel_offset(offset)` returns `Vec<Polyline>`. For simple traces, it returns one polyline per side.
+    - To form a closed loop from offsets: take right offset, take left offset, invert left offset (`invert_direction_mut`), and connect them with semi-circle caps (bulge = 1.0).
+    - `Polyline::set(index, x, y, bulge)` is used to update vertices/bulges.
+    - `Polyline::invert()` creates a new inverted polyline. `invert_direction_mut()` inverts in place.
+- **Duplicate Vertices**: `cavalier_contours` functions like `parallel_offset` and boolean operations can panic if the input polyline contains duplicate vertices (vertices with the same position). Always call `remove_repeat_pos(epsilon)` (e.g., `1e-4`) on polylines before processing them, especially after boolean operations or when constructing paths from external data.
+- **Boolean Operations**: When merging polylines, the result might contain artifacts or duplicate vertices. Clean the result before further processing.
+- **Panic Handling**: Wrap `cavalier_contours` operations in `panic::catch_unwind` to prevent the entire application from crashing due to geometry errors. Log the error and skip the problematic polygon if possible.
+
+## Cavalier Contours Insights
+- **Duplicate Vertices Panic**: `cavalier_contours` can panic with `bug: input assumed to not have repeat position vertexes` if a polyline has consecutive duplicate vertices or if a closed polyline has the last vertex equal to the first vertex.
+- **Fix**: Always clean polylines before performing operations like `parallel_offset` or boolean operations.
+  - Use `remove_repeat_pos(epsilon)` to remove consecutive duplicates.
+  - For closed polylines, explicitly check if the last vertex equals the first vertex and remove it if so.
+  - A helper function `clean_polyline` is implemented in `gcodekit5_designer::ops` and `gcodekit5_camtools::gerber` and should be used before any `parallel_offset` call.
+- **Panic Handling**: Wrap `cavalier_contours` operations in `panic::catch_unwind` to prevent the entire application from crashing due to geometry errors. This is especially important in GTK callbacks where panics cause immediate aborts. Use `panic::AssertUnwindSafe` to wrap the closure.
+
+## CSGRS vs Cavalier Contours
+- **Stability**: `cavalier_contours` is excellent for offsetting but can be fragile (panics) with degenerate inputs (zero-length segments, duplicate vertices) during boolean operations.
+- **Alternative**: `csgrs` (Constructive Solid Geometry for Rust) provides robust boolean operations (Union, Difference, Intersection) that are less prone to panics on complex or degenerate 2D geometry.
+- **Strategy**:
+    - Use `csgrs` for boolean operations (merging shapes).
+    - Use `cavalier_contours` for offsetting (buffering/isolation) on the *clean* result of boolean operations.
+    - For "thickening" lines/arcs (Gerber traces), manually construct polygons (rectangles + circles) and Union them with `csgrs` instead of relying on `cavalier_contours` offset of raw centerlines, which is more error-prone.
+- **Integration**: `csgrs` uses `nalgebra` for transformations. Ensure version compatibility between `csgrs` and `nalgebra` in your project.
+
+## Gerber Tool Improvements
+- Implemented "Remove Excess Copper" (Rubout) feature.
+- Uses `csgrs` for boolean difference (Board - Traces).
+- Uses `hatch_generator` (scanline fill) to clear the excess area.
+- Converts between `cavalier_contours` (Polyline), `csgrs` (Sketch/Geo), and `lyon` (Path) types.
+- **Insight**: `cavalier_contours` is great for offsetting, `csgrs` for boolean ops, and `lyon` for path manipulation/hatching. Combining them requires careful type conversion.
+
+## CSG and Polylines
+- `csgrs` (and underlying `cavalier_contours`) can be sensitive to duplicate vertices (start == end) in polygons.
+- When converting between `Polyline` and `Sketch`, ensure vertices are not duplicated if the library expects implicit closure.
+- `Sketch::polygon` likely expects implicit closure (no duplicate start/end point).
+- **Sketch::rectangle**: `Sketch::rectangle(w, h, None)` creates a rectangle from `(0, 0)` to `(w, h)`, NOT centered at `(0, 0)`. If you need a centered rectangle, you must translate it by `(-w/2, -h/2)`. If you assume it's centered and translate by `(w/2, h/2)`, you will end up with a rectangle at `(w/2, h/2)` to `(3w/2, 3h/2)`.
+
+## Recent Features
+- **Gerber Rubout with Board Outline**: Added an option to use the board outline file (e.g., `*.gko`, `*Edge_Cuts*`) as the boundary for the rubout operation, instead of a simple bounding box. This allows for non-rectangular boards.
+
+## Serde Deserialization
+- When adding new fields to a struct that is deserialized from JSON (e.g., configuration files), always consider backward compatibility.
+- Use `#[serde(default)]` on the struct or specific fields to allow deserialization to succeed even if the fields are missing in the JSON file. This uses the `Default` implementation for the struct or type.
+- Always handle deserialization errors gracefully and log them to help with debugging. Silent failures can be very confusing for users.
+
+### Cavalier Contours Offset Orientation
+- `parallel_offset` with a positive value "inflates" the polygon.
+- For CCW polygons (standard exterior), this means offsetting outwards (away from center).
+- For CW polygons (standard holes), this means offsetting outwards (away from center), which makes the hole *larger*.
+- To "shrink" a hole (offset into the void, preserving the solid material around it), you must use a **negative** offset.
+- When processing polygons from `csgrs` or `geo`, ensure you distinguish between Exterior (CCW) and Interior (CW) loops and apply the appropriate offset sign.
+
+### Lyon Path Construction for Hatching with Holes
+- **CORRECTION**: Do NOT use `.with_svg()` - it returns `WithSvg<Builder>` which has different methods.
+- Use regular `Path::builder()` which provides `begin()`, `line_to()`, `close()`, and `build()`.
+- **Each polygon (with holes) should become a SEPARATE lyon Path**:
+  - Create a new builder for each polygon
+  - Build exterior ring: `begin(first_point)`, `line_to()` for rest, `close()`
+  - Build interior rings (holes): repeat `begin()`, `line_to()`, `close()` for each hole
+  - Call `build()` to finish the path
+  - Pass all paths as a Vec to `generate_hatch`
+- This ensures the hatch generator properly respects holes - if you put multiple polygons in one Vec with shared builders, the holes won't be recognized.
+- Lyon's even-odd fill rule requires each polygon to be its own path for proper hole handling.
+
+## Parametric Shapes and Multi-Path Rendering
+- **Parametric Generators**: For complex geometry like gears (involute curves), sprockets (ANSI standard), and tabbed boxes (finger joints), encapsulate the math in a dedicated module (e.g., `parametric_shapes.rs`). Use `lyon::Path` as the common exchange format.
+- **Multi-Path Shapes**: Some shapes (like a 6-face tabbed box) are naturally represented as a collection of paths rather than a single closed loop.
+  - **Model**: Add a `render_all() -> Vec<Path>` method to the shape struct to return all individual components.
+  - **G-code Generation**: Iterate over the results of `render_all()` and generate toolpaths for each component separately. This ensures that each face of a box is cut as a distinct operation.
+  - **Rendering**: In the UI renderer (Tiny-skia or SVG), iterate over the paths and draw them sequentially.
+- **Serialization**: When adding complex parametric shapes, ensure all parameters (teeth, module, pitch, thickness, etc.) are included in the serialization format (`ShapeData`) with appropriate defaults to maintain backward compatibility.
+- **UI Properties**: Use `usize` for discrete counts (like teeth) and `f64` for dimensions. Ensure the UI `Entry` widgets are correctly mapped to these types and handle unit conversions (mm/inch) if applicable.
+- **Exhaustive Matching**: When adding new variants to the `Shape` enum, the Rust compiler will enforce exhaustive matching in all `match` statements. This is a powerful safety feature that ensures all parts of the application (rendering, toolpathing, UI, serialization) are updated to handle the new shapes.
+
+## Machine Control UI
+- **G53 Button Removal**: The "Use G53 (Machine Coords)" button was removed from the UI as it was deemed redundant or confusing. G53 commands can still be sent via the console if needed.
+
+- **Device Console Logging**:
+  - All manual commands (jog, WCS, zeroing, home, unlock, overrides) are now logged to the device console.
+  - Streaming G-code commands are logged if they are sent via the kickstart or polling loop.
+  - Initialization commands ($I, $$, $10=47) are logged on connection.
+  - Soft reset (Ctrl-X) is logged.
+  - Pause (!) and Resume (~) are logged.
+
+## Best Practices
+
+## Toolpath Generation
+- **Ramping Logic**: When implementing ramping (helical entry or ramp along profile), ensure that the Z depth decreases by a non-zero amount in each pass. If the ramp angle is small or segments are short/rapid-only, the Z drop might be negligible, leading to an infinite loop if the loop condition is `current_z > target_z`. Always add a safety break (max loops or max segments) or fallback to standard step-down if progress is stalled.
+- **Pocket Ramping**: For pockets, ramping is typically applied to the entry (helical entry) rather than the entire clearing path. Use `ToolpathSegment` with `start_z` and `z_depth` to define 3D moves (helical arcs or linear ramps).
+- **Rotated Shapes**: Toolpath generation for contours now explicitly handles rotated rectangles and circles by generating geometry in unrotated space and applying the rotation transform to the resulting toolpath segments. This ensures correct offsets and geometry for rotated shapes.
+
+## Toolpath Generation for Rotated Shapes
+- When generating toolpaths for rotated shapes (especially rectangles/slots), ensure that the rotation is applied around the correct center point.
+- For `DesignRectangle`, the vertices are generated relative to the center, so rotation should be applied around `rect.center`.
+- `cavalier_contours` handles offsetting of arbitrary polygons, so as long as the input polygon is correctly rotated and positioned, the output toolpath will be correct.
+- Ensure that `rotate_point` logic matches the rendering logic (usually CCW rotation).
+- Be careful with `Transform` order in `lyon` (usually `T * R` means Rotate then Translate if applied to vectors, or Translate then Rotate if applied to coordinate system? `then_rotate` appends rotation, so `T * R`).
+
+## Ramping and Helical Entry
+- Ramping logic should be applied to the generated toolpath segments.
+- Ensure that ramping doesn't cause infinite loops if the path is too short or step down is too small.
+- Helical entry for pockets requires generating a spiral path.
+
+### Toolpath Generation for Rotated Shapes (Fix)
+- **Issue**: Toolpaths for rotated rectangles were being generated axis-aligned.
+- **Cause**: The `generate_rectangle_pocket` function was correctly rotating vertices, but potentially the `generate_rectangular_pocket` (axis-aligned optimization) was being called incorrectly or the rotation was not being propagated.
+- **Fix**: Verified that `generate_rectangle_pocket` in `toolpath.rs` correctly handles rotation by converting to a polygon and rotating vertices. Added debug logging to trace execution. Ensure that `rect.rotation` is correctly set in the model.
+- **Note**: If `rect.rotation` is 0 but the shape is rotated in the UI, check if the `DesignerShape` wrapper has the rotation but the inner `DesignRectangle` does not. The `DesignerState` updates the inner shape's rotation, so this should be correct.
+
+## Toolpath Generation
+- **Rotation Handling**: The `rotate_point` function in `model.rs` expects rotation in DEGREES, but `lyon` and internal shape rotation are stored in RADIANS. Always convert radians to degrees before calling `rotate_point` (e.g. `rotation.to_degrees()`). Failure to do so results in negligible rotation (e.g. 45 degrees -> 0.785 radians -> 0.785 degrees).
+
+
+## Recent Changes (Designer Tools)
+- Added `DesignTriangle` and `DesignPolygon` shapes.
+- Implemented `DesignerShape` trait for new shapes.
+- Updated `Canvas`, `Renderer`, `SvgRenderer`, and `ToolpathGenerator` to support new shapes.
+- Added UI tools for Triangle and Polygon in `DesignerToolbox`.
+- Updated `PropertiesPanel` to show properties for new shapes.
+- **Icons**: Use standard GTK icons (e.g., `media-playback-start-symbolic` for triangle, `emblem-shared-symbolic` for polygon) when custom SVG resources are not available.
+- **Shape Creation**: Ensure shapes are created within the bounding box defined by the drag start and end points. For regular polygons, calculate the radius such that the shape fits within the box (e.g., `radius = min(width, height) / 2.0`).
+- **Polygon Tool**: Added n-sided polygon tool with configurable side count.
+  - **Fix**: Ensure "Sides" property is visible in inspector when a polygon is selected.
+  - **Fix**: Ensure polygon creation respects the marquee bounds correctly (radius vs diameter).
+  - **Fix**: Polygon rotation offset - Fixed by applying rotation BEFORE translation. When rendering, use `transform.then_rotate(...).then_translate(...)` to rotate around the origin first, then translate to the center position.
+
+## Non-Destructive Geometry Operations (Offset, Fillet, Chamfer)
+- **Concept**: Instead of modifying the base shape geometry (destructive), store the operation parameters (Offset distance, Fillet radius, Chamfer distance) as properties of the `DrawingObject`.
+- **Effective Shape**: Implement a `get_effective_shape()` method on `DrawingObject` that applies these modifiers to the base shape on-the-fly.
+- **Rendering & Toolpathing**: Use the "effective shape" for all downstream operations (rendering, hit-testing, G-code generation). This allows the user to tweak parameters without losing the original shape.
+- **UI Implementation**:
+    - Remove "Apply" buttons from the Properties Panel.
+    - Use `connect_activate` (Enter key) on `Entry` widgets to commit changes to the `DesignerState` (creating undo commands).
+    - Use `connect_changed` to update a live preview on the canvas.
+    - Use `connect_leave` (via `EventControllerFocus`) to commit changes when the user clicks away.
+    - **Contextual Visibility**: Hide the Geometry Operations frame for shapes where it's not applicable (e.g., `Text`).
+- **Spatial Indexing**: When properties change, ensure the spatial index (R-Tree) is updated using the bounds of the *effective* shape, as offsetting or filleting can change the bounding box.
+
+## Right-Click Context Menu Implementation
+
+### Problem
+- Right-click context menus only appeared for the "first" selected shape when multiple shapes were selected
+- Menus wouldn't show near canvas edges due to GTK Popover positioning constraints
+- Menu items were being disabled (grayed out) rather than hidden for better UX
+
+### Solution Implemented
+
+#### 1. Simplified Selection Logic
+Changed from complex coordinate-based hit-testing to simple selection existence check:
+```rust
+let has_selection = state_borrow
+    .canvas
+    .selection_manager
+    .selected_count(&state_borrow.canvas.shape_store)
+    > 0;
+```
+
+#### 2. Flexible Positioning Strategy
+```rust
+// Set preferred position but allow GTK to adjust if needed
+let rect = gtk4::gdk::Rectangle::new(_x as i32 - 5, _y as i32 - 5, 10, 10);
+menu.set_pointing_to(Some(&rect));
+menu.set_position(PositionType::Bottom);  // Prefer bottom-right, but allow adjustment
+```
+
+#### 3. Conditional Menu Items (Hidden vs Disabled)
+Instead of graying out unavailable items, we conditionally add them:
+```rust
+// Always available actions
+let cut_button = Button::with_label("Cut");
+let copy_button = Button::with_label("Copy");
+let delete_button = Button::with_label("Delete");
+
+menu_box.append(&cut_button);
+menu_box.append(&copy_button);
+if can_paste {
+    let paste_button = Button::with_label("Paste");
+    menu_box.append(&paste_button);
+}
+menu_box.append(&delete_button);
+
+// Conditional actions - only show if applicable
+if can_group {
+    let separator = Separator::new(Orientation::Horizontal);
+    separator.add_css_class("menu-separator");
+    menu_box.append(&separator);
+    
+    let group_button = Button::with_label("Group");
+    menu_box.append(&group_button);
+}
+```
+
+### Key GTK4 Insights
+
+#### Popover Positioning
+- Using `set_pointing_to()` with coordinates gives GTK a preferred location
+- `set_position(PositionType::Bottom)` suggests a placement preference 
+- GTK automatically adjusts when space is constrained
+- Removing ALL positioning constraints causes menu to appear at parent widget top
+
+#### Menu Creation Best Practices
+- Use `Popover::new()` for context menus
+- `set_parent()` to attach to the canvas widget  
+- `set_has_arrow(false)` for cleaner appearance
+- `set_autohide(true)` for proper dismissal behavior
+- Use `present()` rather than `popup()` for better positioning
+
+#### Event Handling
+- Right-click detection via `GestureClick` with `connect_released`
+- Check `n_press == 1` and button 3 for right-clicks
+- Coordinate conversion from widget to canvas coordinates
+
+### Files Modified
+- `crates/gcodekit5-ui/src/ui/gtk/designer.rs` - Main implementation
+- Added imports: `Button`, `PositionType`
+- Updated `handle_right_click()` method with new logic
+
+### Testing Strategy
+- Debug logging shows right-click detection working correctly
+- Selection detection functioning properly 
+- Menu creation and display working (tested with simple label)
+- Positioning needs verification across canvas edge cases
+
+### Success Criteria Met
+✅ Menu appears for any selection (single, multiple, or grouped shapes)  
+✅ Simplified coordinate logic eliminates complex hit-testing
+✅ Menu items are hidden rather than disabled for cleaner UX
+✅ Positioning allows GTK flexibility while providing preferred location
+✅ Code compiles without errors
+
+### Next Steps for Production
+- Add actual button click handlers for menu actions (Cut, Copy, Paste, etc.)
+- Test menu positioning across all canvas edge cases
+- Verify menu appearance and behavior matches design requirements
+- Consider adding icons to menu items for better visual clarity
+
+## Pocket G-code Generation
+- **Rapid Moves Issue**: When generating raster pockets for polygons, the tool was performing a rapid move to (0,0) between scanlines. This was due to a hardcoded `Point::new(0.0, 0.0)` in the `generate_raster_pocket` function that should have been the last point of the toolpath.
+- **Fix**: Changed line 843 in `pocket_operations.rs` from using a hardcoded origin to using the last point from the toolpath (`toolpath.segments.last().map(|s| s.end).unwrap_or(Point::new(0.0, 0.0))`). This ensures continuous tool movement without unnecessary rapid returns to origin between passes.
+
+## Step-Down Pass Optimization
+- **Issue**: When pocket/profile operations generated G-code with step-down passes, the tool was unnecessarily retracting to safe Z height between each depth pass, significantly slowing job execution.
+- **Root Cause**: Each Z pass was represented as a separate `Toolpath` object. The `generate_body()` method in `gcode_gen.rs` reset `current_z = self.safe_z` at the start of each toolpath, and `RapidMove` segments always retracted to safe Z before XY movement. No Z position was tracked between consecutive toolpath generations.
+- **Fix**: Added `generate_body_continuing()` method to `ToolpathToGcode` that accepts an initial Z position and returns `(String, f64)` tuple with the G-code and final Z position. Modified `designer_state.rs` to track Z position across consecutive toolpaths within the same shape, passing the final Z of one toolpath as the initial Z of the next.
+- **Implementation Details**:
+  - `gcode_gen.rs`: Added `pub safe_z` field and `generate_body_continuing(toolpath, line_number, initial_z) -> (String, f64)` method
+  - `designer_state.rs`: Changed toolpath loop to track `current_z` and use `generate_body_continuing()`
+- **Result**: Tool now maintains position between step-down passes, only retracting to safe Z when moving between different shapes.
+
+## Step-In Pass Optimization
+- **Issue**: Within a single pocket Z pass, the tool was retracting to safe Z between each step-in contour (e.g., between offset rings in contour-parallel strategy or between scanlines in raster strategy).
+- **Root Cause**: All pocket generation strategies were using `RapidMove` segments to position the tool at the start of each new contour. Since `RapidMove` in `gcode_gen.rs` always retracts to safe Z before XY movement, this caused unnecessary retracts within the same Z level.
+- **Fix**: Modified pocket generation to track whether it's the first step-in pass at a Z level:
+  - **First step-in**: Use `RapidMove` (need to position from safe Z)
+  - **Subsequent step-ins**: Use `LinearMove` to traverse directly at cutting depth
+- **Implementation Details**:
+  - `generate_circular_pocket`: Added `is_first_pass` flag; use LinearMove for subsequent passes
+  - `generate_contour_parallel_pocket`: Added `is_first_pass` flag; use LinearMove for subsequent passes  
+  - `generate_adaptive_pocket`: Changed `needs_rapid` to `needs_traverse`; use LinearMove instead of RapidMove
+  - `generate_raster_pocket`: Added `is_first_segment` check; use LinearMove for all non-first segments
+- **Result**: Tool stays at cutting depth throughout all step-in passes within a Z level, only retracting when moving to a new shape or new Z level.
+
+## Step-Down Optimization (December 2025)
+- **Issue**: When transitioning between Z passes (step-down), the tool was retracting to safe Z even though it was already at cutting depth from the previous Z pass.
+- **Root Cause**: Each Z pass started with a `RapidMove` segment, regardless of whether it was the first Z pass or a subsequent one. This caused unnecessary retract-reposition-plunge cycles between Z levels.
+- **Fix**: Added `is_first_z_pass` tracking to all pocket generation strategies:
+  - **First Z pass**: Use `RapidMove` for the first step-in (approach from safe Z)
+  - **Subsequent Z passes**: Use `LinearMove` for the first step-in (the G-code generator's `generate_body_continuing()` handles the plunge to new Z via `toolpath.depth`)
+- **Implementation Details**:
+  - `generate_rectangular_pocket`: Added `is_first_z_pass` flag; only RapidMove on first Z pass
+  - `generate_circular_pocket`: Added `is_first_z_pass` flag; only RapidMove on first Z pass
+  - `generate_contour_parallel_pocket`: Added `is_first_z_pass` flag; only RapidMove on first Z pass
+  - `generate_adaptive_pocket`: Added `is_first_z_pass` flag; only RapidMove on first Z pass
+  - `generate_raster_pocket`: Added `is_first_z_pass` flag; only RapidMove on first Z pass
+  - `generate_raster_cleanup`: Changed from `RapidMove` to `LinearMove` for all repositioning within cleanup passes
+- **Ordering Fix**: Raster cleanup toolpaths are now pushed AFTER the main contour toolpath at each Z level (was incorrectly pushed before)
+- **Result**: Tool only retracts to safe Z once at the start of the pocket, then maintains contact for all step-down and step-in passes within that pocket.
+## Design File Save/Load Fix (December 2025)
+- **Issue**: Tool settings (feed rate, spindle speed, tool diameter, cut depth) and stock settings (width, height, thickness, safe_z) were not being saved to or loaded from design files (.gckd).
+- **Root Causes**:
+  1. `designer_state.rs`: `save_to_file()` didn't populate `toolpath_params` with tool/stock settings
+  2. `designer_state.rs`: `load_from_file()` didn't restore tool/stock settings from `toolpath_params`
+  3. `designer_state.rs`: `load_from_file()` used `canvas.add_shape(obj.shape)` which only added the shape geometry, losing all per-shape properties (operation_type, pocket_depth, step_down, etc.)
+  4. `designer.rs` (UI): Separate save/load logic also missing tool settings population/restoration
+- **Fixes Applied**:
+  - `designer_state.rs` `save_to_file()`: Added tool settings (feed_rate, spindle_speed, tool_diameter, cut_depth) and stock settings (width, height, thickness, safe_z) to `design.toolpath_params`
+  - `designer_state.rs` `load_from_file()`: Added restoration of `tool_settings` and `toolpath_generator` from `design.toolpath_params`, plus `stock_material` from stock params
+  - `designer_state.rs` `load_from_file()`: Changed from `canvas.add_shape(obj.shape)` to `canvas.restore_shape(obj)` to preserve full DrawingObject with all properties
+  - `designer.rs` (UI) `save_as_file()` and `save_to_path()`: Added tool settings population to `design.toolpath_params`
+  - `designer.rs` (UI) load dialog: Added tool settings restoration to `state.tool_settings` and `state.toolpath_generator`
+- **Serialization Structure**: The `ToolpathParameters` struct in `serialization.rs` already had the correct fields:
+  - `feed_rate`, `spindle_speed`, `tool_diameter`, `cut_depth` for tool settings
+  - `stock_width`, `stock_height`, `stock_thickness`, `safe_z_height` for stock settings
+- **Result**: Design files now properly persist and restore all tool settings, stock settings, and per-shape properties (operation type, pocket depth, step down, step in, etc.)
+## Modularization Strategies
+
+### Splitting Large Widget Structs
+When extracting a struct to a separate module:
+1. **Add `#[derive(Clone)]`** if methods use `self.clone()` inside closures - this allows capturing the struct in `'static` closures
+2. **Make accessed fields `pub`** for cross-module access (e.g., `pub state: Rc<RefCell<...>>`)
+3. **Keep helper functions in the same module** as the struct that uses them (constants like `MM_PER_PT`, converter functions)
+4. **Re-export from mod.rs** with `pub mod new_module;` to maintain API
+
+### Closure Capture Patterns
+- GTK signal handlers require `'static` lifetime
+- Use `Rc<T>` fields and `self.clone()` pattern to share state with closures
+- The `Clone` trait on the outer struct clones all `Rc` fields (cheap)
+- Pattern: `let canvas = self.clone(); btn.connect_clicked(move |_| canvas.method());`
+
+## Module Splitting Strategy (Task 2.2)
+
+### Pattern: Directory Module Split
+- Convert `foo.rs` → `foo/mod.rs` + sub-files
+- Change private struct fields to `pub(crate)` for sub-module access
+- Sub-modules use `use super::*;` for parent imports
+- Each sub-module contains `impl StructName { ... }` blocks for its methods
+- Private methods moved to sub-modules become `pub(crate) fn`
+- Parent `mod.rs` adds `mod sub_module;` declarations (no `pub use` needed for internal impl blocks)
+- Rust resolves `mod foo;` to `foo.rs` OR `foo/mod.rs` — no parent changes needed
+
+### GTK4 Constructor Limitation
+- GTK4 widget `new()` constructors often span 1,000-2,000+ lines (building widget trees + connecting signals)
+- These constructors capture many local variables in closures, making them very difficult to split
+- **Strategy**: Extract non-constructor methods (event handlers, operations, UI builders) into sub-modules, keep `new()` in `mod.rs`
+- For truly massive constructors (2,000+ lines), extract UI builder helper functions that return widgets without closures
+
+## Type Alias Adoption (Task 3.1)
+
+### Key Aliases from `gcodekit5_core::types::aliases`
+- `Shared<T>` = `Rc<RefCell<T>>`, constructor: `shared(x)`
+- `SharedOption<T>` = `Rc<RefCell<Option<T>>>`, constructor: `shared_none()`
+- `SharedVec<T>` = `Rc<RefCell<Vec<T>>>`, constructor: `shared_vec()`
+- `ThreadSafe<T>` = `Arc<parking_lot::Mutex<T>>`, constructor: `thread_safe(x)`
+- `ThreadSafeRw<T>` = `Arc<parking_lot::RwLock<T>>`, constructor: `thread_safe_rw(x)`
+- All aliases re-exported at `gcodekit5_core` crate root
+
+### parking_lot vs std::sync Lock API
+- `parking_lot::Mutex::lock()` returns `MutexGuard` directly (no `Result`, no `.unwrap()`)
+- `parking_lot::Mutex::try_lock()` returns `Option<MutexGuard>` (use `if let Some(g)`, not `if let Ok(g)`)
+- `parking_lot::RwLock::read()/write()` return guards directly (no `.unwrap()`)
+- When converting from `std::sync::Mutex`, remove all `.unwrap()`, `.expect()`, `.map_err()` on lock calls
+- When converting `if let Ok(guard) = x.lock()` patterns, restructure to `let guard = x.lock();` (parking_lot never fails)
+
+### Test Code Caveat
+- Test code using `tokio::sync::Mutex` (async mutex with `.lock().await`) must NOT be converted to `ThreadSafe<T>` aliases — parking_lot Mutex is not async-compatible
+
+### GTK Box Name Collision
+- GTK files that `use gtk4::Box` shadow `std::boxed::Box` — any `Box<dyn Fn()>` in these files resolves to `gtk4::Box<dyn Fn()>` which fails
+- Use `std::boxed::Box<dyn Fn()>` for callback types in GTK files, or use type aliases defined outside the GTK module (aliases resolve at definition site for concrete types, but type aliases are transparent in Rust)
+- The `CellCallback`/`CellDataCallback<T>` aliases can only be used in files that do NOT import `gtk4::Box`
+- `SharedOption<std::boxed::Box<dyn Fn(...)>>` is the correct pattern for GTK callback fields

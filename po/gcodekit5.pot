@@ -1,0 +1,1214 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the GCodeKit5 package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: GCodeKit5 0.1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-12-12 17:54+0700\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+msgid "About"
+msgstr ""
+
+msgid "Connect"
+msgstr ""
+
+msgid "Copy"
+msgstr ""
+
+msgid "Cut"
+msgstr ""
+
+msgid "Disconnect"
+msgstr ""
+
+msgid "Documentation"
+msgstr ""
+
+msgid "Edit"
+msgstr ""
+
+msgid "Emergency stop (Ctrl-X)"
+msgstr ""
+
+msgid "Export G-Code..."
+msgstr ""
+
+msgid "Export SVG..."
+msgstr ""
+
+msgid "File"
+msgstr ""
+
+#. Polling is now handled centrally by MachineControlView to avoid race conditions on serial read
+#. Add Editor to Stack
+msgid "GCode Toolkit for CNC/Laser Machines"
+msgstr ""
+
+msgid "GCodeKit Contributors"
+msgstr ""
+
+msgid "GCodeKit5"
+msgstr ""
+
+msgid "Help"
+msgstr ""
+
+msgid "Home"
+msgstr ""
+
+msgid "Import"
+msgstr ""
+
+msgid "Machine"
+msgstr ""
+
+msgid "New"
+msgstr ""
+
+msgid "Open"
+msgstr ""
+
+msgid "Paste"
+msgstr ""
+
+msgid "Preferences"
+msgstr ""
+
+msgid "Quit"
+msgstr ""
+
+msgid "Redo"
+msgstr ""
+
+msgid "Reset"
+msgstr ""
+
+msgid "Run"
+msgstr ""
+
+msgid "Save"
+msgstr ""
+
+msgid "Save As..."
+msgstr ""
+
+msgid "Undo"
+msgstr ""
+
+# crates/gcodekit5-settings/src/config.rs
+msgid "Machine Control"
+msgstr ""
+
+msgid "G-Code Editor"
+msgstr ""
+
+msgid "Visualizer"
+msgstr ""
+
+msgid "CAM Tools"
+msgstr ""
+
+msgid "Designer"
+msgstr ""
+
+msgid "Device Config"
+msgstr ""
+
+msgid "Device Manager"
+msgstr ""
+
+msgid "CNC Tools"
+msgstr ""
+
+msgid "Materials"
+msgstr ""
+
+# +
+msgid "Device Console"
+msgstr ""
+
+msgid "Device Info"
+msgstr ""
+
+# crates/gcodekit5-ui/src/ui/gtk/designer_toolbox.rs
+msgid "Select"
+msgstr ""
+
+msgid "Rectangle"
+msgstr ""
+
+msgid "Circle"
+msgstr ""
+
+msgid "Line"
+msgstr ""
+
+msgid "Polyline"
+msgstr ""
+
+msgid "Text"
+msgstr ""
+
+msgid "Pan"
+msgstr ""
+
+msgid "Triangle"
+msgstr ""
+
+msgid "Polygon"
+msgstr ""
+
+msgid "Gear"
+msgstr ""
+
+msgid "Sprocket"
+msgstr ""
+
+msgid "Active tool:"
+msgstr ""
+
+msgid "Fast Shapes"
+msgstr ""
+
+msgid "Shape Gallery…"
+msgstr ""
+
+msgid "Feed (Speed Laser)"
+msgstr ""
+
+msgid "Feed Rate or Speed Laser"
+msgstr ""
+
+msgid "Speed (Power Laser)"
+msgstr ""
+
+msgid "Spindle Speed or Power Laser %"
+msgstr ""
+
+msgid "Tool Dia"
+msgstr ""
+
+msgid "Tool Diameter"
+msgstr ""
+
+msgid "Cut Depth"
+msgstr ""
+
+msgid "Target Cut Depth (positive)"
+msgstr ""
+
+msgid "Step Down"
+msgstr ""
+
+msgid "Depth per pass"
+msgstr ""
+
+msgid "Tool Settings…"
+msgstr ""
+
+msgid "Tool Parameters"
+msgstr ""
+
+msgid "Starting laser engraving:"
+msgstr ""
+
+msgid "lines"
+msgstr ""
+
+msgid "Work completed."
+msgstr ""
+
+msgid "Work stopped."
+msgstr ""
+
+msgid "Stopping..."
+msgstr ""
+
+msgid "Paused"
+msgstr ""
+
+msgid "Resuming"
+msgstr ""
+
+msgid "Unlocking..."
+msgstr ""
+
+msgid "Stock Width"
+msgstr ""
+
+msgid "Stock material width"
+msgstr ""
+
+msgid "Stock Height"
+msgstr ""
+
+msgid "Stock material height"
+msgstr ""
+
+msgid "Stock Thickness"
+msgstr ""
+
+msgid "Stock material thickness"
+msgstr ""
+
+msgid "Safe Z Height"
+msgstr ""
+
+msgid "Safe height for rapid moves"
+msgstr ""
+
+msgid "Resolution"
+msgstr ""
+
+msgid "Simulation resolution (lower = more detail)"
+msgstr ""
+
+msgid "Show Stock Removal"
+msgstr ""
+
+msgid "Stock Settings…"
+msgstr ""
+
+msgid "Stock Settings"
+msgstr ""
+
+msgid "Close"
+msgstr ""
+
+msgid "Stock Parameters"
+msgstr ""
+
+msgid "Generate G-Code"
+msgstr ""
+
+# crates/gcodekit5-ui/src/ui/gtk/designer.rs
+msgid "View Controls"
+msgstr ""
+
+msgid "Cancel"
+msgstr ""
+
+msgid "Add"
+msgstr ""
+
+msgid "Enter text"
+msgstr ""
+
+msgid "Font:"
+msgstr ""
+
+msgid "Size:"
+msgstr ""
+
+msgid "Style:"
+msgstr ""
+
+msgid "Zoom Out"
+msgstr ""
+
+msgid "Fit to Content"
+msgstr ""
+
+msgid "Fit to Viewport"
+msgstr ""
+
+msgid "Fit to Device Working Area"
+msgstr ""
+
+msgid "Toggle Scrollbars"
+msgstr ""
+
+msgid "Keyboard Shortcuts"
+msgstr ""
+
+msgid "Designer shortcuts"
+msgstr ""
+
+msgid "Right click for context menu"
+msgstr ""
+
+msgid "Zoom In"
+msgstr ""
+
+msgid "No shapes yet"
+msgstr ""
+
+msgid "Use the toolbox on the left to start drawing."
+msgstr ""
+
+msgid "Load Design"
+msgstr ""
+
+msgid "Hide Properties"
+msgstr ""
+
+msgid "Hide"
+msgstr ""
+
+msgid "Unhide Properties"
+msgstr ""
+
+msgid "Unhide"
+msgstr ""
+
+msgid "Show Grid"
+msgstr ""
+
+msgid "Grid spacing"
+msgstr ""
+
+msgid "Snap"
+msgstr ""
+
+msgid "Snap threshold"
+msgstr ""
+
+msgid "Snap to grid"
+msgstr ""
+
+msgid "Show Toolpaths"
+msgstr ""
+
+msgid "Constraint"
+msgstr ""
+
+msgid "G-Code generated"
+msgstr ""
+
+msgid "New design created"
+msgstr ""
+
+msgid "Open Design File"
+msgstr ""
+
+msgid "GCodeKit Design Files"
+msgstr ""
+
+msgid "All Files"
+msgstr ""
+
+msgid "Loaded:"
+msgstr ""
+
+msgid "Error loading file:"
+msgstr ""
+
+msgid "Import Design File"
+msgstr ""
+
+msgid "Supported Files"
+msgstr ""
+
+msgid "Imported:"
+msgstr ""
+
+msgid "Error importing file:"
+msgstr ""
+
+msgid "Save Design File"
+msgstr ""
+
+msgid "Error saving file:"
+msgstr ""
+
+msgid "Make sure to include the file extension (.nc, .gcode, .gc o .tap)"
+msgstr ""
+
+msgid "Exported G-Code:"
+msgstr ""
+
+msgid "Error exporting G-Code:"
+msgstr ""
+
+msgid "Nothing to export"
+msgstr ""
+
+# crates/gcodekit5-ui/src/ui/gtk/visualizer.rs
+msgid "Hide Sidebar"
+msgstr ""
+
+msgid "2D View"
+msgstr ""
+
+msgid "3D View"
+msgstr ""
+
+msgid "Mode"
+msgstr ""
+
+msgid "Show Rapid Moves"
+msgstr ""
+
+msgid "Show Cutting Moves"
+msgstr ""
+
+msgid "Show Machine Bounds"
+msgstr ""
+
+msgid "Show Intensity"
+msgstr ""
+
+msgid "Show Laser/Spindle"
+msgstr ""
+
+msgid "Guides"
+msgstr ""
+
+msgid "Simulation"
+msgstr ""
+
+msgid "No G-code loaded"
+msgstr ""
+
+msgid "Open a file to preview toolpaths."
+msgstr ""
+
+msgid "Visualizer shortcuts"
+msgstr ""
+
+# crates/gcodekit5-ui/src/ui/gtk/device_manager.rs
+msgid "Delete “{}”? This cannot be undone."
+msgstr ""
+
+# crates/gcodekit5-ui/src/ui/gtk/machine_control.rs
+msgid "No ports available"
+msgstr ""
+
+msgid "Refresh ports"
+msgstr ""
+
+msgid "Connection"
+msgstr ""
+
+msgid "Disconnected"
+msgstr ""
+
+msgid "Feed: -"
+msgstr ""
+
+msgid "Spindle: -"
+msgstr ""
+
+msgid "Unlock from ALARM ($X)"
+msgstr ""
+
+msgid "Machine State"
+msgstr ""
+
+msgid "Work Coordinates"
+msgstr ""
+
+msgid "Send G-code from the editor"
+msgstr ""
+
+msgid "Stop job: abort streaming (does not reset controller)"
+msgstr ""
+
+msgid "Pause streaming (!)"
+msgstr ""
+
+msgid "Resume streaming (~)"
+msgstr ""
+
+msgid "Stop aborts streaming; E‑Stop resets the controller."
+msgstr ""
+
+msgid "Job Control"
+msgstr ""
+
+msgid "Connect to enable controls."
+msgstr ""
+
+msgid "Current Feed & Spindle"
+msgstr ""
+
+msgid "Decrease feed rate by 10%"
+msgstr ""
+
+msgid "Decrease feed rate by 1%"
+msgstr ""
+
+msgid "Reset feed rate to 100%"
+msgstr ""
+
+msgid "Increase feed rate by 1%"
+msgstr ""
+
+msgid "Increase feed rate by 10%"
+msgstr ""
+
+msgid "Decrease spindle speed by 10%"
+msgstr ""
+
+msgid "Decrease spindle speed by 1%"
+msgstr ""
+
+msgid "Reset spindle speed to 100%"
+msgstr ""
+
+msgid "Stop spindle"
+msgstr ""
+
+msgid "Increase spindle speed by 1%"
+msgstr ""
+
+msgid "Increase spindle speed by 10%"
+msgstr ""
+
+msgid "Work Coordinates (WPos)"
+msgstr ""
+
+msgid "Zero"
+msgstr ""
+
+msgid "Set work axis to zero"
+msgstr ""
+
+msgid "Set active work position to 0 for X/Y/Z"
+msgstr ""
+
+msgid "Include Z"
+msgstr ""
+
+msgid "Jog Feed:"
+msgstr ""
+
+msgid "Rapid move to work origin (X/Y, or X/Y/Z if Include Z is checked)"
+msgstr ""
+
+msgid "When checked, Go to Work Zero will also move to Z0"
+msgstr ""
+
+msgid "Machine Coordinates (MPos)"
+msgstr ""
+
+msgid "Keyboard jog: 8/2/4/6 (XY), 9/3 (Z)"
+msgstr ""
+
+msgid "Emergency stop (soft reset Ctrl-X)"
+msgstr ""
+
+msgid "Clear console"
+msgstr ""
+
+msgid "Copy last error"
+msgstr ""
+
+msgid "Device Console not available"
+msgstr ""
+
+msgid "Hide device console"
+msgstr ""
+
+msgid "Show Console"
+msgstr ""
+
+msgid "Show device console"
+msgstr ""
+
+msgid "No G-Code to Send"
+msgstr ""
+
+msgid "Please load or type G-Code into the editor first."
+msgstr ""
+
+msgid "Zero All Axes"
+msgstr ""
+
+msgid "Zero all work axes?"
+msgstr ""
+
+msgid "Go to Work Zero"
+msgstr ""
+
+msgid "This sets the active work coordinate system so the current X/Y/Z becomes 0."
+msgstr ""
+
+msgid "Port: -"
+msgstr ""
+
+msgid "State: Disconnected"
+msgstr ""
+
+msgid "Error disconnecting"
+msgstr ""
+
+msgid "Connecting…"
+msgstr ""
+
+msgid "State: Connecting…"
+msgstr ""
+
+msgid "Connected to"
+msgstr ""
+
+msgid "Controller error"
+msgstr ""
+
+msgid "Streaming Completed."
+msgstr ""
+
+msgid "Job Finished."
+msgstr ""
+
+msgid "ALARM: Unlock required."
+msgstr ""
+
+msgid "Error connecting"
+msgstr ""
+
+msgid "No valid G-Code lines found."
+msgstr ""
+
+# crates/gcodekit5-ui/src/ui/gtk/cam-tools/bitmap_engraving.rs
+msgid "Convert bitmap images to G-code for laser engraving. Supports various halftoning methods and image transformations."
+msgstr ""
+
+msgid "No image selected"
+msgstr ""
+
+msgid "Width:"
+msgstr ""
+
+msgid "Image File"
+msgstr ""
+
+msgid "Image Path:"
+msgstr ""
+
+msgid "Scanning"
+msgstr ""
+
+msgid "Scan Direction:"
+msgstr ""
+
+msgid "Pixels per mm:"
+msgstr ""
+
+msgid "Line Spacing:"
+msgstr ""
+
+msgid "Bidirectional:"
+msgstr ""
+
+msgid "Image Transformations"
+msgstr ""
+
+msgid "Invert:"
+msgstr ""
+
+msgid "Mirror X:"
+msgstr ""
+
+msgid "Mirror Y:"
+msgstr ""
+
+msgid "Rotation:"
+msgstr ""
+
+msgid "Halftoning"
+msgstr ""
+
+msgid "Method:"
+msgstr ""
+
+msgid "Dot Size:"
+msgstr ""
+
+msgid "Threshold:"
+msgstr ""
+
+msgid "Select Image"
+msgstr ""
+
+msgid "No Image Selected"
+msgstr ""
+
+msgid "Please select an image file first."
+msgstr ""
+
+msgid "Generating Engraving"
+msgstr ""
+
+msgid "Processing image..."
+msgstr ""
+
+msgid "Loading image..."
+msgstr ""
+
+msgid "Generating G-code..."
+msgstr ""
+
+msgid "Finalizing..."
+msgstr ""
+
+msgid "Engraving Generation Failed"
+msgstr ""
+
+msgid "Failed to generate engraving"
+msgstr ""
+
+msgid "Save Parameters"
+msgstr ""
+
+msgid "Load Parameters"
+msgstr ""
+
+# gcodekit5/crates/gcodekit5-ui/src/ui/gtk/cam_tools/vector_engraving.rs
+msgid "Convert vector graphics (SVG, DXF) to G-code for laser cutting/engraving. Supports hatching, multi-pass, and path optimization."
+msgstr ""
+
+msgid "No file selected"
+msgstr ""
+
+msgid "No vector file selected"
+msgstr ""
+
+msgid "Z Step Down:"
+msgstr ""
+
+msgid "Desired Width:"
+msgstr ""
+
+msgid "Hatch Spacing:"
+msgstr ""
+
+msgid "Hatch Tolerance:"
+msgstr ""
+
+msgid "Vector File"
+msgstr ""
+
+msgid "File Path:"
+msgstr ""
+
+msgid "Browse..."
+msgstr ""
+
+msgid "Output Settings"
+msgstr ""
+
+msgid "Feed Rate:"
+msgstr ""
+
+msgid "Travel Rate:"
+msgstr ""
+
+msgid "Laser Power"
+msgstr ""
+
+msgid "Cut Power (%):"
+msgstr ""
+
+msgid "Engrave Power (%):"
+msgstr ""
+
+msgid "Power Scale (S):"
+msgstr ""
+
+msgid "Invert Power:"
+msgstr ""
+
+msgid "Multi-Pass Settings"
+msgstr ""
+
+msgid "Multi-Pass:"
+msgstr ""
+
+msgid "Number of Passes:"
+msgstr ""
+
+msgid "Hatching"
+msgstr ""
+
+msgid "Enable Hatch:"
+msgstr ""
+
+msgid "Hatch Angle (°):"
+msgstr ""
+
+msgid "Cross Hatch:"
+msgstr ""
+
+msgid "Dwell Settings"
+msgstr ""
+
+msgid "Enable Dwell:"
+msgstr ""
+
+msgid "Dwell Time (s):"
+msgstr ""
+
+msgid "Work Offsets"
+msgstr ""
+
+msgid "Home Device Before Start"
+msgstr ""
+
+msgid "Unknown file extension"
+msgstr ""
+
+msgid "Unsupported file format"
+msgstr ""
+
+msgid "Failed to load SVG"
+msgstr ""
+
+msgid "Failed to load DXF"
+msgstr ""
+
+# gcodekit5/crates/gcodekit5-ui/src/ui/gtk/cam_tools/mod.rs
+msgid "Tabbed Box Maker"
+msgstr ""
+
+msgid "Generate G-code for laser/CNC cut boxes with finger joints"
+msgstr ""
+
+msgid "Jigsaw Puzzle Generator"
+msgstr ""
+
+msgid "Create custom jigsaw puzzle patterns from images"
+msgstr ""
+
+msgid "Laser Image Engraver"
+msgstr ""
+
+msgid "Convert raster images to G-code for laser engraving"
+msgstr ""
+
+msgid "Laser Vector Engraver"
+msgstr ""
+
+msgid "Convert SVG and DXF vector files to G-code"
+msgstr ""
+
+msgid "Speeds and Feeds Calculator"
+msgstr ""
+
+msgid "Calculate cutting speeds and feeds for your materials"
+msgstr ""
+
+msgid "Spoilboard Surfacing"
+msgstr ""
+
+msgid "Generate surfacing toolpaths to flatten your spoilboard"
+msgstr ""
+
+msgid "Create Spoilboard Grid"
+msgstr ""
+
+msgid "Generate grid patterns for spoilboard alignment"
+msgstr ""
+
+msgid "Gerber to G-Code"
+msgstr ""
+
+msgid "Convert Gerber files to G-Code for PCB milling"
+msgstr ""
+
+msgid "Drill Press"
+msgstr ""
+
+msgid "Emulate a drill press with peck drilling and helical cycles"
+msgstr ""
+
+msgid "generators"
+msgstr ""
+
+msgid "engraving"
+msgstr ""
+
+msgid "calculators"
+msgstr ""
+
+msgid "maintenance"
+msgstr ""
+
+# gcodekit5/crates/gcodekit5-ui/src/ui/gtk/cam_tools/tabbed_box.rs
+msgid "Generate G-code for laser/CNC cut boxes with finger joints based on the boxes.py algorithm."
+msgstr ""
+
+msgid "X (Width):"
+msgstr ""
+
+msgid "Y (Depth):"
+msgstr ""
+
+msgid "H (Height):"
+msgstr ""
+
+msgid "Thickness:"
+msgstr ""
+
+msgid "Burn / Tool Dia:"
+msgstr ""
+
+msgid "Play (fit tolerance):"
+msgstr ""
+
+msgid "Extra Length:"
+msgstr ""
+
+msgid "Full Box"
+msgstr ""
+
+msgid "No Top"
+msgstr ""
+
+msgid "No Bottom"
+msgstr ""
+
+msgid "No Sides"
+msgstr ""
+
+msgid "No Front/Back"
+msgstr ""
+
+msgid "No Left/Right"
+msgstr ""
+
+msgid "Walls and Floor"
+msgstr ""
+
+msgid "Walls Only"
+msgstr ""
+
+msgid "Floor Only"
+msgstr ""
+
+msgid "None"
+msgstr ""
+
+msgid "Offset X:"
+msgstr ""
+
+msgid "Offset Y:"
+msgstr ""
+
+msgid "Box Dimensions"
+msgstr ""
+
+msgid "Outside Dims:"
+msgstr ""
+
+msgid "Box Configuration"
+msgstr ""
+
+msgid "Box Type:"
+msgstr ""
+
+msgid "Dividers X:"
+msgstr ""
+
+msgid "Dividers Y:"
+msgstr ""
+
+msgid "Divider Keying:"
+msgstr ""
+
+msgid "Optimize Layout:"
+msgstr ""
+
+msgid "Material Settings"
+msgstr ""
+
+msgid "Finger Joint Settings (multiples of thickness)"
+msgstr ""
+
+msgid "Finger Width:"
+msgstr ""
+
+msgid "Space Width:"
+msgstr ""
+
+msgid "Laser Settings"
+msgstr ""
+
+msgid "Passes:"
+msgstr ""
+
+msgid "Power (S):"
+msgstr ""
+
+msgid "Work Origin Offsets"
+msgstr ""
+
+msgid "Load"
+msgstr ""
+
+msgid "Generate G-code"
+msgstr ""
+
+msgid "Generate Shapes"
+msgstr ""
+
+msgid "Generating Box"
+msgstr ""
+
+msgid "Generating box panels..."
+msgstr ""
+
+# gcodekit5/crates/gcodekit5-ui/src/ui/gtk/cam_tools/jigsaw.rs
+msgid "Create custom jigsaw puzzle patterns from images or blank material. Features Draradech's algorithm for unique pieces."
+msgstr ""
+
+msgid "Height:"
+msgstr ""
+
+msgid "Kerf:"
+msgstr ""
+
+msgid "Corner Radius:"
+msgstr ""
+
+msgid "Puzzle Dimensions"
+msgstr ""
+
+msgid "Grid Configuration"
+msgstr ""
+
+msgid "Pieces Across:"
+msgstr ""
+
+msgid "Pieces Down:"
+msgstr ""
+
+msgid "Puzzle Parameters"
+msgstr ""
+
+msgid "Tab Size (%):"
+msgstr ""
+
+msgid "Jitter (%):"
+msgstr ""
+
+msgid "Random Seed:"
+msgstr ""
+
+msgid "Generate"
+msgstr ""
+
+msgid "Generating Puzzle"
+msgstr ""
+
+msgid "Generating puzzle pieces..."
+msgstr ""
+
+msgid "Cancelled by user"
+msgstr ""
+
+msgid "Puzzle Generation Failed"
+msgstr ""
+
+msgid "Failed to generate puzzle"
+msgstr ""
+
+# gcodekit5/crates/gcodekit5-ui/src/ui/gtk/designer_properties/builders.rs
+msgid "Position"
+msgstr ""
+
+msgid "Size"
+msgstr ""
+
+msgid "Lock Aspect:"
+msgstr ""
+
+msgid "Angle:"
+msgstr ""
+
+msgid "Corner"
+msgstr ""
+
+msgid "Slot Mode:"
+msgstr ""
+
+msgid "Content:"
+msgstr ""
+
+msgid "Sides:"
+msgstr ""
+
+msgid "Module:"
+msgstr ""
+
+msgid "Teeth:"
+msgstr ""
+
+msgid "Pressure Angle:"
+msgstr ""
+
+msgid "Pitch:"
+msgstr ""
+
+msgid "Roller Dia:"
+msgstr ""
+
+msgid "Geometry Operations"
+msgstr ""
+
+msgid "Fillet:"
+msgstr ""
+
+msgid "Chamfer:"
+msgstr ""
+
+msgid "CAM Properties"
+msgstr ""
+
+msgid "Operation:"
+msgstr ""
+
+msgid "Profile"
+msgstr ""
+
+msgid "Depth:"
+msgstr ""
+
+msgid "Step Down:"
+msgstr ""
+
+msgid "Step In:"
+msgstr ""
+
+msgid "Ramp Angle:"
+msgstr ""
+
+msgid "Strategy:"
+msgstr ""
+
+msgid "Raster Fill (%):"
+msgstr ""
+
+# gcodekit5/crates/gcodekit5-ui/src/ui/gtk/designer_properties/mod.rs
+msgid "Select a shape to edit its properties"
+msgstr ""
+
+# gcodekit5/crates/gcodekit5-ui/src/ui/gtk/designer_properties/builders.rs
+msgid "Laser Engraving"
+msgstr ""
+
+msgid "Min Power:"
+msgstr ""
+
+msgid "Max Power:"
+msgstr ""
+
+msgid "Resolution:"
+msgstr ""
+
+msgid "Dithering:"
+msgstr ""
+
+msgid "Halftone Threshold:"
+msgstr ""

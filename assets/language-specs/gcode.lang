@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<language id="gcode" _name="G-Code" version="2.0" _section="Sources">
+  <metadata>
+    <property name="mimetypes">text/x-gcode</property>
+    <property name="globs">*.gcode;*.nc;*.ngc;*.tap;*.cnc</property>
+  </metadata>
+
+  <styles>
+    <style id="comment" _name="Comment" map-to="def:comment"/>
+    <style id="gcode" _name="G-Code" map-to="def:keyword"/>
+    <style id="mcode" _name="M-Code" map-to="def:builtin"/>
+    <style id="coordinate" _name="Coordinate" map-to="def:type"/>
+    <style id="parameter" _name="Parameter" map-to="def:constant"/>
+    <style id="line-number" _name="Line Number" map-to="def:identifier"/>
+  </styles>
+
+  <definitions>
+    <context id="gcode">
+      <include>
+        
+        <!-- Comments: ( ... ) or ; ... -->
+        <context id="comment-paren" style-ref="comment" class="comment">
+          <start>\(</start>
+          <end>\)</end>
+        </context>
+
+        <context id="comment-semicolon" style-ref="comment" end-at-line-end="true" class="comment">
+          <start>;</start>
+        </context>
+
+        <!-- Line Numbers: N123 -->
+        <context id="line-number" style-ref="line-number">
+          <match case-sensitive="false">N\d+</match>
+        </context>
+
+        <!-- G-Codes: G0, G1, G90, etc. -->
+        <context id="gcodes" style-ref="gcode">
+          <match case-sensitive="false">G\d+(\.\d+)?</match>
+        </context>
+
+        <!-- M-Codes: M3, M5, M30, etc. -->
+        <context id="mcodes" style-ref="mcode">
+          <match case-sensitive="false">M\d+(\.\d+)?</match>
+        </context>
+
+        <!-- Coordinates: X, Y, Z, A, B, C, I, J, K, R -->
+        <context id="coordinates" style-ref="coordinate">
+          <match case-sensitive="false">[XYZABCIJKR]-?\d+(\.\d+)?</match>
+        </context>
+
+        <!-- Parameters: F, S, P, T, D, H, L, Q -->
+        <context id="parameters" style-ref="parameter">
+          <match case-sensitive="false">[FSPTDHLQ]-?\d+(\.\d+)?</match>
+        </context>
+
+      </include>
+    </context>
+  </definitions>
+</language>

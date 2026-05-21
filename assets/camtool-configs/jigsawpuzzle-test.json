@@ -1,0 +1,16 @@
+{
+  "width": 300.0,
+  "height": 180.0,
+  "pieces_across": 10,
+  "pieces_down": 15,
+  "kerf": 0.5,
+  "laser_passes": 3,
+  "laser_power": 1000,
+  "feed_rate": 500.0,
+  "seed": 10007,
+  "tab_size_percent": 20.0,
+  "jitter_percent": 4.0,
+  "corner_radius": 2.0,
+  "offset_x": 0.0,
+  "offset_y": 0.0
+}

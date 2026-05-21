@@ -1,0 +1,23 @@
+/target
+/target/temp
+assets/screenshots/*
+.ragent/codeindex/*
+.ragent/ragent.json
+
+# Node.js dependencies
+node_modules/
+
+# Backup files
+*.backup
+*.old
+
+# Local tooling
+.serena/
+
+# Mutation testing output
+mutants.out*/
+mutants-results/
+mutants-output.txt
+
+# Índices locales de las herramientas de IA de Tim Hawkins
+.ragent/

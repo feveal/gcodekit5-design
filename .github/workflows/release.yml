@@ -1,0 +1,411 @@
+name: Build and Release
+
+on:
+  push:
+    tags: [ "v*" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build - ${{ matrix.platform.os_name }}
+    runs-on: ${{ matrix.platform.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - os_name: Linux-x86_64
+            os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            bin: gcodekit5
+            name_suffix: linux-x86_64
+          - os_name: macOS-ARM64
+            os: macos-14
+            target: aarch64-apple-darwin
+            bin: gcodekit5
+            name_suffix: macos-arm64
+          - os_name: Windows-x86_64
+            os: windows-latest
+            target: x86_64-pc-windows-gnu
+            bin: gcodekit5.exe
+            name_suffix: windows-x86_64
+        
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set Asset Name
+      shell: bash
+      run: echo "ASSET_NAME=gcodekit5-${{ github.ref_name }}-${{ matrix.platform.name_suffix }}" >> $GITHUB_ENV
+
+    - name: Install Linux Dependencies
+      if: matrix.platform.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          libgtk-4-dev \
+          libadwaita-1-dev \
+          libglib2.0-dev \
+          libpango1.0-dev \
+          libcairo2-dev \
+          libgdk-pixbuf2.0-dev \
+          libgtksourceview-5-dev \
+          libfontconfig1-dev \
+          libxcb1-dev \
+          libxkbcommon-dev \
+          libx11-dev \
+          libwayland-cursor0 \
+          libwayland-egl1 \
+          libwayland-dev \
+          libxkbcommon-x11-dev \
+          libudev-dev \
+          liblzma-dev \
+          libbz2-dev \
+          libfuse2 \
+          gettext \
+          librsvg2-dev \
+          flatpak \
+          flatpak-builder
+        flatpak remote-add --user --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo
+        flatpak install --user -y flathub org.freedesktop.Platform//24.08 org.freedesktop.Sdk//24.08
+
+    - name: Install macOS Dependencies
+      if: startsWith(matrix.platform.os, 'macos')
+      run: |
+        brew install gtk4 gtksourceview5 libadwaita adwaita-icon-theme librsvg libpng jpeg webp
+        
+        # Get the formula path for proper linking
+        export PKG_CONFIG_PATH="$(brew --prefix gtk4)/lib/pkgconfig:$(brew --prefix gtksourceview5)/lib/pkgconfig:$(brew --prefix libadwaita)/lib/pkgconfig:$PKG_CONFIG_PATH"
+        echo "PKG_CONFIG_PATH=$PKG_CONFIG_PATH" >> $GITHUB_ENV
+
+    - name: Install Windows Dependencies (MSYS2)
+      if: matrix.platform.os == 'windows-latest'
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: UCRT64
+        update: true
+        path-type: inherit
+        install: >-
+          mingw-w64-ucrt-x86_64-gtk4
+          mingw-w64-ucrt-x86_64-gtksourceview5
+          mingw-w64-ucrt-x86_64-libadwaita
+          mingw-w64-ucrt-x86_64-librsvg
+          mingw-w64-ucrt-x86_64-pkg-config
+          mingw-w64-ucrt-x86_64-gcc
+          mingw-w64-ucrt-x86_64-rust
+          mingw-w64-ucrt-x86_64-adwaita-icon-theme
+
+    - name: Set Windows Environment
+      if: matrix.platform.os == 'windows-latest'
+      shell: bash
+      run: |
+        echo "C:/msys64/ucrt64/bin" >> $GITHUB_PATH
+        echo "PKG_CONFIG_PATH=C:/msys64/ucrt64/lib/pkgconfig" >> $GITHUB_ENV
+        echo "GTK_INSTALL_PATH=C:/msys64/ucrt64" >> $GITHUB_ENV
+
+    - name: Install Rust toolchain
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: ${{ matrix.platform.target }}
+
+    - name: Build (macOS)
+      if: startsWith(matrix.platform.os_name, 'macOS')
+      env:
+        PKG_CONFIG_ALLOW_CROSS: 1
+      run: |
+        cargo build --release --target ${{ matrix.platform.target }}
+        
+        # Create app bundle
+        mkdir -p "GCodeKit.app/Contents/MacOS"
+        mkdir -p "GCodeKit.app/Contents/Resources"
+        mkdir -p "GCodeKit.app/Contents/Frameworks"
+        
+        # Copy the binary
+        cp target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }} "GCodeKit.app/Contents/MacOS/gcodekit5"
+        
+        # Copy app icon and other resources
+        cp assets/Pictures/com.github.thawkins.gcodekit5.png "GCodeKit.app/Contents/Resources/AppIcon.png"
+        
+        # Create Info.plist
+        cat > "GCodeKit.app/Contents/Info.plist" << 'EOF'
+        <?xml version="1.0" encoding="UTF-8"?>
+        <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+        <plist version="1.0">
+        <dict>
+            <key>CFBundleDevelopmentRegion</key>
+            <string>en</string>
+            <key>CFBundleExecutable</key>
+            <string>gcodekit5</string>
+            <key>CFBundleIdentifier</key>
+            <string>com.github.thawkins.gcodekit5</string>
+            <key>CFBundleInfoDictionaryVersion</key>
+            <string>6.0</string>
+            <key>CFBundleName</key>
+            <string>GCodeKit</string>
+            <key>CFBundlePackageType</key>
+            <string>APPL</string>
+            <key>CFBundleShortVersionString</key>
+            <string>${{ github.ref_name }}</string>
+            <key>CFBundleVersion</key>
+            <string>1</string>
+            <key>NSHighResolutionCapable</key>
+            <true/>
+            <key>NSPrincipalClass</key>
+            <string>NSApplication</string>
+            <key>NSHumanReadableCopyright</key>
+            <string>Copyright © 2025 GCodeKit Contributors</string>
+        </dict>
+        </plist>
+        EOF
+        
+        # Bundle GTK4 and SourceView frameworks
+        bash scripts/macos-bundle-frameworks.sh "${{ matrix.platform.target }}"
+        
+        # Create DMG
+        bash scripts/macos-create-dmg.sh "${{ github.ref_name }}" "${{ matrix.platform.name_suffix }}"
+
+    - name: Build (Linux)
+      if: matrix.platform.os_name == 'Linux-x86_64'
+      run: |
+        timeout 600 cargo build --release --target ${{ matrix.platform.target }}
+        cp target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }} ${{ env.ASSET_NAME }}
+        cp target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }} gcodekit5-linux-x86_64
+        
+        # Install packaging tools
+        cargo install cargo-deb
+        cargo install cargo-generate-rpm
+
+        # Build Deb
+        cargo deb --target ${{ matrix.platform.target }} --no-build --output gcodekit5-${{ github.ref_name }}-linux-x86_64.deb
+
+        # Build RPM
+        cargo generate-rpm --target ${{ matrix.platform.target }} --output gcodekit5-${{ github.ref_name }}-linux-x86_64.rpm
+        
+        # Build Flatpak
+        flatpak-builder --user --install-deps-from=flathub --force-clean build-dir flatpak/com.github.thawkins.gcodekit5.yml --repo=repo
+        flatpak build-bundle repo gcodekit5-${{ github.ref_name }}-linux-x86_64.flatpak com.github.thawkins.gcodekit5
+
+        # Build AppImage
+        mkdir -p AppDir/usr/bin
+        cp target/${{ matrix.platform.target }}/release/${{ matrix.platform.bin }} AppDir/usr/bin/
+        
+        wget -q https://github.com/linuxdeploy/linuxdeploy/releases/download/continuous/linuxdeploy-x86_64.AppImage
+        wget -q https://raw.githubusercontent.com/linuxdeploy/linuxdeploy-plugin-gtk/master/linuxdeploy-plugin-gtk.sh
+        chmod +x linuxdeploy-x86_64.AppImage
+        chmod +x linuxdeploy-plugin-gtk.sh
+        
+        export VERSION="${{ github.ref_name }}"
+        ./linuxdeploy-x86_64.AppImage \
+          --appdir AppDir \
+          --plugin gtk \
+          --output appimage \
+          --icon-file assets/Pictures/com.github.thawkins.gcodekit5.png \
+          --desktop-file flatpak/com.github.thawkins.gcodekit5.desktop \
+          --executable AppDir/usr/bin/${{ matrix.platform.bin }}
+
+        find . -maxdepth 1 -name "gcodekit5-*.AppImage" -exec mv {} gcodekit5-${{ github.ref_name }}-linux-x86_64.AppImage \;
+
+    - name: Build (Windows)
+      if: matrix.platform.os == 'windows-latest'
+      shell: msys2 {0}
+      run: |
+        # Build the application using MSYS2's Rust
+        cargo build --release
+        
+        # Create distribution directory
+        mkdir -p dist/gcodekit5/bin
+        mkdir -p dist/gcodekit5/share/glib-2.0/schemas
+        mkdir -p dist/gcodekit5/share/icons
+        mkdir -p dist/gcodekit5/share/gtksourceview-5
+        mkdir -p dist/gcodekit5/lib/gdk-pixbuf-2.0/2.10.0/loaders
+        
+        # Copy executable
+        cp target/release/${{ matrix.platform.bin }} dist/gcodekit5/bin/
+        
+        # Copy GTK4 and related DLLs
+        MSYS_PATH="/ucrt64"
+        
+        # Copy required DLLs
+        for dll in libgtk-4-1.dll libgdk_pixbuf-2.0-0.dll libgio-2.0-0.dll libglib-2.0-0.dll \
+                   libgobject-2.0-0.dll libgmodule-2.0-0.dll libpango-1.0-0.dll libpangocairo-1.0-0.dll \
+                   libpangowin32-1.0-0.dll libcairo-2.dll libcairo-gobject-2.dll libgraphene-1.0-0.dll \
+                   libharfbuzz-0.dll libfribidi-0.dll libfontconfig-1.dll libfreetype-6.dll \
+                   libpixman-1-0.dll libpng16-16.dll libjpeg-8.dll libtiff-6.dll libwebp-7.dll \
+                   libepoxy-0.dll libintl-8.dll libiconv-2.dll libpcre2-8-0.dll libffi-8.dll \
+                   zlib1.dll libbz2-1.dll libbrotlidec.dll libbrotlicommon.dll libexpat-1.dll \
+                   liblzma-5.dll libzstd.dll libdeflate.dll libgtksourceview-5-0.dll \
+                   libadwaita-1-0.dll librsvg-2-2.dll libxml2-2.dll libxml2-16.dll libwinpthread-1.dll \
+                   libgcc_s_seh-1.dll libstdc++-6.dll libLerc.dll libjbig-0.dll \
+                   libsharpyuv-0.dll libwebpdemux-2.dll libwebpmux-3.dll libpangoft2-1.0-0.dll \
+                   libcairo-script-interpreter-2.dll libappstream-5.dll libyaml-0-2.dll \
+                   libcurl-4.dll libnghttp2-14.dll libpsl-5.dll libidn2-0.dll libssh2-1.dll \
+                   libunistring-5.dll libnghttp3-9.dll libxmlb-2.dll libngtcp2-16.dll \
+                   libngtcp2_crypto_ossl-0.dll libcrypto-3-x64.dll libssl-3-x64.dll \
+                   libgstreamer-1.0-0.dll libgstbase-1.0-0.dll libgstd3d12-1.0-0.dll \
+                   libgstallocators-1.0-0.dll libgstvideo-1.0-0.dll libgstaudio-1.0-0.dll \
+                   libgstpbutils-1.0-0.dll libgstgl-1.0-0.dll libgstplay-1.0-0.dll \
+                   libgstplayer-1.0-0.dll libgsttag-1.0-0.dll libgstfft-1.0-0.dll libgstd3dshader-1.0-0.dll \
+                   libharfbuzz-subset-0.dll libharfbuzz-icu-0.dll libgraphite2.dll \
+                   libicuuc76.dll libicudata76.dll libicuin76.dll liborc-0.4-0.dll liblzo2-2.dll \
+                   libthai-0.dll libdatrie-1.dll; do
+          if [ -f "$MSYS_PATH/bin/$dll" ]; then
+            cp "$MSYS_PATH/bin/$dll" dist/gcodekit5/bin/
+          fi
+        done
+        
+        # Copy all available language/script support DLLs (Pango modules)
+        # These provide rendering support for various scripts and languages
+        for pattern in libpango*.dll; do
+          for dll in $MSYS_PATH/bin/$pattern; do
+            if [ -f "$dll" ]; then
+              cp "$dll" dist/gcodekit5/bin/ 2>/dev/null || true
+            fi
+          done
+        done
+        
+        # Copy GLib schemas
+        cp -r $MSYS_PATH/share/glib-2.0/schemas/* dist/gcodekit5/share/glib-2.0/schemas/ || true
+        
+        # Copy icons
+        cp -r $MSYS_PATH/share/icons/Adwaita dist/gcodekit5/share/icons/ || true
+        cp -r $MSYS_PATH/share/icons/hicolor dist/gcodekit5/share/icons/ || true
+        
+        # Copy GtkSourceView data
+        cp -r $MSYS_PATH/share/gtksourceview-5/* dist/gcodekit5/share/gtksourceview-5/ || true
+        
+        # Copy GDK-Pixbuf loaders
+        cp $MSYS_PATH/lib/gdk-pixbuf-2.0/2.10.0/loaders/*.dll dist/gcodekit5/lib/gdk-pixbuf-2.0/2.10.0/loaders/ || true
+        cp $MSYS_PATH/lib/gdk-pixbuf-2.0/2.10.0/loaders.cache dist/gcodekit5/lib/gdk-pixbuf-2.0/2.10.0/ || true
+        
+        # Copy license
+        cp wix/License.rtf dist/gcodekit5/ || true
+        
+        echo "Distribution prepared in dist/gcodekit5"
+        ls -la dist/gcodekit5/bin/
+
+    - name: Generate WiX Component Groups
+      if: matrix.platform.os == 'windows-latest'
+      shell: pwsh
+      run: |
+        # Ensure the distribution directory exists and has content
+        if (!(Test-Path "dist\gcodekit5\bin\gcodekit5.exe")) {
+          Write-Error "Distribution not found! Expected dist\gcodekit5\bin\gcodekit5.exe"
+          exit 1
+        }
+        
+        # Copy GTK DLLs to target/release for cargo-wix/WiX to find them
+        Copy-Item -Path "dist\gcodekit5\bin\*.dll" -Destination "target\release\" -Force
+        
+        Write-Host "DLLs copied to target/release:"
+        $dllFiles = Get-ChildItem "target\release\*.dll"
+        Write-Host "Found $($dllFiles.Count) DLL files"
+        
+        # Generate gtk-runtime.wxs manually with PowerShell instead of heat.exe
+        # For per-user installs (LocalAppDataFolder), each component needs a registry key as KeyPath
+        $nl = [Environment]::NewLine
+        $wxsLines = New-Object System.Collections.ArrayList
+        [void]$wxsLines.Add('<?xml version="1.0" encoding="utf-8"?>')
+        [void]$wxsLines.Add('<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">')
+        [void]$wxsLines.Add('  <Fragment>')
+        [void]$wxsLines.Add('    <ComponentGroup Id="GtkRuntimeFiles">')
+        
+        foreach ($dll in $dllFiles) {
+          $fileName = $dll.Name
+          $safeId = $fileName -replace '[^a-zA-Z0-9]', '_'
+          $guid = [guid]::NewGuid().ToString().ToUpper()
+          [void]$wxsLines.Add("      <Component Id=`"cmp_$safeId`" Directory=`"Bin`" Guid=`"$guid`">")
+          [void]$wxsLines.Add("        <File Id=`"fil_$safeId`" Name=`"$fileName`" Source=`"target\release\$fileName`" />")
+          [void]$wxsLines.Add("        <RegistryValue Root=`"HKCU`" Key=`"Software\GCodeKit Contributors\GCodeKit5\Components`" Name=`"$safeId`" Type=`"integer`" Value=`"1`" KeyPath=`"yes`" />")
+          [void]$wxsLines.Add('      </Component>')
+        }
+        
+        [void]$wxsLines.Add('    </ComponentGroup>')
+        [void]$wxsLines.Add('  </Fragment>')
+        [void]$wxsLines.Add('</Wix>')
+        
+        # Write the generated WiX file
+        $wxsLines -join $nl | Out-File -FilePath "wix\gtk-runtime.wxs" -Encoding UTF8
+        
+        Write-Host "Generated gtk-runtime.wxs with $($dllFiles.Count) DLL components"
+        Write-Host "First 30 lines of gtk-runtime.wxs:"
+        Get-Content "wix\gtk-runtime.wxs" | Select-Object -First 30
+        
+        Get-ChildItem wix\*.wxs
+
+    - name: Create Windows MSI Installer
+      if: matrix.platform.os == 'windows-latest'
+      shell: pwsh
+      run: |
+        # Install cargo-wix using Windows cargo (not MSYS2)
+        $env:PATH = "C:\Users\runneradmin\.cargo\bin;$env:PATH"
+        cargo install cargo-wix
+        
+        # The executable is already in target\release from previous step
+        
+        # Build the MSI - specify package name since this is a workspace
+        cargo wix --package gcodekit5 --no-build --nocapture -o gcodekit5-${{ github.ref_name }}-windows-x86_64.msi
+        
+        # Also create a ZIP of the portable distribution
+        Compress-Archive -Path "dist\gcodekit5\*" -DestinationPath "gcodekit5-${{ github.ref_name }}-windows-x86_64-portable.zip"
+
+   
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ env.ASSET_NAME }}
+        path: |
+          ${{ env.ASSET_NAME }}
+          *.app
+          *.dmg
+          *.flatpak
+          *.deb
+          *.rpm
+          *.AppImage
+          *.msi
+          *-portable.zip
+        if-no-files-found: warn
+
+    - name: Build Changelog
+      id: build_changelog
+      if: matrix.platform.os_name == 'Linux-x86_64' && startsWith(github.ref, 'refs/tags/')
+      uses: mikepenz/release-changelog-builder-action@v5
+      env:
+        GITHUB_TOKEN: ${{ secrets.RELEASE }}
+
+    - name: Release (Linux)
+      if: matrix.platform.os_name == 'Linux-x86_64' && startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v2
+      with:
+        token: ${{ secrets.RELEASE }}
+        body: ${{ steps.build_changelog.outputs.changelog }}
+        files: |
+          ${{ env.ASSET_NAME }}
+          *.flatpak
+          *.deb
+          *.rpm
+          *.AppImage
+
+    - name: Release (macOS)
+      if: startsWith(matrix.platform.os_name, 'macOS') && startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v2
+      with:
+        token: ${{ secrets.RELEASE }}
+        files: |
+          *.dmg
+
+    - name: Release (Windows)
+      if: matrix.platform.os_name == 'Windows-x86_64' && startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v2
+      with:
+        token: ${{ secrets.RELEASE }}
+        files: |
+          *.msi
+          *-portable.zip
+
+    - name: Release (Other)
+      if: matrix.platform.os_name != 'Linux-x86_64' && startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v2
+      with:
+        token: ${{ secrets.RELEASE }}
+        files: |
+          ${{ env.ASSET_NAME }}

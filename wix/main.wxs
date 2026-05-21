@@ -1,0 +1,132 @@
+<?xml version='1.0' encoding='windows-1252'?>
+<!--
+  Copyright (C) 2017 Christopher R. Field.
+  Modified 2026 feveal
+
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+  http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License.
+-->
+
+<?if $(var.Platform) = x64 ?>
+    <?define Win64 = "yes" ?>
+    <?define PlatformProgramFilesFolder = "ProgramFiles64Folder" ?>
+<?else ?>
+  <?define Win64 = "no" ?>
+  <?define PlatformProgramFilesFolder = "ProgramFilesFolder" ?>
+<?endif ?>
+
+<Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'>
+
+    <!-- CAMBIADO: Nombre a 'GCodeKit5 Design' -->
+    <Product Id='*' Name='GCodeKit5 Design' UpgradeCode='8C2504E5-4839-4F2B-8B8C-9E6D0C18C5C9' Manufacturer='GCodeKit Contributors' Language='1033' Codepage='1252' Version='$(var.Version)'>
+
+        <!-- CAMBIADO: Descripción del instalador -->
+        <Package Id='*' Keywords='Installer' Description='GCodeKit5 Design - Universal G-Code Sender with Enhanced Designer' Manufacturer='GCodeKit Contributors' InstallerVersion='450' Languages='1033' Compressed='yes' InstallScope='perUser' SummaryCodepage='1252' />
+
+        <MajorUpgrade Schedule='afterInstallInitialize' DowngradeErrorMessage='A newer version of [ProductName] is already installed. Setup will now exit.' />
+
+        <Media Id='1' Cabinet='media1.cab' EmbedCab='yes' DiskPrompt='CD-ROM #1' />
+        <!-- CAMBIADO: Mensaje de disco -->
+        <Property Id='DiskPrompt' Value='GCodeKit5 Design Installation [1]' />
+
+        <Directory Id='TARGETDIR' Name='SourceDir'>
+            <Directory Id='LocalAppDataFolder'>
+                <!-- CAMBIADO: Carpeta de instalación local a GCodeKit5-Design -->
+                <Directory Id='APPLICATIONFOLDER' Name='GCodeKit5-Design'>
+
+                    <Component Id='License' Guid='822266CB-966A-4F20-B20F-78DC066FD4B2' Win64='$(var.Win64)'>
+                        <File Id='LicenseFile' Name='License.rtf' DiskId='1' Source='wix/License.rtf' />
+                        <RegistryValue Root='HKCU' Key='Software\GCodeKit Contributors\GCodeKit5-Design' Name='License' Type='integer' Value='1' KeyPath='yes' />
+                        <RemoveFolder Id='RemoveAppFolder' Directory='APPLICATIONFOLDER' On='uninstall' />
+                    </Component>
+
+                    <Directory Id='Bin' Name='bin'>
+                        <Component Id='Path' Guid='9D8E7F6A-5B4C-3D2E-1F0A-9B8C7D6E5F4A' Win64='$(var.Win64)'>
+                            <!-- CAMBIADO: El binario de origen y destino ahora se llama gcodekit5-design.exe -->
+                            <File Id='ExecutableFile' Name='gcodekit5-design.exe' DiskId='1' Source='target\$(var.Profile)\gcodekit5-design.exe' />
+                            <RegistryValue Root='HKCU' Key='Software\GCodeKit Contributors\GCodeKit5-Design' Name='Executable' Type='integer' Value='1' KeyPath='yes' />
+                        </Component>
+
+                        <Component Id='RemoveBinFolder' Guid='2B3C4D5E-6F70-8901-BCDE-F12345678901' Win64='$(var.Win64)'>
+                            <RemoveFolder Id='RemoveBinDir' Directory='Bin' On='uninstall' />
+                            <RegistryValue Root='HKCU' Key='Software\GCodeKit Contributors\GCodeKit5-Design' Name='RemoveBin' Type='integer' Value='1' KeyPath='yes' />
+                        </Component>
+                    </Directory>
+
+                    <Directory Id='Share' Name='share'>
+                        <Directory Id='GlibDir' Name='glib-2.0'>
+                            <Directory Id='SchemasDir' Name='schemas'>
+                                <Component Id='GtkSchemasData' Guid='5E6F7080-9012-3456-EF12-345678901234' Win64='$(var.Win64)'>
+                                    <!-- CAMBIADO: Ruta de la distribución compilada corregida al nuevo nombre -->
+                                    <File Id='GschemasCompiled' Name='gschemas.compiled' Source='dist\gcodekit5-design\share\glib-2.0\schemas\gschemas.compiled' />
+                                    <RemoveFolder Id='RemoveSchemasDir' Directory='SchemasDir' On='uninstall' />
+                                    <RemoveFolder Id='RemoveGlibDir' Directory='GlibDir' On='uninstall' />
+                                    <RemoveFolder Id='RemoveShareDir' Directory='Share' On='uninstall' />
+                                    <RegistryValue Root='HKCU' Key='Software\GCodeKit Contributors\GCodeKit5-Design' Name='Schemas' Type='integer' Value='1' KeyPath='yes' />
+                                </Component>
+                            </Directory>
+                        </Directory>
+                    </Directory>
+                </Directory>
+            </Directory>
+
+            <Directory Id="ProgramMenuFolder">
+                <!-- CAMBIADO: Nombre de la carpeta en el menú de inicio de Windows -->
+                <Directory Id="ApplicationProgramsFolder" Name="GCodeKit5 Design"/>
+            </Directory>
+        </Directory>
+
+        <DirectoryRef Id="ApplicationProgramsFolder">
+            <Component Id="ApplicationShortcut" Guid="A1B2C3D4-E5F6-7890-1234-567890ABCDEF">
+                <!-- CAMBIADO: Atributos del acceso directo de Windows -->
+                <Shortcut Id="ApplicationStartMenuShortcut"
+                          Name="GCodeKit5 Design"
+                          Description="Universal G-Code Sender for CNC machines with Enhanced Designer"
+                          Target="[APPLICATIONFOLDER]bin\gcodekit5-design.exe"
+                          WorkingDirectory="APPLICATIONFOLDER"
+                          Icon="ProductICO"/>
+                <RemoveFolder Id="CleanUpShortCut" Directory="ApplicationProgramsFolder" On="uninstall"/>
+                <RegistryValue Root="HKCU" Key="Software\GCodeKit Contributors\GCodeKit5-Design" Name="installed" Type="integer" Value="1" KeyPath="yes"/>
+            </Component>
+        </DirectoryRef>
+
+        <Feature Id='MainProgram' Title='Application' Description='Installs the main program.' Level='1' ConfigurableDirectory='APPLICATIONFOLDER' AllowAdvertise='no' Display='expand' Absent='disallow'>
+            <ComponentRef Id='License' />
+            <ComponentRef Id='Path' />
+            <ComponentRef Id='RemoveBinFolder' />
+            <ComponentRef Id='GtkSchemasData' />
+            <ComponentRef Id='ApplicationShortcut' />
+
+            <ComponentGroupRef Id='GtkRuntimeFiles' />
+        </Feature>
+
+        <SetProperty Id='ARPINSTALLLOCATION' Value='[APPLICATIONFOLDER]' After='CostFinalize'/>
+
+        <Icon Id='ProductICO' SourceFile='wix/Product.ico'/>
+        <Property Id='ARPPRODUCTICON' Value='ProductICO' />
+
+        <!-- CAMBIADO: Enlace de ayuda apuntando a tu propio repositorio -->
+        <Property Id='ARPHELPLINK' Value='https://github.com>
+
+        <Property Id='WIXUI_INSTALLDIR' Value='APPLICATIONFOLDER' />
+
+        <UI>
+            <UIRef Id='WixUI_InstallDir'/>
+            <Publish Dialog='WelcomeDlg' Control='Next' Event='NewDialog' Value='InstallDirDlg' Order='2'>1</Publish>
+            <Publish Dialog='InstallDirDlg' Control='Back' Event='NewDialog' Value='WelcomeDlg' Order='2'>1</Publish>
+        </UI>
+
+        <WixVariable Id='WixUILicenseRtf' Value='wix/License.rtf'/>
+
+    </Product>
+
+</Wix>

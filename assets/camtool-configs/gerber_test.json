@@ -1,0 +1,19 @@
+{
+  "layer_type": "BottomCopper",
+  "feed_rate": 100.0,
+  "spindle_speed": 10000.0,
+  "board_width": 100.0,
+  "board_height": 100.0,
+  "offset_x": 0.0,
+  "offset_y": 0.0,
+  "generate_alignment_holes": false,
+  "alignment_hole_diameter": 1.5,
+  "alignment_hole_margin": 5.0,
+  "cut_depth": -0.1,
+  "safe_z": 5.0,
+  "tool_diameter": 0.1,
+  "isolation_width": 0.0,
+  "rubout": true,
+  "use_board_outline": true,
+  "directory": "/home/thawkins/Projects/gcodekit5/assets/Gerber/testboard"
+}

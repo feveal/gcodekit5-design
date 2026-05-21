@@ -1,0 +1,540 @@
+/* GCodeKit5 Custom Styles */
+
+:root {
+    /* Semantic Colors mapped to GTK/Adwaita theme colors */
+    --bg-color: @theme_bg_color;
+    --fg-color: @theme_fg_color;
+    --border-color: @borders;
+    --accent-color: @accent_color;
+    --accent-bg-color: @accent_bg_color;
+    --accent-fg-color: @accent_fg_color;
+    --success-color: @success_color;
+    --warning-color: @warning_color;
+    --error-color: @error_color;
+    --window-bg-color: @window_bg_color;
+    --window-fg-color: @window_fg_color;
+    --view-bg-color: @view_bg_color;
+    --view-fg-color: @view_fg_color;
+    --card-bg-color: @card_bg_color;
+    --card-fg-color: @card_fg_color;
+    
+    /* Custom Semantic Colors */
+    --sidebar-bg: alpha(@window_bg_color, 0.95);
+    --console-bg: @view_bg_color;
+    --console-fg: @view_fg_color;
+    --status-bar-bg: @headerbar_bg_color; /* Fallback or specific */
+    --status-bar-fg: @headerbar_fg_color;
+}
+
+/* About dialog background */
+window.gk-about-dialog {
+    /* Keep About styling consistent across Light/Dark/System themes */
+    background-color: #000;
+    color: #fff;
+
+    background-image: url("resource:///com/gcodekit5/images/gcodekit5.png");
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+}
+
+window.gk-about-dialog * {
+    /* Ensure theme doesn't recolor the dialog contents */
+    color: #fff;
+}
+
+window.gk-about-dialog label.gk-about-title {
+    /* +50% font size, yellow title */
+    font-size: 150%;
+    font-weight: 700;
+    color: #ffeb3b;
+}
+
+/* Visualizer Container */
+.visualizer-container {
+    background-color: var(--view-bg-color);
+}
+
+/* Visualizer Sidebar (compact list) */
+.visualizer-sidebar {
+    background-color: alpha(var(--window-bg-color), 0.92);
+    border-right: 1px solid alpha(var(--fg-color), 0.08);
+    border-radius: 8px;
+    padding: 8px;
+}
+
+.visualizer-sidebar-list {
+    background: transparent;
+}
+
+.visualizer-sidebar-list > row {
+    padding: 0;
+}
+
+/* Editor styling tweaks if needed */
+textview {
+    font-family: "Monospace";
+}
+
+/* Console TextView */
+.console-view textview {
+    background-color: var(--console-bg);
+    color: var(--console-fg);
+}
+
+/* Designer Canvas */
+.designer-canvas {
+    background-color: var(--view-bg-color);
+    color: var(--view-fg-color);
+}
+
+/* Designer Toolbox */
+.designer-toolbox {
+    background-color: var(--card-bg-color);
+    border-right: 1px solid var(--border-color);
+}
+
+/* Inspector section separator (Properties ↔ Layers) */
+separator.inspector-section-separator {
+    background-color: alpha(@borders, 0.9);
+    min-height: 2px;
+    margin: 10px 10px;
+}
+
+.designer-toolbox button {
+    background-color: var(--card-bg-color);
+    border: 2px solid transparent;
+    border-radius: 4px;
+    color: var(--card-fg-color);
+    margin: 2px;
+}
+
+.designer-toolbox button:hover {
+    background-color: alpha(@accent_bg_color, 0.1);
+}
+
+.designer-toolbox button.selected-tool {
+    background-color: var(--accent-bg-color);
+    border-color: var(--accent-fg-color);
+    color: var(--accent-fg-color);
+}
+
+.designer-toolbox button.selected-tool:hover {
+    background-color: alpha(@accent_bg_color, 0.8);
+}
+
+/* Status Bar */
+.status-bar {
+    background-color: var(--card-bg-color);
+    color: var(--card-fg-color);
+    padding: 2px 5px;
+    border-top: 1px solid var(--border-color);
+}
+
+.estop-button {
+    background-color: var(--error-color);
+    color: white;
+    font-weight: bold;
+    padding: 2px 10px;
+    border-radius: 3px;
+}
+
+.estop-button:hover {
+    background-color: alpha(@error_color, 0.8);
+}
+
+.status-indicator {
+    font-size: 16px;
+}
+
+.status-indicator.connected {
+    color: var(--success-color);
+}
+
+.status-indicator.disconnected {
+    color: var(--error-color);
+}
+
+.status-text {
+    color: var(--fg-color);
+    font-size: 13px;
+}
+
+.monospace {
+    font-family: "Monospace";
+}
+
+/* Machine States */
+.state-alarm { color: var(--error-color); font-weight: bold; }
+.state-run { color: var(--success-color); font-weight: bold; }
+.state-hold { color: var(--warning-color); font-weight: bold; }
+.state-idle { color: var(--accent-color); font-weight: bold; }
+
+/* Machine Control Panel */
+.sidebar {
+    background-color: var(--sidebar-bg);
+    border-right: 1px solid var(--border-color);
+    padding-left: 10px;
+}
+
+/* Generic page padding helpers */
+.gk-page-padding {
+    margin: 20px;
+}
+
+.gk-page-padding-sm {
+    margin: 10px;
+}
+
+/* Help browser: remove background and add padding */
+scrolledwindow.help-scroller,
+scrolledwindow.help-scroller viewport,
+scrolledwindow.help-scroller > viewport {
+    padding: 10px;
+    background-color: @theme_base_color;
+}
+
+/* Label padding ensures text is inset even when the label/background spans full width. */
+label.help-content {
+    padding: 10px;
+    background-color: @theme_base_color;
+}
+
+
+.mc-section {
+    background-color: var(--card-bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 6px;
+}
+
+.mc-section-title {
+    color: alpha(var(--fg-color), 0.7);
+    font-weight: 600;
+    font-size: 12px;
+    margin-bottom: 2px;
+}
+
+.mc-group-title {
+    color: alpha(var(--fg-color), 0.8);
+    font-weight: 700;
+    font-size: 13px;
+}
+
+.mc-status-strip {
+    background-color: alpha(var(--accent-bg-color), 0.08);
+    border: 1px solid alpha(var(--fg-color), 0.08);
+    border-radius: 6px;
+    padding: 6px;
+}
+
+.mc-wcs-toggle:checked {
+    background-color: alpha(var(--accent-color), 0.25);
+    border-color: alpha(var(--accent-color), 0.6);
+}
+
+.dro-axis {
+    background-color: var(--card-bg-color);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 6px;
+}
+
+.dro-label {
+    font-size: 28px;
+    font-weight: bold;
+    color: var(--success-color);
+}
+
+.dro-value {
+    font-size: 28px;
+    font-family: "Monospace";
+    color: var(--fg-color);
+}
+
+/* Machine Control: smaller main DRO for FHD @ 125% */
+.mc-dro-label,
+.mc-dro-value {
+    font-size: 22px;
+}
+
+.estop-big {
+    background-color: var(--error-color);
+    color: white;
+    font-weight: bold;
+    font-size: 13px;
+    padding: 4px;
+    border-radius: 10px;
+    border: 2px solid alpha(var(--fg-color), 0.2);
+}
+
+.estop-big:hover {
+    background-color: alpha(var(--error-color), 0.8);
+}
+
+.estop-big:active {
+    background-color: alpha(var(--error-color), 0.6);
+}
+
+.dim-label {
+    color: alpha(var(--fg-color), 0.5);
+    font-weight: bold;
+}
+
+.warning-box {
+    background-color: alpha(var(--warning-color), 0.1);
+    border: 1px solid var(--warning-color);
+    border-radius: 4px;
+    padding: 5px;
+    color: var(--warning-color);
+}
+
+.accent-color {
+    color: var(--accent-color);
+}
+
+.active-badge {
+    background-color: #2ecc71;
+    color: white;
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 10px;
+    font-weight: bold;
+    margin-left: 5px;
+}
+
+/* Visualizer Floating OSD Panels */
+.visualizer-osd {
+    background-color: alpha(var(--window-bg-color), 0.85);
+    border-radius: 6px;
+    border: 1px solid alpha(var(--fg-color), 0.1);
+    padding: 4px 8px;
+    min-height: 28px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.visualizer-osd label {
+    color: var(--fg-color);
+    font-size: 12px;
+}
+
+.visualizer-osd .osd-units-badge {
+    background-color: alpha(var(--accent-color), 0.15);
+    border: 1px solid alpha(var(--accent-color), 0.35);
+    border-radius: 999px;
+    padding: 1px 8px;
+    font-weight: 600;
+}
+
+.active-tool-chip {
+    background-color: alpha(var(--accent-color), 0.15);
+    border: 1px solid alpha(var(--accent-color), 0.35);
+    border-radius: 999px;
+    padding: 2px 10px;
+    font-weight: 600;
+    font-size: 12px;
+}
+
+/* Validation */
+.entry-invalid {
+    border: 1px solid var(--error-color);
+    box-shadow: inset 0 0 0 1px alpha(var(--error-color), 0.4);
+}
+
+.visualizer-osd button {
+    min-width: 32px;
+    min-height: 32px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    background-color: alpha(var(--fg-color), 0.1);
+    border: 1px solid alpha(var(--fg-color), 0.2);
+    color: var(--fg-color);
+    font-size: 13px;
+}
+
+/* Compact OSD clusters (icon/button toolbars) to match the height of text OSD panels */
+.visualizer-osd.osd-controls {
+    padding: 0;
+    min-height: 0;
+}
+
+.visualizer-osd.osd-controls button {
+    min-width: 28px;
+    min-height: 28px;
+    padding: 2px 6px;
+}
+
+.visualizer-osd button:hover {
+    background-color: alpha(var(--fg-color), 0.2);
+}
+
+.visualizer-osd button:active {
+    background-color: alpha(var(--fg-color), 0.3);
+}
+
+/* Legend swatches */
+.legend-swatch {
+    border-radius: 3px;
+    border: 1px solid alpha(var(--fg-color), 0.2);
+    background-color: alpha(var(--fg-color), 0.15);
+}
+
+.legend-rapid {
+    background-color: alpha(@warning_color, 0.9);
+}
+
+.legend-cut {
+    background-color: alpha(@success_color, 0.9);
+}
+
+.legend-bounds {
+    background-color: alpha(@accent_color, 0.9);
+}
+
+.legend-grid {
+    background-color: alpha(var(--fg-color), 0.35);
+}
+
+.legend-selection {
+    background-color: alpha(@error_color, 0.9);
+}
+
+.legend-toolpath {
+    background-color: alpha(@success_color, 0.9);
+}
+
+/* Vector Preview Frame */
+frame.vector-preview {
+    background-color: #808080;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+}
+
+/* Device Config & Info Views */
+.status-icon-large {
+    font-size: 64px;
+}
+
+.list-header {
+    background-color: var(--card-bg-color);
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.alternating-row {
+    background-color: alpha(var(--fg-color), 0.02);
+}
+
+.pill {
+    border-radius: 12px;
+    padding: 2px 8px;
+    margin: 0;
+}
+
+.success-bg {
+    background-color: alpha(var(--success-color), 0.2);
+}
+
+.error-bg {
+    background-color: alpha(var(--error-color), 0.2);
+}
+
+.success {
+    color: var(--success-color);
+}
+
+.error {
+    color: var(--error-color);
+}
+
+.accent {
+    color: var(--accent-color);
+}
+
+.font-bold {
+    font-weight: bold;
+}
+
+/* Nav Cube */
+.nav-cube-container {
+    margin: 10px;
+}
+
+.nav-cube {
+    background-color: transparent;
+}
+
+.nav-btn {
+    padding: 0;
+    min-width: 24px;
+    min-height: 24px;
+    font-size: 10px;
+    background-color: alpha(var(--window-bg-color), 0.8);
+    color: var(--fg-color);
+    border: 1px solid alpha(var(--fg-color), 0.2);
+    border-radius: 4px;
+}
+
+.nav-btn:hover {
+    background-color: var(--accent-bg-color);
+    color: var(--accent-fg-color);
+    border-color: var(--accent-fg-color);
+}
+
+.nav-btn:active {
+    background-color: alpha(var(--accent-bg-color), 0.8);
+}
+
+/* GLOBAL REDUCTION */
+
+entry {
+    min-height: 20px;
+    max-height: 24px;
+    padding-top: 0px;
+    padding-bottom: 0px;
+    margin-top: 0px;
+    margin-bottom: 0px;
+}
+
+button {
+    min-height: 24px;
+    padding-top: 0px;
+    padding-bottom: 0px;
+}
+
+combobox {
+    min-height: 24px;
+}
+
+spinbutton {
+    min-height: 24px;
+}
+
+listbox.compact-list row {
+    padding: 0px;
+    min-height: 24px;
+    margin: 0px;
+    border-bottom: 1px solid alpha(@borders, 0.2);
+}
+
+listbox.compact-list row:last-child {
+    border-bottom: none;
+}
+
+listbox.compact-list row * {
+    min-height: 20px;
+    max-height: 22px;
+}
+
+listbox.compact-list row label {
+    min-height: 20px;
+    padding: 0px 2px;
+    margin: 0px;
+}
+
+listbox.compact-list row entry,
+listbox.compact-list row .position-entry {
+    min-height: 20px;
+    padding: 0px 2px;
+    margin: 0px;
+}

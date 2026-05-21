@@ -1,0 +1,108 @@
+[workspace]
+members = [
+    "crates/gcodekit5-core",
+    "crates/gcodekit5-communication",
+    "crates/gcodekit5-camtools",
+    "crates/gcodekit5-designer",
+    "crates/gcodekit5-gcodeeditor",
+    "crates/gcodekit5-visualizer",
+    "crates/gcodekit5-settings",
+    "crates/gcodekit5-devicedb",
+    "crates/gcodekit5-ui",
+]
+resolver = "2"
+
+[workspace.package]
+version = "1.0.0-alpha.0"
+edition = "2021"
+rust-version = "1.88"
+license = "MIT OR Apache-2.0"
+authors = ["GCodeKit Contributors"]
+repository = "https://github.com/feveal/gcodekit5-design"
+
+[workspace.dependencies]
+tokio = { version = "1.35", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = [
+    "env-filter",
+    "fmt",
+    "json",
+] }
+anyhow = "1.0"
+thiserror = "2.0.17"
+rfd = "0.15.4"
+arboard = "3.4"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+uuid = { version = "1.6", features = ["v4", "serde"] }
+image = "0.25"
+chrono = { version = "0.4", features = ["serde"] }
+tempfile = "3.8"
+
+[package]
+name = "gcodekit5-design"
+version.workspace = true
+edition.workspace = true
+description = "A Rust-based Universal G-Code Sender for Laser and CNC machines with support for GRBL, TinyG, g2core, Smoothieware, and FluidNC controllers"
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+readme = "README.md"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+
+[profile.dev]
+opt-level = 1
+
+[dependencies]
+gcodekit5-core = { path = "crates/gcodekit5-core" }
+gcodekit5-communication = { path = "crates/gcodekit5-communication" }
+gcodekit5-camtools = { path = "crates/gcodekit5-camtools" }
+gcodekit5-designer = { path = "crates/gcodekit5-designer" }
+gcodekit5-visualizer = { path = "crates/gcodekit5-visualizer" }
+gcodekit5-ui = { path = "crates/gcodekit5-ui" }
+
+gtk4 = { version = "0.9", features = ["v4_14"] }
+
+gettext-rs = { version = "0.7", features = ["gettext-system"] }
+
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = [
+    "env-filter",
+    "fmt",
+    "json",
+] }
+anyhow = "1.0"
+rfd = "0.15.4"
+arboard = "3.4"
+serde = { version = "1.0", features = ["derive"] }
+
+
+# Build dependencies
+[build-dependencies]
+chrono = "0.4"
+
+[package.metadata.deb]
+maintainer = "GCodeKit Contributors"
+copyright = "2025, GCodeKit Contributors"
+depends = "$auto"
+section = "utility"
+priority = "optional"
+assets = [
+    ["target/release/gcodekit5-design", "usr/bin/", "755"],
+    ["assets/Pictures/com.github.feveal.gcodekit5-design.png", "usr/share/icons/hicolor/128x128/apps/gcodekit5-design.png", "644"],
+    ["flatpak/com.github.feveal.gcodekit5-design.desktop", "usr/share/applications/gcodekit5-design.desktop", "644"],
+]
+
+[package.metadata.generate-rpm]
+assets = [
+    { source = "target/release/gcodekit5-design", dest = "/usr/bin/gcodekit5-design", mode = "755" },
+    { source = "gcodekit5.png", dest = "/usr/share/icons/hicolor/128x128/apps/gcodekit5-design.png", mode = "644" },
+    { source = "flatpak/com.github.feveal.gcodekit5-design.desktop", dest = "/usr/share/applications/gcodekit5-design.desktop", mode = "644" },
+]
+
+[dev-dependencies]
+mutants = "0.0.3"

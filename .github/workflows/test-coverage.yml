@@ -1,0 +1,165 @@
+name: Test Coverage
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  CARGO_TERM_COLOR: always
+  # Minimum coverage threshold for critical crates
+  COVERAGE_THRESHOLD: 80
+
+jobs:
+  test-coverage:
+    name: Coverage (${{ matrix.arch }})
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            runner: ubuntu-latest
+          - arch: aarch64
+            runner: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-action@stable
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-${{ matrix.arch }}-cargo-coverage-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.arch }}-cargo-coverage-
+
+      - name: Install cargo-tarpaulin
+        run: cargo install cargo-tarpaulin --locked
+
+      - name: Run tests with coverage (critical crates)
+        run: |
+          cargo tarpaulin \
+            --packages gcodekit5-core gcodekit5-designer gcodekit5-communication gcodekit5-visualizer \
+            --out xml json \
+            --output-dir target/coverage \
+            --skip-clean \
+            --timeout 600 \
+            --engine llvm \
+            -- --test-threads=1
+
+      - name: Check coverage threshold
+        run: |
+          if [ ! -f target/coverage/tarpaulin-report.json ]; then
+            echo "::error::Coverage report not found"
+            exit 1
+          fi
+
+          # Extract overall coverage percentage
+          COVERAGE=$(python3 -c "
+          import json
+          with open('target/coverage/tarpaulin-report.json') as f:
+              data = json.load(f)
+          # tarpaulin JSON: list of file entries with covered/coverable
+          covered = sum(f.get('covered', 0) for f in data)
+          coverable = sum(f.get('coverable', 0) for f in data)
+          pct = (covered / coverable * 100) if coverable > 0 else 0
+          print(f'{pct:.1f}')
+          ")
+
+          echo "## Coverage Report (${{ matrix.arch }})" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Overall coverage: **${COVERAGE}%**" >> $GITHUB_STEP_SUMMARY
+          echo "Threshold: **${COVERAGE_THRESHOLD}%**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Compare with threshold
+          PASS=$(python3 -c "print('yes' if float('${COVERAGE}') >= ${COVERAGE_THRESHOLD} else 'no')")
+          if [ "$PASS" = "no" ]; then
+            echo "::error::Coverage ${COVERAGE}% is below threshold ${COVERAGE_THRESHOLD}%"
+            exit 1
+          fi
+
+          echo "✅ Coverage ${COVERAGE}% meets threshold ${COVERAGE_THRESHOLD}%" >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report-${{ matrix.arch }}
+          path: target/coverage/
+          retention-days: 30
+
+  test-isolation:
+    name: Test Isolation Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-action@stable
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-isolation-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run tests in parallel (isolation check)
+        run: |
+          # Running tests with multiple threads verifies test isolation
+          cargo test --workspace --lib -- --test-threads=4
+          echo "✅ All tests pass with parallel execution" >> $GITHUB_STEP_SUMMARY
+
+      - name: Run tests twice (idempotency check)
+        run: |
+          cargo test --workspace --lib --quiet
+          cargo test --workspace --lib --quiet
+          echo "✅ Tests are idempotent (pass on second run)" >> $GITHUB_STEP_SUMMARY
+
+  benchmarks:
+    name: Benchmark Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-action@stable
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-bench-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Verify benchmarks compile and run
+        run: |
+          cargo bench -p gcodekit5-designer --bench toolpath_bench -- --test
+          echo "✅ All benchmarks compile and pass" >> $GITHUB_STEP_SUMMARY
