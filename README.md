@@ -3,7 +3,7 @@
 A modern, cross-platform G-Code sender for Laser and CNC machine controller written in Rust with GTK4 UI framework.
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE-MIT)
-[![License: APACHE](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE-APACHE)
+[![License: APACHE](https://img.shields.io/badge/license-apache-blue.svg)](LICENSE-APACHE)
 [![Version](https://img.shields.io/badge/Version-0.54.0--alpha.2-brightgreen.svg)](CHANGELOG.md)
 
 ## Overview
