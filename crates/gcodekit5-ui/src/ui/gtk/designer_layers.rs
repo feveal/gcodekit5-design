@@ -136,7 +136,10 @@ impl LayersPanel {
 
             // Select on canvas
             let mut state_mut = state_clone.borrow_mut();
-            state_mut.canvas.select_at(&world_point, tolerance, multi);
+            state_mut
+                .canvas
+                .select_at(&world_point, tolerance, multi, false);
+
             drop(state_mut);
 
             // Update ONLY the list, not canvas

@@ -13,7 +13,7 @@ use csgrs::traits::CSG;
 use nalgebra::{Matrix4, Vector3};
 use rusttype::{point as rt_point, Scale};
 
-use super::{DesignerShape, Point, Property, PropertyValue, LaserParams};
+use super::{DesignerShape, LaserParams, Point, Property, PropertyValue};
 use crate::font_manager;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

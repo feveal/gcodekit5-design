@@ -49,13 +49,11 @@ impl PropertiesPanel {
         let selection_data = {
             let designer_state = self.state.borrow();
 
-
-
             let selected: Vec<_> = designer_state
-            .canvas
-            .shapes()
-            .filter(|s| s.selected)
-            .collect();
+                .canvas
+                .shapes()
+                .filter(|s| s.selected)
+                .collect();
 
             let data = if selected.is_empty() {
                 None
@@ -80,44 +78,43 @@ impl PropertiesPanel {
                 Some((
                     vec![obj.id],
                     Some(obj.shape.clone()),
-                      obj.operation_type,
-                      obj.pocket_depth,
-                      obj.step_down,
-                      obj.step_in,
-                      obj.ramp_angle,
-                      obj.pocket_strategy,
-                      obj.raster_fill_ratio,
-                      obj.offset,
-                      obj.fillet,
-                      obj.chamfer,
-                      any_not_text,
-                      obj.lock_aspect_ratio,
-                      laser_params_opt,
+                    obj.operation_type,
+                    obj.pocket_depth,
+                    obj.step_down,
+                    obj.step_in,
+                    obj.ramp_angle,
+                    obj.pocket_strategy,
+                    obj.raster_fill_ratio,
+                    obj.offset,
+                    obj.fillet,
+                    obj.chamfer,
+                    any_not_text,
+                    obj.lock_aspect_ratio,
+                    laser_params_opt,
                 ))
             } else {
                 let obj = &selected[0];
                 let any_not_text = selected.iter().any(|s| !matches!(s.shape, Shape::Text(_)));
                 Some((
                     selected.iter().map(|s| s.id).collect(),
-                      None,
-                      obj.operation_type,
-                      obj.pocket_depth,
-                      obj.step_down,
-                      obj.step_in,
-                      obj.ramp_angle,
-                      obj.pocket_strategy,
-                      obj.raster_fill_ratio,
-                      obj.offset,
-                      obj.fillet,
-                      obj.chamfer,
-                      any_not_text,
-                      false,
-                      None,
+                    None,
+                    obj.operation_type,
+                    obj.pocket_depth,
+                    obj.step_down,
+                    obj.step_in,
+                    obj.ramp_angle,
+                    obj.pocket_strategy,
+                    obj.raster_fill_ratio,
+                    obj.offset,
+                    obj.fillet,
+                    obj.chamfer,
+                    any_not_text,
+                    false,
+                    None,
                 ))
             };
             data
         };
-
 
         if let Some((
             ids,
@@ -136,7 +133,7 @@ impl PropertiesPanel {
             lock_aspect,
             laser_params_opt,
         )) = selection_data
-            {
+        {
             let (w, h, rot) = if let Some(shape) = &shape_opt {
                 match shape {
                     Shape::Rectangle(r) => (r.width, r.height, r.rotation),
@@ -151,7 +148,6 @@ impl PropertiesPanel {
                     Shape::RasterImage(r) => (r.width_mm, r.height_mm, r.rotation),
                     _ => (0.0, 0.0, 0.0),
                 }
-
             } else {
                 (0.0, 0.0, 0.0)
             };
@@ -165,18 +161,32 @@ impl PropertiesPanel {
                 let global_settings = self.state.borrow().tool_settings.clone();
 
                 // Si use_global es true, usamos las ToolSettings. Si es false, usamos lo que guardó el objeto.
-                let display_feed = if params.use_global { global_settings.feed_rate } else { params.feed_rate };
-                let display_power = if params.use_global { global_settings.spindle_speed as f64 } else { params.power_percent };
+                let display_feed = if params.use_global {
+                    global_settings.feed_rate
+                } else {
+                    params.feed_rate
+                };
+                let display_power = if params.use_global {
+                    global_settings.spindle_speed as f64
+                } else {
+                    params.power_percent
+                };
 
-                let display_passes = if params.use_global { (global_settings.step_down as u32).max(1) } else { params.passes };
+                let display_passes = if params.use_global {
+                    (global_settings.step_down as u32).max(1)
+                } else {
+                    params.passes
+                };
 
                 // Asignamos feed_rate a la caja de texto
                 if let Ok(current) = self.laser_feed_rate_entry.text().parse::<f64>() {
                     if (current - display_feed).abs() > 1e-6 {
-                        self.laser_feed_rate_entry.set_text(&display_feed.to_string());
+                        self.laser_feed_rate_entry
+                            .set_text(&display_feed.to_string());
                     }
                 } else {
-                    self.laser_feed_rate_entry.set_text(&display_feed.to_string());
+                    self.laser_feed_rate_entry
+                        .set_text(&display_feed.to_string());
                 }
 
                 // Asignamos power a la caja de texto
@@ -191,10 +201,12 @@ impl PropertiesPanel {
                 // Asignamos passes a la caja de texto
                 if let Ok(current) = self.laser_passes_entry.text().parse::<u32>() {
                     if current != display_passes {
-                        self.laser_passes_entry.set_text(&display_passes.to_string());
+                        self.laser_passes_entry
+                            .set_text(&display_passes.to_string());
                     }
                 } else {
-                    self.laser_passes_entry.set_text(&display_passes.to_string());
+                    self.laser_passes_entry
+                        .set_text(&display_passes.to_string());
                 }
 
                 // Forzamos al Checkbox visual a ponerse en su sitio
@@ -234,7 +246,8 @@ impl PropertiesPanel {
             let is_laser = machine_mode == MachineMode::Laser2D;
 
             // El panel de propiedades láser solo se muestra en modo láser
-            self.laser_override_frame.set_visible(is_laser && !is_raster);
+            self.laser_override_frame
+                .set_visible(is_laser && !is_raster);
 
             if let Some(shape) = shape_opt {
                 // Single selection - show shape-specific properties
@@ -311,23 +324,22 @@ impl PropertiesPanel {
                         self.set_entry_text_if_changed(&self.width_entry, r.width as f32, system);
                         self.set_entry_text_if_changed(&self.height_entry, r.height as f32, system);
 
-                    // --- Laser Parameters
+                        // --- Laser Parameters
                         self.set_entry_text_if_changed(
                             &self.laser_feed_rate_entry,
                             r.laser_params.feed_rate as f32,
                             system,
                         );
-                            self.set_entry_text_if_changed(
+                        self.set_entry_text_if_changed(
                             &self.laser_power_entry,
                             r.laser_params.power_percent as f32,
                             system,
                         );
-                                self.set_entry_text_if_changed(
+                        self.set_entry_text_if_changed(
                             &self.laser_passes_entry,
                             r.laser_params.passes as f32,
                             system,
                         );
-
                     }
 
                     Shape::Circle(c) => {
@@ -359,8 +371,7 @@ impl PropertiesPanel {
 
                     Shape::Ellipse(e) => {
                         let has_rotation = e.rotation.abs() > f64::EPSILON;
-                        self.rotation_entry
-                            .set_text(&format!("{:.1}", e.rotation));
+                        self.rotation_entry.set_text(&format!("{:.1}", e.rotation));
                         if has_rotation {
                             self.width_entry.set_sensitive(false);
                             self.height_entry.set_sensitive(false);
@@ -453,8 +464,7 @@ impl PropertiesPanel {
                     }
                     Shape::Polygon(p) => {
                         let has_rotation = p.rotation.abs() > f64::EPSILON;
-                        self.rotation_entry
-                            .set_text(&format!("{:.1}", p.rotation));
+                        self.rotation_entry.set_text(&format!("{:.1}", p.rotation));
 
                         if has_rotation {
                             self.sides_entry.set_sensitive(false);
@@ -470,8 +480,7 @@ impl PropertiesPanel {
                         self.sprocket_frame.set_visible(false);
                         self.path_frame.set_visible(false);
                         self.sides_entry.set_text(&p.sides.to_string());
-                        self.rotation_entry
-                            .set_text(&format!("{:.1}", p.rotation));
+                        self.rotation_entry.set_text(&format!("{:.1}", p.rotation));
                         self.rotation_entry.set_sensitive(true);
                         self.height_entry.set_sensitive(false);
 
@@ -625,7 +634,11 @@ impl PropertiesPanel {
                         self.sprocket_frame.set_visible(false);
                         self.path_frame.set_visible(false);
                         self.set_entry_text_if_changed(&self.width_entry, tri.width as f32, system);
-                        self.set_entry_text_if_changed(&self.height_entry, tri.height as f32, system);
+                        self.set_entry_text_if_changed(
+                            &self.height_entry,
+                            tri.height as f32,
+                            system,
+                        );
                         self.rotation_entry
                             .set_text(&format!("{:.1}", tri.rotation));
 
@@ -661,8 +674,13 @@ impl PropertiesPanel {
                         self.set_entry_text_if_changed(&self.pos_x_entry, center_x as f32, system);
                         self.set_entry_text_if_changed(&self.pos_y_entry, center_y as f32, system);
                         self.set_entry_text_if_changed(&self.width_entry, (x2 - x1) as f32, system);
-                        self.set_entry_text_if_changed(&self.height_entry, (y2 - y1) as f32, system);
-                        self.rotation_entry.set_text(&format!("{:.1}", line.rotation));
+                        self.set_entry_text_if_changed(
+                            &self.height_entry,
+                            (y2 - y1) as f32,
+                            system,
+                        );
+                        self.rotation_entry
+                            .set_text(&format!("{:.1}", line.rotation));
                         self.rotation_entry.set_sensitive(true);
 
                         // Laser Parameters

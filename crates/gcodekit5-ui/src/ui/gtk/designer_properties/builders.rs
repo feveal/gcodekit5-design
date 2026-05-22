@@ -693,10 +693,10 @@ impl PropertiesPanel {
 
     pub(crate) fn build_laser_override_section() -> (
         Frame,
-        CheckButton,  // use_global
-        Entry,        // feed_rate
-        Entry,        // power_percent
-        Entry,        // passes
+        CheckButton, // use_global
+        Entry,       // feed_rate
+        Entry,       // power_percent
+        Entry,       // passes
     ) {
         let frame = Self::create_section(&t!("Laser Config (Object)"));
         let grid = gtk4::Grid::builder()
@@ -712,7 +712,7 @@ impl PropertiesPanel {
         let use_global_check = CheckButton::new();
         let use_global_label = Label::new(Some(&t!("Use global values")));
         use_global_label.set_halign(gtk4::Align::Start);
-        use_global_check.set_active(true);  // Por defecto, usar globales
+        use_global_check.set_active(true); // Por defecto, usar globales
 
         let global_box = Box::new(Orientation::Horizontal, 8);
         global_box.append(&use_global_check);
@@ -723,7 +723,7 @@ impl PropertiesPanel {
         let feed_entry = Entry::new();
         feed_entry.set_hexpand(true);
         feed_entry.set_placeholder_text(Some(&t!("Global")));
-        feed_entry.set_sensitive(false);  // Por defecto deshabilitado
+        feed_entry.set_sensitive(false); // Por defecto deshabilitado
         let feed_unit = Label::new(Some("mm/min"));
 
         // Power
@@ -731,7 +731,7 @@ impl PropertiesPanel {
         let power_entry = Entry::new();
         power_entry.set_hexpand(true);
         power_entry.set_placeholder_text(Some(&t!("Global")));
-        power_entry.set_sensitive(false);  // Por defecto deshabilitado
+        power_entry.set_sensitive(false); // Por defecto deshabilitado
         let power_unit = Label::new(Some("%"));
 
         // Passes
@@ -739,7 +739,7 @@ impl PropertiesPanel {
         let passes_entry = Entry::new();
         passes_entry.set_hexpand(true);
         passes_entry.set_placeholder_text(Some(&t!("Global")));
-        passes_entry.set_sensitive(false);  // Por defecto deshabilitado
+        passes_entry.set_sensitive(false); // Por defecto deshabilitado
 
         // Layout
         grid.attach(&global_box, 0, 0, 3, 1);
@@ -754,6 +754,12 @@ impl PropertiesPanel {
 
         frame.set_child(Some(&grid));
 
-        (frame, use_global_check, feed_entry, power_entry, passes_entry)
+        (
+            frame,
+            use_global_check,
+            feed_entry,
+            power_entry,
+            passes_entry,
+        )
     }
 }

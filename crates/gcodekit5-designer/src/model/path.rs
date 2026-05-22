@@ -14,7 +14,7 @@ use csgrs::sketch::Sketch;
 use csgrs::traits::CSG;
 use nalgebra::Matrix4;
 
-use super::{DesignerShape, Point, Property, PropertyValue, LaserParams};
+use super::{DesignerShape, LaserParams, Point, Property, PropertyValue};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DesignPath {

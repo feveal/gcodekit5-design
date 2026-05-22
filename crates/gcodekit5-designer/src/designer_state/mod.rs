@@ -51,14 +51,12 @@ impl Default for ToolSettings {
 }
 
 /// Machine operation mode
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum MachineMode {
     #[default]
     Laser2D,
     Cnc3D,
 }
-
 
 /// Designer state for UI integration
 #[derive(Clone)]
@@ -176,16 +174,16 @@ impl DesignerState {
 
     /// Sets the tool diameter for toolpath generation.
     pub fn set_tool_diameter(&mut self, diameter: f64) {
-    let valid_diameter = if diameter.is_finite() && diameter > 0.0 {
-        diameter
-    } else {
-        0.001
-    };
+        let valid_diameter = if diameter.is_finite() && diameter > 0.0 {
+            diameter
+        } else {
+            0.001
+        };
 
-    self.tool_settings.tool_diameter = valid_diameter;
-    self.toolpath_generator.set_tool_diameter(valid_diameter);
-    self.gcode_generated = false;
-}
+        self.tool_settings.tool_diameter = valid_diameter;
+        self.toolpath_generator.set_tool_diameter(valid_diameter);
+        self.gcode_generated = false;
+    }
 
     /// Sets the cut depth for toolpath generation.
     pub fn set_cut_depth(&mut self, depth: f64) {

@@ -1482,17 +1482,17 @@ impl MachineControlView {
                         .secondary_text(t!("Please load or type G-Code into the editor first."))
                         .build();
 
-                        // Set transient parent if possible
-                        if let Some(root) = widget_for_dialog.root() {
-                            if let Ok(win) = root.downcast::<gtk4::Window>() {
-                                dialog.set_transient_for(Some(&win));
-                                dialog.set_modal(true);
-                            }
+                    // Set transient parent if possible
+                    if let Some(root) = widget_for_dialog.root() {
+                        if let Ok(win) = root.downcast::<gtk4::Window>() {
+                            dialog.set_transient_for(Some(&win));
+                            dialog.set_modal(true);
                         }
+                    }
 
-                        dialog.connect_response(|d, _| d.close());
-                        dialog.show();
-                        return;
+                    dialog.connect_response(|d, _| d.close());
+                    dialog.show();
+                    return;
                 }
 
                 // Usar DirectSender para TODO (sin condición is_image)
@@ -1529,7 +1529,8 @@ impl MachineControlView {
                         // Mostrar barra de progreso
                         if message.starts_with('*') {
                             if let Some(sb) = status_bar.as_ref() {
-                                let percent_str = message.trim_start_matches('*').trim().trim_end_matches('%');
+                                let percent_str =
+                                    message.trim_start_matches('*').trim().trim_end_matches('%');
                                 if let Ok(percent) = percent_str.parse::<f64>() {
                                     MachineControlView::update_progress(
                                         &status_bar,
@@ -1559,7 +1560,6 @@ impl MachineControlView {
                             view_timeout.stop_btn.set_sensitive(false);
                             *is_streaming_timeout.lock() = false;
                         }
-
                     }
                     glib::ControlFlow::Continue
                 });

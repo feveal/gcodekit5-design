@@ -31,7 +31,7 @@ impl DirectSender {
         *is_paused.lock() = paused_flag.load(Ordering::SeqCst);
 
         let (tx, rx) = mpsc::channel();
-//        println!("DEBUG: DirectSender");
+        //        println!("DEBUG: DirectSender");
         (
             Self {
                 communicator,
@@ -210,15 +210,19 @@ impl DirectSender {
 
             // Detectar velocidad de avance
             if let Some(f_pos) = line.find('F') {
-                let f_end = line[f_pos+1..].find(|c: char| !c.is_ascii_digit() && c != '.')
+                let f_end = line[f_pos + 1..]
+                    .find(|c: char| !c.is_ascii_digit() && c != '.')
                     .map_or(line.len(), |idx| f_pos + 1 + idx);
-                if let Ok(feed) = line[f_pos+1..f_end].parse::<f64>() {
+                if let Ok(feed) = line[f_pos + 1..f_end].parse::<f64>() {
                     current_feed = feed;
                 }
             }
 
             // Detectar movimiento lineal G0, G1
-            let is_move = line.contains("G0") || line.contains("G1") || line.contains("G00") || line.contains("G01");
+            let is_move = line.contains("G0")
+                || line.contains("G1")
+                || line.contains("G00")
+                || line.contains("G01");
 
             if is_move {
                 let mut x = last_x;
@@ -227,25 +231,28 @@ impl DirectSender {
 
                 // Extraer coordenadas
                 if let Some(x_pos) = line.find('X') {
-                    let x_end = line[x_pos+1..].find(|c: char| !c.is_ascii_digit() && c != '.' && c != '-')
+                    let x_end = line[x_pos + 1..]
+                        .find(|c: char| !c.is_ascii_digit() && c != '.' && c != '-')
                         .map_or(line.len(), |idx| x_pos + 1 + idx);
-                    if let Ok(val) = line[x_pos+1..x_end].parse::<f64>() {
+                    if let Ok(val) = line[x_pos + 1..x_end].parse::<f64>() {
                         x = if is_absolute { val } else { last_x + val };
                     }
                 }
 
                 if let Some(y_pos) = line.find('Y') {
-                    let y_end = line[y_pos+1..].find(|c: char| !c.is_ascii_digit() && c != '.' && c != '-')
+                    let y_end = line[y_pos + 1..]
+                        .find(|c: char| !c.is_ascii_digit() && c != '.' && c != '-')
                         .map_or(line.len(), |idx| y_pos + 1 + idx);
-                    if let Ok(val) = line[y_pos+1..y_end].parse::<f64>() {
+                    if let Ok(val) = line[y_pos + 1..y_end].parse::<f64>() {
                         y = if is_absolute { val } else { last_y + val };
                     }
                 }
 
                 if let Some(z_pos) = line.find('Z') {
-                    let z_end = line[z_pos+1..].find(|c: char| !c.is_ascii_digit() && c != '.' && c != '-')
+                    let z_end = line[z_pos + 1..]
+                        .find(|c: char| !c.is_ascii_digit() && c != '.' && c != '-')
                         .map_or(line.len(), |idx| z_pos + 1 + idx);
-                    if let Ok(val) = line[z_pos+1..z_end].parse::<f64>() {
+                    if let Ok(val) = line[z_pos + 1..z_end].parse::<f64>() {
                         z = if is_absolute { val } else { last_z + val };
                     }
                 }

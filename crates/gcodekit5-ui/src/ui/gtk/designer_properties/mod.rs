@@ -5,7 +5,6 @@
 //! - Main panel orchestration (this file)
 //! - Handlers for different property categories (handlers/)
 
-
 mod builders;
 mod handlers;
 mod update;
@@ -150,7 +149,6 @@ pub struct PropertiesPanel {
     pub(crate) laser_feed_rate_entry: Entry,
     pub(crate) laser_power_entry: Entry,
     pub(crate) laser_passes_entry: Entry,
-
 }
 
 impl PropertiesPanel {

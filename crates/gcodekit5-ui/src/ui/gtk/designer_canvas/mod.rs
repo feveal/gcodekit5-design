@@ -485,8 +485,10 @@ impl DesignerCanvas {
             glib::Propagation::Proceed
         });
 
+        // Añadir debajo del connect_key_pressed para limpiar el estado al soltar las teclas
         let shift_released_key = canvas.shift_pressed.clone();
         let ctrl_released_key = canvas.ctrl_pressed.clone();
+
         key_controller.connect_key_released(move |_controller, keyval, _keycode, _modifier| {
             if keyval == gtk4::gdk::Key::Shift_L || keyval == gtk4::gdk::Key::Shift_R {
                 *shift_released_key.borrow_mut() = false;
@@ -495,9 +497,7 @@ impl DesignerCanvas {
                 *ctrl_released_key.borrow_mut() = false;
             }
         });
-
         widget.add_controller(key_controller);
-
         canvas
     }
 

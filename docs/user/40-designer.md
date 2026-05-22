@@ -25,8 +25,8 @@ Select a shape tool from the toolbox and click/drag on the canvas to create it.
 
 | Generator | Description |
 |-----------|-------------|
-| **Gear** | Involute spur gear with configurable module and tooth count |
-| **Sprocket** | Chain sprocket with configurable pitch and tooth count |
+| **Gear** | Involute spur gear with configurable module and tooth count according to ANSI/ISO standard|
+| **Sprocket** | Chain sprocket with configurable pitch and tooth count according to ANSI/ISO standard|
 
 ### Fast Shape Gallery
 
@@ -72,12 +72,12 @@ These operations modify shape geometry without destroying the original:
 | **Fillet** | Round corners with a specified radius |
 | **Chamfer** | Bevel corners at a specified distance |
 
-## Layers
+## Objects
 
-The layers panel lets you organize shapes into layers:
-- Create, rename, and delete layers
-- Toggle layer visibility
-- Lock layers to prevent editing
+The objects panel lets you organize shapes into objects:
+- Create, rename, and delete object
+- Toggle object visibility
+- Lock object to prevent editing
 - Reorder layer stacking
 
 ## Importing Files

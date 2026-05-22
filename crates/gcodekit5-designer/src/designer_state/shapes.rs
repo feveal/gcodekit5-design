@@ -214,12 +214,12 @@ impl DesignerState {
     }
 
     /// Adds a shape to the canvas at the specified position based on current mode.
-    pub fn add_shape_at(&mut self, x: f64, y: f64, multi_select: bool) {
+    pub fn add_shape_at(&mut self, x: f64, y: f64, shift: bool, ctrl: bool) {
         match self.canvas.mode() {
             DrawingMode::Select => {
                 let tolerance = 3.0 / self.canvas.zoom();
                 self.canvas
-                    .select_at(&Point::new(x, y), tolerance, multi_select);
+                    .select_at(&Point::new(x, y), tolerance, shift, ctrl);
             }
             DrawingMode::Rectangle => {
                 let id = self.canvas.generate_id();

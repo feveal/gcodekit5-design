@@ -303,19 +303,35 @@ pub fn main() {
         stack.add_titled(cam_tools_view.widget(), Some("cam_tools"), &t!("CAM Tools"));
 
         // 5. Control de máquina
-        stack.add_titled(&machine_control.widget, Some("machine"), &t!("Machine Control"));
+        stack.add_titled(
+            &machine_control.widget,
+            Some("machine"),
+            &t!("Machine Control"),
+        );
 
         // 6. Administrador de dispositivos
-        stack.add_titled(&device_manager_view.widget, Some("devices"), &t!("Device Manager"));
+        stack.add_titled(
+            &device_manager_view.widget,
+            Some("devices"),
+            &t!("Device Manager"),
+        );
 
         // 7. Configuración de dispositivo
-        stack.add_titled(&config_settings.container, Some("config"), &t!("Device Config"));
+        stack.add_titled(
+            &config_settings.container,
+            Some("config"),
+            &t!("Device Config"),
+        );
 
         // 8. Herramientas CNC
         stack.add_titled(&tools_manager.widget, Some("tools"), &t!("CNC Tools"));
 
         // 9. Materiales
-        stack.add_titled(&materials_manager.widget, Some("materials"), &t!("Materials"));
+        stack.add_titled(
+            &materials_manager.widget,
+            Some("materials"),
+            &t!("Materials"),
+        );
 
         // ==========================================
         // CONEXIONES ENTRE COMPONENTES

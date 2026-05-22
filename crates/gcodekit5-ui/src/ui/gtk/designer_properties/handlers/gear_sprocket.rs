@@ -2,7 +2,7 @@
 
 use gcodekit5_core::{Shared, SharedOption};
 use gcodekit5_designer::designer_state::DesignerState;
-use gcodekit5_designer::model::{Shape, DesignSprocket};
+use gcodekit5_designer::model::{DesignSprocket, Shape};
 use gtk4::prelude::*;
 use gtk4::Entry;
 use std::rc::Rc;
@@ -95,7 +95,7 @@ pub fn setup_gear_module_handler(
                     .find(|s| s.selected)
                     .and_then(|s| {
                         if let Shape::Gear(g) = &s.shape {
-                            Some(g.pressure_angle_deg)  // Ya en grados
+                            Some(g.pressure_angle_deg) // Ya en grados
                         } else {
                             None
                         }
@@ -149,7 +149,7 @@ pub fn setup_gear_teeth_handler(
                     .find(|s| s.selected)
                     .and_then(|s| {
                         if let Shape::Gear(g) = &s.shape {
-                            Some(g.pressure_angle_deg)  // Ya en grados
+                            Some(g.pressure_angle_deg) // Ya en grados
                         } else {
                             None
                         }
@@ -174,7 +174,7 @@ pub fn setup_gear_teeth_handler(
 #[allow(clippy::type_complexity)]
 pub fn setup_sprocket_pitch_handler(
     sprocket_pitch_entry: &Entry,
-    sprocket_roller_diameter_entry: &Entry,  // NUEVO parámetro
+    sprocket_roller_diameter_entry: &Entry, // NUEVO parámetro
     state: Shared<DesignerState>,
     redraw_callback: SharedOption<Rc<dyn Fn()>>,
     updating: Shared<bool>,

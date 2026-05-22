@@ -258,12 +258,11 @@ impl RasterImage {
     }
 } // impl RasterImage
 
-
 // ---
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct LaserParams {
-    pub feed_rate: f64,      // mm/min
-    pub power_percent: f64,  // 0-100
+    pub feed_rate: f64,     // mm/min
+    pub power_percent: f64, // 0-100
     pub passes: u32,
     pub use_global: bool,
 }

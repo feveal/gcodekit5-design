@@ -682,7 +682,9 @@ impl DesignerCanvas {
     pub(super) fn handle_click(&self, x: f64, y: f64, ctrl_pressed_arg: bool, n_press: i32) {
         // Combine gesture modifier state with tracked keyboard state for reliability
         let ctrl_pressed = ctrl_pressed_arg || *self.ctrl_pressed.borrow();
-
+        // ---
+        let shift_pressed = *self.shift_pressed.borrow();
+        // ---
         // Reset drag flag
         *self.did_drag.borrow_mut() = false;
 
@@ -771,7 +773,7 @@ impl DesignerCanvas {
                         }
                     }
                 }
-
+                // ---
                 // Check if we clicked on an existing shape
                 let mut clicked_shape_id = None;
                 let tolerance = 3.0;
@@ -786,20 +788,21 @@ impl DesignerCanvas {
                     let is_selected = state.canvas.selection_manager.selected_id() == Some(id)
                         || state.canvas.shapes().any(|s| s.id == id && s.selected);
 
-                    if is_selected && !ctrl_pressed {
-                        // Clicked on already selected item, and no Ctrl.
-                        // Do NOT change selection yet. Wait for release.
-                        // This allows dragging the current selection group.
+                    // Si está seleccionado y NO hay modificadores, esperamos al "release" para permitir arrastrar
+                    if is_selected && !ctrl_pressed && !shift_pressed {
                         return;
                     }
                 }
 
-                // Try to select shape at click point with multi-select if Ctrl is held
-                if let Some(_selected_id) = state.canvas.select_at(&point, tolerance, ctrl_pressed)
+                // Llamada corregida delegando al Canvas y SelectionManager con ambos modificadores
+                if let Some(_selected_id) =
+                    state
+                        .canvas
+                        .select_at(&point, tolerance, shift_pressed, ctrl_pressed)
                 {
                     // Shape selected
-                } else if !ctrl_pressed {
-                    // Click on empty space without Ctrl - deselect all
+                } else if !ctrl_pressed && !shift_pressed {
+                    // Click en espacio vacío sin modificadores - deselecciona todo
                     state.canvas.deselect_all();
                 }
 
@@ -816,6 +819,7 @@ impl DesignerCanvas {
                     layers.refresh(&self.state);
                 }
             }
+
             DesignerTool::Polyline => {
                 if n_press == 2 {
                     // Double click - finish
@@ -850,6 +854,8 @@ impl DesignerCanvas {
 
     pub(super) fn handle_release(&self, x: f64, y: f64, ctrl_pressed_arg: bool) {
         let ctrl_pressed = ctrl_pressed_arg || *self.ctrl_pressed.borrow();
+        // 1. Extraemos el estado actual de la tecla Shift:
+        let shift_pressed = *self.shift_pressed.borrow();
 
         if *self.did_drag.borrow() {
             return;
@@ -885,6 +891,23 @@ impl DesignerCanvas {
         };
 
         if tool == DesignerTool::Select {
+            // Consultamos el hardware real en el milisegundo exacto del "Release"
+            let display = gtk4::gdk::Display::default().unwrap();
+            let seat = display.default_seat().unwrap();
+            let keyboard = seat.keyboard().unwrap();
+            let modifiers = keyboard.modifier_state(); // ¡Aquí se usa!
+
+            let real_ctrl =
+                ctrl_pressed || modifiers.contains(gtk4::gdk::ModifierType::CONTROL_MASK);
+            let real_shift =
+                shift_pressed || modifiers.contains(gtk4::gdk::ModifierType::SHIFT_MASK);
+
+            // Si se detecta que el usuario mantiene pulsado físicamente Ctrl o Shift,
+            // salimos de inmediato para que el Release no altere la selección del Press.
+            if real_ctrl || real_shift {
+                return;
+            }
+
             let mut state = self.state.borrow_mut();
             let point = Point::new(canvas_x, canvas_y);
 
@@ -900,9 +923,7 @@ impl DesignerCanvas {
             if let Some(id) = clicked_shape_id {
                 let is_selected = state.canvas.shapes().any(|s| s.id == id && s.selected);
 
-                if is_selected && !ctrl_pressed {
-                    // We clicked on a selected item and didn't drag.
-                    // Now we select ONLY this item (deselect others).
+                if is_selected && !real_ctrl && !real_shift {
                     state.canvas.deselect_all();
                     state.canvas.select_shape(id, false);
 
