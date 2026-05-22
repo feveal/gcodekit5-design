@@ -93,7 +93,6 @@ jobs:
           components: rustfmt
 
       - name: Check formatting
-        # Se elimina '--check' para que no rompa el pipeline si el formato difiere
         run: cargo fmt --all
 
   dependency-audit:
