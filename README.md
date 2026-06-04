@@ -15,9 +15,14 @@ GCodeKit5 is a Rust-based CNC machine controller providing a modern alternative 
 - Import raster images with the ability to create compositions from multiple images and vector objects, whether created or imported; order canvas objects using the Objects panel, which is used for G-code workflow; and configure G-code generation independently for each image, allowing you to change speed, power, inversion, etc., according to the image's characteristics.
 - You can also independently configure the working properties of vector objects, so with multiple objects on the canvas, you can define a global configuration for them or a specific configuration for some. For example, several objects might use one speed and power for engraving, and then a different object could be defined with a different speed and power for cutting.
 - For chain sprockets, only need to enter the pitch and the number of teeth; the roller diameter is automatically calculated as standard according to ANSI/ISO norms.
+- The pan function has been implemented on the Designer screen using the middle mouse button.
+
+## Change to the Machine Control tab
+- The G-code editor has been integrated into the Machine Control screen to avoid switching between tabs.
+- The G-code Editing tab has been removed as it has been integrated into the Machine Control tab.
+- G-code output to the console has been removed to improve the speed of sending data to the machine.
 
 ## Architecture
-
 GCodeKit5 is organized as a Cargo workspace with 7 crates for modular compilation and better code organization:
 
 - **gcodekit5-core** - Core types, traits, state management, events, and data models
