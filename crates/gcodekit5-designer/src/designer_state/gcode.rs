@@ -10,7 +10,7 @@ use crate::ToolpathToGcode;
 use csgrs::traits::CSG;
 use gcodekit5_core::Units;
 
-use crate::Shape;
+//use crate::Shape;
 
 impl DesignerState {
     /// Obtiene los parámetros láser efectivos para un objeto
@@ -31,6 +31,10 @@ impl DesignerState {
                 use_global: true,
             })
         } else {
+            let mut params = shape.laser_params;
+            params.use_global = false;
+            Some(params)
+/*
             // Usar valores específicos del objeto
             match &shape.shape {
                 Shape::Rectangle(rect) => {
@@ -85,6 +89,7 @@ impl DesignerState {
                 }
                 Shape::RasterImage(_) => None,
             }
+*/
         }
     }
 
@@ -590,24 +595,17 @@ impl DesignerState {
             for pass in 0..num_passes {
                 if pass > 0 {
                     // Reposition to the start for subsequent passes
-                    if let Some(first_tp) = toolpaths.first() {
-                        if let Some(first_seg) = first_tp.segments.first() {
-                            gcode.push_str(&format!(
-                                "G00 X{:.3} Y{:.3}   ; Reposition for pass {}\n",
-                                first_seg.start.x,
-                                first_seg.start.y,
-                                pass + 1
-                            ));
-                        }
-                    }
+                    gcode.push_str(&format!("; Reposition for pass {}\n", pass + 1));
                 }
 
                 if gcode_gen.is_laser_2d {
                     for toolpath in toolpaths {
                         // Optimizes curves and joins collinear segments
                         let optimized = gcode_gen.optimize_toolpath_for_laser(toolpath);
+
                         let (body_gcode, final_z) =
                             gcode_gen.generate_body_continuing(&optimized, line_number, current_z);
+
                         gcode.push_str(&body_gcode);
                         line_number += (optimized.segments.len() as u32) * 10;
                         current_z = final_z;

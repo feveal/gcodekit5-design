@@ -51,7 +51,7 @@ impl DesignerView {
             grid_spacing_combo.append(Some(&mm.to_string()), &label);
         }
 
-        grid_spacing_combo.set_active_id(Some("10"));
+        grid_spacing_combo.set_active_id(Some("50"));
         {
             let state_grid_spacing = state.clone();
             let canvas_grid_spacing = canvas.clone();

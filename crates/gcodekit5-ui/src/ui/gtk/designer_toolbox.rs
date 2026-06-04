@@ -1018,7 +1018,7 @@ G1 X{x2:.3} Y{y2:.3} ; Right side\n\
 G1 X{x1:.3} Y{y2:.3} ; Top side\n\
 G1 X{x1:.3} Y{y1:.3} ; Left side\n\
 M5 ; Láser OFF\n\
-G0 X0 Y0 ; Volver a origen\n\
+G0 X0 Y0 ; Return to origin\n\
 ; --- Laser Frame End ---",
         x1 = x1,
         y1 = y1,

@@ -110,7 +110,7 @@ impl ToolpathGenerator {
         } else {
             (
                 rect.laser_params.feed_rate,
-                rect.laser_params.power_percent as u32,
+                (rect.laser_params.power_percent * 10.0) as u32,
             )
         };
 
@@ -143,7 +143,7 @@ impl ToolpathGenerator {
 
             segments.push(ToolpathSegment::new(
                 ToolpathSegmentType::RapidMove,
-                Point::new(0.0, 0.0),
+                t_corners[0],
                 t_corners[0],
                 feed_rate,
                 spindle_speed,
@@ -165,7 +165,7 @@ impl ToolpathGenerator {
 
             segments.push(ToolpathSegment::new(
                 ToolpathSegmentType::RapidMove,
-                Point::new(0.0, 0.0),
+                start_pt,
                 start_pt,
                 feed_rate,
                 spindle_speed,
@@ -292,7 +292,7 @@ impl ToolpathGenerator {
         } else {
             (
                 circle.laser_params.feed_rate,
-                circle.laser_params.power_percent as u32,
+                (circle.laser_params.power_percent * 10.0) as u32,
             )
         };
 
@@ -310,7 +310,7 @@ impl ToolpathGenerator {
 
         segments.push(ToolpathSegment::new(
             ToolpathSegmentType::RapidMove,
-            Point::new(0.0, 0.0),
+            start_point,
             start_point,
             feed_rate,
             spindle_speed,
@@ -348,7 +348,7 @@ impl ToolpathGenerator {
         } else {
             (
                 ellipse.laser_params.feed_rate,
-                ellipse.laser_params.power_percent as u32,
+                (ellipse.laser_params.power_percent * 10.0) as u32,
             )
         };
 
@@ -372,7 +372,7 @@ impl ToolpathGenerator {
 
         segments.push(ToolpathSegment::new(
             ToolpathSegmentType::RapidMove,
-            Point::new(0.0, 0.0),
+            start_point,
             start_point,
             feed_rate,
             spindle_speed,
@@ -414,14 +414,14 @@ impl ToolpathGenerator {
         } else {
             (
                 line.laser_params.feed_rate,
-                line.laser_params.power_percent as u32,
+                (line.laser_params.power_percent * 10.0) as u32,
             )
         };
 
         let segments = vec![
             ToolpathSegment::new(
                 ToolpathSegmentType::RapidMove,
-                Point::new(0.0, 0.0),
+                line.start,
                 line.start,
                 feed_rate,
                 spindle_speed,
@@ -446,7 +446,7 @@ impl ToolpathGenerator {
         } else {
             (
                 triangle.laser_params.feed_rate,
-                triangle.laser_params.power_percent as u32,
+                (triangle.laser_params.power_percent * 10.0) as u32,
             )
         };
 
@@ -474,7 +474,7 @@ impl ToolpathGenerator {
 
         segments.push(ToolpathSegment::new(
             ToolpathSegmentType::RapidMove,
-            Point::new(0.0, 0.0),
+            p1,
             p1,
             feed_rate,
             spindle_speed,
@@ -515,7 +515,7 @@ impl ToolpathGenerator {
         } else {
             (
                 polygon.laser_params.feed_rate,
-                polygon.laser_params.power_percent as u32,
+                (polygon.laser_params.power_percent *10.0) as u32,
             )
         };
 
@@ -546,7 +546,7 @@ impl ToolpathGenerator {
 
         segments.push(ToolpathSegment::new(
             ToolpathSegmentType::RapidMove,
-            Point::new(0.0, 0.0),
+            points[0],
             points[0],
             feed_rate,
             spindle_speed,
@@ -574,12 +574,12 @@ impl ToolpathGenerator {
         } else {
             (
                 path_shape.laser_params.feed_rate,
-                path_shape.laser_params.power_percent as u32,
+                (path_shape.laser_params.power_percent * 10.0) as u32,
             )
         };
 
-        let mut current_pos = Point::new(0.0, 0.0);
         let mut first_point: Option<Point> = None;
+        let mut current_pos = Point::new(0.0, 0.0);
 
         for event in path_shape.render().iter() {
             match event {
@@ -748,7 +748,7 @@ impl ToolpathGenerator {
         } else {
             (
                 text_shape.laser_params.feed_rate,
-                text_shape.laser_params.power_percent as u32,
+                (text_shape.laser_params.power_percent * 10.0) as u32,
             )
         };
 

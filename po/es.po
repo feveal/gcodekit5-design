@@ -3,7 +3,7 @@ msgstr ""
 "Project-Id-Version: GCodeKit5\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2025-12-12 09:36+0700\n"
-"PO-Revision-Date: 2026-05-15 17:54+0200\n"
+"PO-Revision-Date: 2026-05-29 01:42+0200\n"
 "Last-Translator: Fernando Velez <feveal@hotmail.com>\n"
 "Language-Team: Spanish\n"
 "Language: es_ES\n"
@@ -236,30 +236,6 @@ msgstr "Configuración de Herramientas…"
 msgid "Tool Parameters"
 msgstr "Parametros de la herramienta"
 
-msgid "Starting laser engraving:"
-msgstr "Iniciando grabado láser:"
-
-msgid "lines"
-msgstr "líneas"
-
-msgid "Work completed."
-msgstr "Trabajo finalizado."
-
-msgid "Work stopped."
-msgstr "Trabajo detenido."
-
-msgid "Stopping..."
-msgstr "Deteniendo..."
-
-msgid "Paused"
-msgstr "Pausado"
-
-msgid "Resuming"
-msgstr "Reanudando"
-
-msgid "Unlocking..."
-msgstr "Desbloqueando..."
-
 msgid "Stock Width"
 msgstr "Ancho en bruto"
 
@@ -307,6 +283,53 @@ msgstr "Parametros en bruto"
 
 msgid "Generate G-Code"
 msgstr "Generar G-Code"
+
+#: gcodekit5-ui/src/ui/gtk/machine_control/direct_sender.rs
+msgid "> Starting laser engraving:"
+msgstr "> Iniciando grabado láser:"
+
+msgid "lines"
+msgstr "líneas"
+
+msgid "> No activity for 30s, continuing..."
+msgstr "> Sin actividad durante 30 segundos, continúa..."
+
+msgid "> Engraving completed"
+msgstr "> Grabado completado"
+
+msgid "> Starting job (Simple Mode):"
+msgstr "> Iniciando trabajo (Modo simple):"
+
+msgid "> Send error, stopping..."
+msgstr "> Error al enviar, deteniendo..."
+
+msgid "> Machine error: {}"
+msgstr "> Error en Máquina: {}"
+
+msgid "> Resuming... (waiting {}s on line {})"
+msgstr "> Reanudando... (esperando {}s en línea {}"
+
+msgid "> {} in: {}:{:02}"
+msgstr "> {} en: {}:{:02}"
+
+msgid "Job completed"
+msgstr "Trabajo finalizado"
+
+msgid "Stopping..."
+msgstr "Deteniendo..."
+
+msgid "Paused"
+msgstr "Pausado"
+
+msgid "Resuming"
+msgstr "Reanudando"
+
+msgid "Unlocking..."
+msgstr "Desbloqueando..."
+
+#: gcodekit5-ui/src/ui/gtk/machine_control/mod.rs.rs
+msgid "✅ Work completed in:"
+msgstr "✅ Trabajo completado en:"
 
 # crates/gcodekit5-ui/src/ui/gtk/designer.rs
 msgid "View Controls"
@@ -1223,3 +1246,55 @@ msgstr "Umbral Semitonos:"
 # gcodekit5/crates/gcodekit5-ui/src/ui/gtk/designer_layers_rs
 msgid "Objects"
 msgstr "Objetos"
+
+# gcodekit5/crates/gcodekit5-ui/src/ui/gtk/editor.rs
+msgid "Calculating..."
+msgstr "Calculando..."
+
+msgid "0 matches"
+msgstr "0 coincidencias"
+
+msgid "of"
+msgstr "de"
+
+msgid "matches"
+msgstr "coincidencias"
+
+msgid "Search..."
+msgstr "Buscar..."
+
+msgid "Previous Match"
+msgstr "Coincidencia anterior"
+
+msgid "Next Match"
+msgstr "Siguiente coincidencia"
+
+msgid "Replace with ..."
+msgstr "Reemplazar con ..."
+
+msgid "Replace"
+msgstr "Reemplazar"
+
+msgid "Replace All"
+msgstr "Reemplazar todo"
+
+msgid "Please wait"
+msgstr "Espere por favor"
+
+msgid "Open G-Code File"
+msgstr "Abrir Archivo G-Code"
+
+msgid "Error Reading File"
+msgstr "Error leyendo archivo"
+
+msgid "Could not open"
+msgstr "No puedo abrirlo"
+
+msgid "Error Saving File"
+msgstr "Error guardando archivo"
+
+msgid "Could not save"
+msgstr "No se pudo guardar"
+
+msgid "Save G-Code File"
+msgstr "Guardar Archivo G-Code"

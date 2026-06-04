@@ -21,7 +21,7 @@ use crate::ui::gtk::status_bar::StatusBar;
 use crate::ui::gtk::tools_manager::ToolsManagerView;
 use crate::ui::gtk::visualizer::GcodeVisualizer;
 use gcodekit5_communication::Communicator;
-use gcodekit5_settings::config::Theme; // Removed unused StartupTab
+use gcodekit5_settings::config::{Theme, StartupTab};
 use gtk4::gio;
 use gtk4::prelude::*;
 use gtk4::{
@@ -31,7 +31,6 @@ use gtk4::{
 use std::cell::RefCell;
 use std::rc::Rc;
 use tracing::{debug, info};
-// use gcodekit5_core::thread_safe_none;
 
 pub fn main() {
     let app = Application::builder()
@@ -288,7 +287,7 @@ pub fn main() {
         let materials_manager = MaterialsManagerView::new();
 
         // ==========================================
-        // AÑADIR PESTAÑAS AL STACK (NUEVO ORDEN)
+        // AÑADIR PESTAÑAS AL STACK (ORDEN)
         // ==========================================
         // 1. Diseñador
         stack.add_titled(&designer.widget, Some("designer"), &t!("Designer"));
@@ -296,37 +295,36 @@ pub fn main() {
         // 2. Visualizador
         stack.add_titled(&visualizer.widget, Some("visualizer"), &t!("Visualizer"));
 
-        // 3. Editor de G-code
-        stack.add_titled(&editor.widget, Some("editor"), &t!("G-Code Editor"));
-
-        // 4. Herramientas CAM
-        stack.add_titled(cam_tools_view.widget(), Some("cam_tools"), &t!("CAM Tools"));
-
-        // 5. Control de máquina
+        // 3. Control de máquina
         stack.add_titled(
             &machine_control.widget,
             Some("machine"),
             &t!("Machine Control"),
         );
 
-        // 6. Administrador de dispositivos
+        // 4. Herramientas CAM
+        stack.add_titled(cam_tools_view.widget(), Some("cam_tools"), &t!("CAM Tools"));
+
+
+
+        // 5. Administrador de dispositivos
         stack.add_titled(
             &device_manager_view.widget,
             Some("devices"),
             &t!("Device Manager"),
         );
 
-        // 7. Configuración de dispositivo
+        // 6. Configuración de dispositivo
         stack.add_titled(
             &config_settings.container,
             Some("config"),
             &t!("Device Config"),
         );
 
-        // 8. Herramientas CNC
+        // 7. Herramientas CNC
         stack.add_titled(&tools_manager.widget, Some("tools"), &t!("CNC Tools"));
 
-        // 9. Materiales
+        // 8. Materiales
         stack.add_titled(
             &materials_manager.widget,
             Some("materials"),
@@ -387,12 +385,12 @@ pub fn main() {
             vis_clone.set_gcode(&text);
         });
 
-        // Connect Designer G-Code Generation to Editor
         let editor_clone_gen = editor.clone();
         let stack_clone_gen = stack.clone();
         designer.set_on_gcode_generated(move |gcode| {
             editor_clone_gen.set_text(&gcode);
-            stack_clone_gen.set_visible_child_name("editor");
+            // Cambiar a la pestaña Machine Control en lugar de "editor"
+            stack_clone_gen.set_visible_child_name("machine");
             editor_clone_gen.grab_focus();
         });
 
@@ -555,7 +553,7 @@ pub fn main() {
                 // 3. Insert into the editor
                 editor_frame.set_text(&gcode);
                 // 4. Jump to the editor tab to view the code
-                stack_frame.set_visible_child_name("editor");
+                stack_frame.set_visible_child_name("machine");
             } else {
                 tracing::info!("Frame requested but canvas is empty - nothing to frame");
             }
@@ -571,6 +569,7 @@ pub fn main() {
                 match name.as_str() {
                     "designer" => designer_clone.new_file(),
                     "editor" => editor_clone.new_file(),
+                    "machine" => editor_clone.new_file(),
                     _ => {}
                 }
             }
@@ -586,6 +585,7 @@ pub fn main() {
                 match name.as_str() {
                     "designer" => designer_clone.open_file(),
                     "editor" => editor_clone.open_file(),
+                    "machine" => editor_clone.open_file(),
                     _ => {}
                 }
             }
@@ -601,6 +601,7 @@ pub fn main() {
                 match name.as_str() {
                     "designer" => designer_clone.save_file(),
                     "editor" => editor_clone.save_file(),
+                    "machine" => editor_clone.save_file(),
                     _ => {}
                 }
             }
@@ -616,6 +617,7 @@ pub fn main() {
                 match name.as_str() {
                     "designer" => designer_clone.save_as_file(),
                     "editor" => editor_clone.save_as_file(),
+                    "machine" => editor_clone.save_as_file(),
                     _ => {}
                 }
             }
@@ -675,7 +677,7 @@ pub fn main() {
                 .program_name(t!("GCodeKit5"))
                 .version(env!("CARGO_PKG_VERSION"))
                 .comments(t!("GCode Toolkit for CNC/Laser Machines"))
-                .website("https://github.com/thawkins/gcodekit5")
+                .website("https://github.com/feveal/gcodekit5-design")
                 .license_type(gtk4::License::MitX11)
                 .authors(vec![t!("Tim Hawkins and GCodeKit Contributors")])
                 .build();
@@ -703,7 +705,7 @@ pub fn main() {
 
             fn mark_about_title(root: &gtk4::Widget) {
                 if let Ok(label) = root.clone().downcast::<gtk4::Label>() {
-                    if label.text() == "GCodeKit5" {
+                    if label.text() == "GCodeKit5 Design" {
                         label.add_css_class("gk-about-title");
                     }
                 }
@@ -733,6 +735,7 @@ pub fn main() {
                 match name.as_str() {
                     "designer" => designer_clone.undo(),
                     "editor" => editor_clone.undo(),
+                    "machine" => editor_clone.undo(),
                     _ => {}
                 }
             }
@@ -748,6 +751,7 @@ pub fn main() {
                 match name.as_str() {
                     "designer" => designer_clone.redo(),
                     "editor" => editor_clone.redo(),
+                    "machine" => editor_clone.redo(),
                     _ => {}
                 }
             }
@@ -763,6 +767,7 @@ pub fn main() {
                 match name.as_str() {
                     "designer" => designer_clone.cut(),
                     "editor" => editor_clone.cut(),
+                    "machine" => editor_clone.cut(),
                     _ => {}
                 }
             }
@@ -778,6 +783,7 @@ pub fn main() {
                 match name.as_str() {
                     "designer" => designer_clone.copy(),
                     "editor" => editor_clone.copy(),
+                    "machine" => editor_clone.copy(),
                     _ => {}
                 }
             }
@@ -793,6 +799,7 @@ pub fn main() {
                 match name.as_str() {
                     "designer" => designer_clone.paste(),
                     "editor" => editor_clone.paste(),
+                    "machine" => editor_clone.paste(),
                     _ => {}
                 }
             }
@@ -836,7 +843,10 @@ pub fn main() {
                 let name_str = name.as_str();
                 let is_designer = name_str == "designer";
                 let is_editor = name_str == "editor";
-                // let is_machine = name_str == "machine";
+                let is_machine = name_str == "machine";
+
+                // Las acciones del editor también deben habilitarse en "machine"
+                let enable_editor_actions = is_designer || is_editor || is_machine;
 
                 let set_enabled = |action_name: &str, enabled: bool| {
                     if let Some(action) = app_clone.lookup_action(action_name) {
@@ -846,18 +856,20 @@ pub fn main() {
                     }
                 };
 
-                // Edit actions
-                set_enabled("edit_undo", is_designer || is_editor);
-                set_enabled("edit_redo", is_designer || is_editor);
-                set_enabled("edit_cut", is_designer || is_editor);
-                set_enabled("edit_copy", is_designer || is_editor);
-                set_enabled("edit_paste", is_designer || is_editor);
+                // Edit actions - ahora también en machine
+                set_enabled("edit_undo", enable_editor_actions);
+                set_enabled("edit_redo", enable_editor_actions);
+                set_enabled("edit_cut", enable_editor_actions);
+                set_enabled("edit_copy", enable_editor_actions);
+                set_enabled("edit_paste", enable_editor_actions);
 
-                // File actions
-                set_enabled("file_new", is_designer || is_editor);
-                set_enabled("file_open", is_designer || is_editor);
-                set_enabled("file_save", is_designer || is_editor);
-                set_enabled("file_save_as", is_designer || is_editor);
+                // File actions - ahora también en machine
+                set_enabled("file_new", enable_editor_actions);
+                set_enabled("file_open", enable_editor_actions);
+                set_enabled("file_save", enable_editor_actions);
+                set_enabled("file_save_as", enable_editor_actions);
+
+                // Acciones exclusivas del diseñador
                 set_enabled("file_import", is_designer);
                 set_enabled("file_import_image", is_designer);
                 set_enabled("file_export_gcode", is_designer);
@@ -888,8 +900,22 @@ pub fn main() {
         app.set_accels_for_action("app.help_docs", &[StandardShortcuts::HELP_DOCS]);
         app.set_accels_for_action("app.machine_home", &[StandardShortcuts::MACHINE_HOME]);
 
-        // Set initial tab to DESIGNER (ignoring startup_tab setting for better UX)
-        stack.set_visible_child_name("designer");
+        // Set initial tab based on user configuration
+        let startup_tab = settings_persistence.borrow().config().ui.startup_tab;
+        let initial_tab = match startup_tab {
+            StartupTab::Designer => "designer",
+            StartupTab::Visualizer => "visualizer",
+            StartupTab::Machine => "machine",  // Editor está dentro de machine
+            StartupTab::Editor => "machine",
+            StartupTab::Console => "machine",  // Console está dentro de machine
+            StartupTab::CamTools => "cam_tools",
+            StartupTab::DeviceInfo => "config",   // Device Info está en config
+            StartupTab::Config => "config",
+            StartupTab::Devices => "devices",
+            StartupTab::Tools => "tools",
+            StartupTab::Materials => "materials",
+        };
+        stack.set_visible_child_name(initial_tab);
 
         window.maximize();
         window.present();
@@ -910,7 +936,7 @@ pub fn main() {
                     .program_name(t!("GCodeKit5"))
                     .version(env!("CARGO_PKG_VERSION"))
                     .comments(t!("GCode Toolkit for CNC/Laser Machines"))
-                    .website("https://github.com/thawkins/gcodekit5")
+                    .website("https://github.com/feveal/gcodekit5-design")
                     .license_type(gtk4::License::MitX11)
                     .authors(vec![t!("Tim Hawkins and GCodeKit Contributors")])
                     .build();
@@ -938,7 +964,7 @@ pub fn main() {
 
                 fn mark_about_title(root: &gtk4::Widget) {
                     if let Ok(label) = root.clone().downcast::<gtk4::Label>() {
-                        if label.text() == "GCodeKit5" {
+                        if label.text() == "GCodeKit5 Design" {
                             label.add_css_class("gk-about-title");
                         }
                     }

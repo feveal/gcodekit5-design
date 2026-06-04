@@ -136,6 +136,38 @@ pub struct ShapeData {
     pub original_path: Option<String>,
     #[serde(default = "default_true")]
     pub use_global_laser: bool,
+    #[serde(default)]
+    pub laser_params: LaserParams,
+    // ========== PARÁMETROS LÁSER PARA IMÁGENES RÁSTER ==========
+    #[serde(default = "default_feed_rate")]
+    pub feed_rate: f64,
+    #[serde(default = "default_travel_rate")]
+    pub travel_rate: f64,
+    #[serde(default = "default_min_power")]
+    pub min_power: f64,
+    #[serde(default = "default_max_power")]
+    pub max_power: f64,
+    #[serde(default = "default_ppi")]
+    pub ppi: f64,
+    #[serde(default = "default_bidirectional")]
+    pub bidirectional: bool,
+    #[serde(default = "default_invert")]
+    pub invert: bool,
+    #[serde(default = "default_scan_direction")]
+    pub scan_direction: String,
+    #[serde(default = "default_dithering")]
+    pub dithering: String,
+    #[serde(default = "default_halftone_threshold")]
+    pub halftone_threshold: u8,
+/*
+    // ========== CAMPOS LÁSER PARA CADA OBJETO ==========
+    #[serde(default = "default_feed_rate")]
+    pub laser_feed_rate: f64,
+    #[serde(default = "default_laser_power")]
+    pub laser_power: f64,
+    #[serde(default = "default_laser_passes")]
+    pub laser_passes: i32,
+*/
 }
 
 fn default_true() -> bool {
@@ -150,6 +182,51 @@ fn default_raster_fill_ratio() -> f64 {
     0.5
 }
 
+// ========== FUNCIONES DEFAULT PARA PARÁMETROS LÁSER ==========
+fn default_travel_rate() -> f64 {
+    3000.0
+}
+
+fn default_min_power() -> f64 {
+    0.0
+}
+
+fn default_max_power() -> f64 {
+    20.0
+}
+
+fn default_ppi() -> f64 {
+    254.0
+}
+
+fn default_bidirectional() -> bool {
+    true
+}
+
+fn default_invert() -> bool {
+    true
+}
+
+fn default_scan_direction() -> String {
+    "horizontal".to_string()
+}
+
+fn default_dithering() -> String {
+    "none".to_string()
+}
+
+fn default_halftone_threshold() -> u8 {
+    127
+}
+/*
+fn default_laser_power() -> f64 {
+    100.0
+}
+fn default_laser_passes() -> i32 {
+    1
+}
+*/
+
 /// Toolpath generation parameters
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolpathParameters {
@@ -161,6 +238,8 @@ pub struct ToolpathParameters {
     pub tool_diameter: f64,
     #[serde(default = "default_cut_depth")]
     pub cut_depth: f64,
+    #[serde(default = "default_step_down")]
+    pub step_down: f64,
     #[serde(default = "default_stock_width")]
     pub stock_width: f32,
     #[serde(default = "default_stock_height")]
@@ -183,6 +262,9 @@ fn default_tool_diameter() -> f64 {
 fn default_cut_depth() -> f64 {
     -5.0
 }
+fn default_step_down() -> f64 {
+    1.0
+}
 fn default_stock_width() -> f32 {
     200.0
 }
@@ -203,6 +285,7 @@ impl Default for ToolpathParameters {
             spindle_speed: default_spindle_speed(),
             tool_diameter: default_tool_diameter(),
             cut_depth: default_cut_depth(),
+            step_down: default_step_down(),
             stock_width: default_stock_width(),
             stock_height: default_stock_height(),
             stock_thickness: default_stock_thickness(),
@@ -233,6 +316,12 @@ impl ToolpathParameters {
     /// Builder method to set cut depth in mm (negative value).
     pub fn with_cut_depth(mut self, depth: f64) -> Self {
         self.cut_depth = depth;
+        self
+    }
+
+    /// Builder method to set step_down
+    pub fn with_step_down(mut self, step_down: f64) -> Self {
+        self.step_down = step_down;
         self
     }
 
@@ -303,7 +392,6 @@ impl DesignFile {
         Ok(design)
     }
 
-    /// Convert DrawingObject to ShapeData
     pub fn from_drawing_object(obj: &DrawingObject) -> ShapeData {
         // 1. We only use the bounds to calculate the center (cx, cy)
         let (x1, y1, x2, y2) = obj.shape.bounds();
@@ -392,6 +480,7 @@ impl DesignFile {
             }
             _ => {}
         }
+
         let original_path = if let Shape::RasterImage(raster) = &obj.shape {
             raster
                 .original_path
@@ -400,6 +489,38 @@ impl DesignFile {
         } else {
             None
         };
+
+        // ========== EXTRAER PARÁMETROS LÁSER ==========
+        let (feed_rate, travel_rate, min_power, max_power, ppi, bidirectional, invert, scan_direction, dithering, halftone_threshold) =
+            if let Shape::RasterImage(raster) = &obj.shape {
+                (
+                    raster.feed_rate,
+                    raster.travel_rate,
+                    raster.min_power,
+                    raster.max_power,
+                    raster.ppi,
+                    raster.bidirectional,
+                    raster.invert,
+                    raster.scan_direction.clone(),
+                    raster.dithering.clone(),
+                    raster.halftone_threshold,
+                )
+            } else {
+                (
+                    default_feed_rate(),
+                    default_travel_rate(),
+                    default_min_power(),
+                    default_max_power(),
+                    default_ppi(),
+                    default_bidirectional(),
+                    default_invert(),
+                    default_scan_direction(),
+                    default_dithering(),
+                    default_halftone_threshold(),
+                )
+            };
+
+        let laser_params = obj.laser_params;
 
         ShapeData {
             id: obj.id as i32,
@@ -448,11 +569,25 @@ impl DesignFile {
             lock_aspect_ratio: obj.lock_aspect_ratio,
             original_path,
             use_global_laser: obj.use_global_laser,
+            // ========== PARÁMETROS LÁSER ==========
+            feed_rate,
+            travel_rate,
+            min_power,
+            max_power,
+            ppi,
+            bidirectional,
+            invert,
+            scan_direction,
+            dithering,
+            halftone_threshold,
+            laser_params,
         }
     }
 
-    /// Convert ShapeData to DrawingObject
     pub fn to_drawing_object(data: &ShapeData, next_id: i32) -> Result<DrawingObject> {
+        // Obtener laser_params una sola vez
+        let laser_params = data.laser_params;
+
         let shape: Shape = match data.shape_type.as_str() {
             "rectangle" => {
                 let x = data.x - data.width / 2.0;
@@ -460,12 +595,15 @@ impl DesignFile {
                 let mut rect = Rectangle::new(x, y, data.width, data.height);
                 rect.corner_radius = data.corner_radius;
                 rect.is_slot = data.is_slot;
+                rect.laser_params = laser_params;
                 Shape::Rectangle(rect)
             }
             "circle" => {
                 let radius = data.width.min(data.height) / 2.0;
                 let center = Point::new(data.x, data.y);
-                Shape::Circle(Circle::new(center, radius))
+                let mut circle = Circle::new(center, radius);
+                circle.laser_params = laser_params;
+                Shape::Circle(circle)
             }
             "line" => {
                 let mut line = if data.points.len() >= 2 {
@@ -480,20 +618,27 @@ impl DesignFile {
                     Line::new(start, end)
                 };
                 line.rotation = data.rotation;
+                line.laser_params = laser_params;
                 Shape::Line(line)
             }
             "ellipse" => {
                 let center = Point::new(data.x, data.y);
-                Shape::Ellipse(Ellipse::new(center, data.width / 2.0, data.height / 2.0))
+                let mut ellipse = Ellipse::new(center, data.width / 2.0, data.height / 2.0);
+                ellipse.laser_params = laser_params;
+                Shape::Ellipse(ellipse)
             }
             "triangle" => {
                 let center = Point::new(data.x, data.y);
-                Shape::Triangle(Triangle::new(center, data.width, data.height))
+                let mut triangle = Triangle::new(center, data.width, data.height);
+                triangle.laser_params = laser_params;
+                Shape::Triangle(triangle)
             }
             "polygon" => {
                 let center = Point::new(data.x, data.y);
                 let radius = data.width.max(data.height) / 2.0;
-                Shape::Polygon(Polygon::new(center, radius, data.sides))
+                let mut polygon = Polygon::new(center, radius, data.sides);
+                polygon.laser_params = laser_params;
+                Shape::Polygon(polygon)
             }
             "polyline" => {
                 let center = Point::new(data.x, data.y);
@@ -506,26 +651,30 @@ impl DesignFile {
                     let y = center.y + radius * angle.sin();
                     vertices.push(Point::new(x, y));
                 }
-                Shape::Path(PathShape::from_points(&vertices, true))
+                let mut path = PathShape::from_points(&vertices, true);
+                path.laser_params = laser_params;
+                Shape::Path(path)
             }
             "text" => {
-                let mut s =
-                    TextShape::new(data.text_content.clone(), data.x, data.y, data.font_size);
+                let mut s = TextShape::new(data.text_content.clone(), data.x, data.y, data.font_size);
                 if !data.font_family.is_empty() {
                     s.font_family = data.font_family.clone();
                 }
                 s.bold = data.font_bold;
                 s.italic = data.font_italic;
+                s.laser_params = laser_params;
                 Shape::Text(s)
             }
             "path" => {
-                if let Some(path_shape) = PathShape::from_svg_path(&data.path_data) {
+                if let Some(mut path_shape) = PathShape::from_svg_path(&data.path_data) {
+                    path_shape.laser_params = laser_params;
                     Shape::Path(path_shape)
                 } else {
-                    // Fallback if path parsing fails
+                    // Fallback...
                     let mut rect = Rectangle::new(data.x, data.y, data.width, data.height);
                     rect.corner_radius = data.corner_radius;
                     rect.is_slot = data.is_slot;
+                    rect.laser_params = laser_params;
                     Shape::Rectangle(rect)
                 }
             }
@@ -533,12 +682,14 @@ impl DesignFile {
                 let center = Point::new(data.x, data.y);
                 let mut gear = DesignGear::new(center, data.module, data.teeth);
                 gear.pressure_angle_deg = data.pressure_angle;
+                gear.laser_params = laser_params;
                 Shape::Gear(gear)
             }
             "sprocket" => {
                 let center = Point::new(data.x, data.y);
                 let mut sprocket = DesignSprocket::new(center, data.pitch, data.teeth);
                 sprocket.roller_diameter = data.roller_diameter;
+                sprocket.laser_params = laser_params;
                 Shape::Sprocket(sprocket)
             }
             "raster_image" => {
@@ -547,7 +698,6 @@ impl DesignFile {
 
                 let (image_data, width_mm, height_mm) = if let Some(ref path) = original_path {
                     if path.exists() {
-                        // Try to load the image while keeping the saved dimensions
                         match crate::image_importer::ImageImporter::load_image_data_with_size(
                             path,
                             data.width,
@@ -567,7 +717,7 @@ impl DesignFile {
                     (Vec::new(), data.width, data.height)
                 };
 
-                let raster = RasterImage::new(
+                let mut raster = RasterImage::new(
                     data.id as u64,
                     center,
                     width_mm,
@@ -575,6 +725,19 @@ impl DesignFile {
                     image_data,
                     original_path,
                 );
+
+                // Parámetros láser para raster
+                raster.feed_rate = data.feed_rate;
+                raster.travel_rate = data.travel_rate;
+                raster.min_power = data.min_power;
+                raster.max_power = data.max_power;
+                raster.ppi = data.ppi;
+                raster.bidirectional = data.bidirectional;
+                raster.invert = data.invert;
+                raster.scan_direction = data.scan_direction.clone();
+                raster.dithering = data.dithering.clone();
+                raster.halftone_threshold = data.halftone_threshold;
+                raster.rotation = data.rotation;
 
                 Shape::RasterImage(raster)
             }
@@ -640,6 +803,7 @@ impl DesignFile {
             chamfer: data.chamfer,
             lock_aspect_ratio: data.lock_aspect_ratio,
             use_global_laser: data.use_global_laser,
+            laser_params,
         })
     }
 }

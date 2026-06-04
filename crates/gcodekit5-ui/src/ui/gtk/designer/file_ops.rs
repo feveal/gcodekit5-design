@@ -91,12 +91,13 @@ impl DesignerView {
                                 }
 
                                 state.canvas.set_next_id(max_id + 1);
-                                state.tool_settings.feed_rate = design.toolpath_params.feed_rate;
+                                state.tool_settings.feed_rate =     design.toolpath_params.feed_rate;
                                 state.tool_settings.spindle_speed =
-                                    design.toolpath_params.spindle_speed as u32;
+                                design.toolpath_params.spindle_speed as u32;
                                 state.tool_settings.tool_diameter =
-                                    design.toolpath_params.tool_diameter;
-                                state.tool_settings.cut_depth = design.toolpath_params.cut_depth;
+                                design.toolpath_params.tool_diameter;
+                                state.tool_settings.cut_depth =                        design.toolpath_params.cut_depth;
+                                state.tool_settings.step_down =                         design.toolpath_params.step_down;
 
                                 state.stock_material = Some(StockMaterial {
                                     width: design.toolpath_params.stock_width,
@@ -529,6 +530,7 @@ impl DesignerView {
                             state.tool_settings.spindle_speed as f64;
                         design.toolpath_params.tool_diameter = state.tool_settings.tool_diameter;
                         design.toolpath_params.cut_depth = state.tool_settings.cut_depth;
+                        design.toolpath_params.step_down = state.tool_settings.step_down;
 
                         // Stock and toolpath parameters
                         if let Some(ref stock) = state.stock_material {
@@ -596,6 +598,7 @@ impl DesignerView {
         design.toolpath_params.spindle_speed = state.tool_settings.spindle_speed as f64;
         design.toolpath_params.tool_diameter = state.tool_settings.tool_diameter;
         design.toolpath_params.cut_depth = state.tool_settings.cut_depth;
+        design.toolpath_params.step_down = state.tool_settings.step_down;
 
         // Stock and toolpath parameters
         if let Some(ref stock) = state.stock_material {

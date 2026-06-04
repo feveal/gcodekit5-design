@@ -1,6 +1,6 @@
 //! Canvas type definitions: CanvasSnapshot, CanvasPoint, DrawingMode, DrawingObject, Alignment.
 
-use crate::model::{DesignerShape, Point, Shape, ShapeType};
+use crate::model::{DesignerShape, Point, Shape, ShapeType, LaserParams};
 use crate::pocket_operations::PocketStrategy;
 use crate::shape_store::ShapeStore;
 use crate::shapes::OperationType;
@@ -79,6 +79,10 @@ pub struct DrawingObject {
     pub chamfer: f64,
     pub lock_aspect_ratio: bool,
     pub use_global_laser: bool,
+    pub laser_params: LaserParams,
+//    pub laser_feed_rate: f64,
+//    pub laser_power: f64,
+//    pub laser_passes: i32,
 }
 
 impl DrawingObject {
@@ -157,6 +161,10 @@ impl DrawingObject {
             chamfer: 0.0,
             lock_aspect_ratio: true, // lock default aspect ratio
             use_global_laser: true,
+            laser_params: LaserParams::default(),
+//            laser_feed_rate: 1000.0,
+//            laser_power: 100.0,
+//            laser_passes: 1,
         }
     }
 }

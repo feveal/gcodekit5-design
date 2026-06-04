@@ -100,7 +100,7 @@ impl DesignerState {
             is_modified: false,
             design_name: "Untitled".to_string(),
             show_grid: true,
-            grid_spacing_mm: 10.0,
+            grid_spacing_mm: 50.0,
             show_toolpaths: false,
             snap_enabled: false,
             snap_threshold_mm: 0.5,
@@ -195,6 +195,22 @@ impl DesignerState {
 
     /// Sets the step-down for toolpath generation.
     pub fn set_step_down(&mut self, step: f64) {
+        let step = if self.machine_mode() == MachineMode::Laser2D {
+            // En modo láser: el valor es el número de pasadas (1-10)
+            step.round().clamp(1.0, 10.0)
+        } else {
+            // En modo CNC: profundidad de pasada en mm
+            if step <= 0.0 { 0.1 } else { step }
+        };
+        debug_assert!(
+            step.is_finite() && step > 0.0,
+            "step_down must be positive and finite, got {step}"
+        );
+        self.tool_settings.step_down = step;
+        self.gcode_generated = false;
+    }
+/*
+    pub fn set_step_down(&mut self, step: f64) {
         let step = if step <= 0.0 { 0.1 } else { step };
         debug_assert!(
             step.is_finite() && step > 0.0,
@@ -203,7 +219,7 @@ impl DesignerState {
         self.tool_settings.step_down = step;
         self.gcode_generated = false;
     }
-
+*/
     /// Gets the current machine mode
     pub fn machine_mode(&self) -> MachineMode {
         self.tool_settings.machine_mode

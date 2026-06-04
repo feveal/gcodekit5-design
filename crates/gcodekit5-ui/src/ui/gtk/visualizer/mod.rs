@@ -383,7 +383,7 @@ impl GcodeVisualizer {
             .active(true)
             .build();
 
-        let grid_spacing_mm = Rc::new(std::cell::Cell::new(10.0_f64));
+        let grid_spacing_mm = Rc::new(std::cell::Cell::new(50.0_f64));
         let grid_spacing_row = Box::new(Orientation::Horizontal, 6);
         let grid_spacing_label = Label::new(Some(&t!("Grid spacing")));
         grid_spacing_label.add_css_class("caption");
@@ -407,7 +407,7 @@ impl GcodeVisualizer {
             );
             grid_spacing_combo.append(Some(&mm.to_string()), &label);
         }
-        grid_spacing_combo.set_active_id(Some("10"));
+        grid_spacing_combo.set_active_id(Some("50"));
 
         {
             let grid_spacing_mm = grid_spacing_mm.clone();

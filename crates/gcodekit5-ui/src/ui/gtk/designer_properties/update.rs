@@ -21,6 +21,7 @@ impl PropertiesPanel {
 
     /// Update the panel from the current selection.
     pub fn update_from_selection(&self) {
+
         // Don't update if any widget has focus (user is editing)
         if *self.has_focus.borrow() {
             return;
@@ -160,14 +161,15 @@ impl PropertiesPanel {
                 // Leer en tiempo real el estado global de la máquina
                 let global_settings = self.state.borrow().tool_settings.clone();
 
-                // Si use_global es true, usamos las ToolSettings. Si es false, usamos lo que guardó el objeto.
+                // Calcular los valores a mostrar
                 let display_feed = if params.use_global {
                     global_settings.feed_rate
                 } else {
                     params.feed_rate
                 };
+
                 let display_power = if params.use_global {
-                    global_settings.spindle_speed as f64
+                    (global_settings.spindle_speed as f64) / 10.0
                 } else {
                     params.power_percent
                 };
@@ -178,18 +180,44 @@ impl PropertiesPanel {
                     params.passes
                 };
 
-                // Asignamos feed_rate a la caja de texto
-                if let Ok(current) = self.laser_feed_rate_entry.text().parse::<f64>() {
-                    if (current - display_feed).abs() > 1e-6 {
-                        self.laser_feed_rate_entry
-                            .set_text(&display_feed.to_string());
-                    }
-                } else {
-                    self.laser_feed_rate_entry
-                        .set_text(&display_feed.to_string());
+                // Solo actualizar si el valor ha cambiado y NO hay foco
+                if !*self.has_focus.borrow() {
+                    self.laser_feed_rate_entry.set_text(&display_feed.to_string());
+                    self.laser_power_entry.set_text(&display_power.to_string());
+                    self.laser_passes_entry.set_text(&display_passes.to_string());
+                    self.laser_use_global_check.set_active(params.use_global);
+
+                    self.laser_feed_rate_entry.set_sensitive(!params.use_global);
+                    self.laser_power_entry.set_sensitive(!params.use_global);
+                    self.laser_passes_entry.set_sensitive(!params.use_global);
                 }
 
-                // Asignamos power a la caja de texto
+                self.laser_feed_rate_entry.set_text(&display_feed.to_string());
+                self.laser_power_entry.set_text(&display_power.to_string());
+                self.laser_passes_entry.set_text(&display_passes.to_string());
+                self.laser_use_global_check.set_active(params.use_global);
+
+                // Deshabilitar campos si es global
+                self.laser_feed_rate_entry.set_sensitive(!params.use_global);
+                self.laser_power_entry.set_sensitive(!params.use_global);
+                self.laser_passes_entry.set_sensitive(!params.use_global);
+
+                let display_passes = if params.use_global {
+                    (global_settings.step_down as u32).max(1)
+                } else {
+                    params.passes
+                };
+
+                // Asignar feed_rate a la caja de texto
+                if let Ok(current) = self.laser_feed_rate_entry.text().parse::<f64>() {
+                    if (current - display_feed).abs() > 1e-6 {
+                        self.laser_feed_rate_entry.set_text(&display_feed.to_string());
+                    }
+                } else {
+                    self.laser_feed_rate_entry.set_text(&display_feed.to_string());
+                }
+
+                // Asignar power a la caja de texto
                 if let Ok(current) = self.laser_power_entry.text().parse::<f64>() {
                     if (current - display_power).abs() > 1e-6 {
                         self.laser_power_entry.set_text(&display_power.to_string());
@@ -198,23 +226,21 @@ impl PropertiesPanel {
                     self.laser_power_entry.set_text(&display_power.to_string());
                 }
 
-                // Asignamos passes a la caja de texto
+                // Asignar passes a la caja de texto
                 if let Ok(current) = self.laser_passes_entry.text().parse::<u32>() {
                     if current != display_passes {
-                        self.laser_passes_entry
-                            .set_text(&display_passes.to_string());
+                        self.laser_passes_entry.set_text(&display_passes.to_string());
                     }
                 } else {
-                    self.laser_passes_entry
-                        .set_text(&display_passes.to_string());
+                    self.laser_passes_entry.set_text(&display_passes.to_string());
                 }
 
-                // Forzamos al Checkbox visual a ponerse en su sitio
+                // Forzar al Checkbox visual a ponerse en su sitio
                 if self.laser_use_global_check.is_active() != params.use_global {
                     self.laser_use_global_check.set_active(params.use_global);
                 }
 
-                // Deshabilitamos los campos si es global
+                // Deshabilitar los campos si es global
                 self.laser_feed_rate_entry.set_sensitive(!params.use_global);
                 self.laser_power_entry.set_sensitive(!params.use_global);
                 self.laser_passes_entry.set_sensitive(!params.use_global);
@@ -849,6 +875,10 @@ impl PropertiesPanel {
             &self.image_max_power_entry,
             &self.image_ppi_entry,
             &self.image_halftone_threshold_entry,
+            // ---
+            &self.laser_feed_rate_entry,
+            &self.laser_power_entry,
+            &self.laser_passes_entry,
         ];
 
         for entry in entries {

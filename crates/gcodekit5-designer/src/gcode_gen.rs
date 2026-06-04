@@ -376,6 +376,7 @@ impl ToolpathToGcode {
                     line_number += 10;
                 }
 
+                // ---
                 ToolpathSegmentType::ArcCW | ToolpathSegmentType::ArcCCW => {
                     // Handle Z plunge if needed
                     if has_z {
@@ -391,9 +392,7 @@ impl ToolpathToGcode {
                                 line_number += 10;
                                 current_z = sz;
                             }
-                        } else if segment.z_depth.is_none()
-                            && (current_z - toolpath.depth).abs() > 0.01
-                        {
+                        } else if segment.z_depth.is_none() && (current_z - toolpath.depth).abs() > 0.01 {
                             let line_prefix = self.get_line_prefix(line_number);
                             gcode.push_str(&format!(
                                 "{}G01 Z{} F{:.0}\n",
@@ -428,71 +427,32 @@ impl ToolpathToGcode {
                         line_number += 10;
                     }
 
-                    let cmd = if segment.segment_type == ToolpathSegmentType::ArcCW {
-                        "G02"
+                    let feed_rate_cmd = if last_feed_rate.is_none_or(|fr| (fr - segment.feed_rate).abs() > 0.1) {
+                        last_feed_rate = Some(segment.feed_rate);
+                        format!(" F{:.0}", segment.feed_rate)
                     } else {
-                        "G03"
+                        String::new()
                     };
 
-                    // Only send feed rate if it changed
-                    let feed_rate_cmd =
-                        if last_feed_rate.is_none_or(|fr| (fr - segment.feed_rate).abs() > 0.1) {
-                            last_feed_rate = Some(segment.feed_rate);
-                            format!(" F{:.0}", segment.feed_rate)
-                        } else {
-                            String::new()
-                        };
-
-                    if let Some(center) = segment.center {
-                        let i = center.x - segment.start.x;
-                        let j = center.y - segment.start.y;
-
-                        if has_z && (target_z - current_z).abs() > 0.001 {
-                            gcode.push_str(&format!(
-                                "{}{} X{} Y{} Z{} I{} J{}{}\n",
-                                line_prefix,
-                                cmd,
-                                self.fmt_coord(segment.end.x),
-                                self.fmt_coord(segment.end.y),
-                                self.fmt_coord(target_z),
-                                self.fmt_coord(i),
-                                self.fmt_coord(j),
-                                feed_rate_cmd
-                            ));
-                            current_z = target_z;
-                        } else {
-                            gcode.push_str(&format!(
-                                "{}{} X{} Y{} I{} J{}{}\n",
-                                line_prefix,
-                                cmd,
-                                self.fmt_coord(segment.end.x),
-                                self.fmt_coord(segment.end.y),
-                                self.fmt_coord(i),
-                                self.fmt_coord(j),
-                                feed_rate_cmd
-                            ));
-                        }
+                    // Usar G01 (línea recta) en lugar de G02/G03
+                    if has_z && (target_z - current_z).abs() > 0.001 {
+                        gcode.push_str(&format!(
+                            "{}{} X{} Y{} Z{}{}\n",
+                            line_prefix, "G01",
+                            self.fmt_coord(segment.end.x),
+                            self.fmt_coord(segment.end.y),
+                            self.fmt_coord(target_z),
+                            feed_rate_cmd
+                        ));
+                        current_z = target_z;
                     } else {
-                        // Fallback to linear if no center provided
-                        if has_z && (target_z - current_z).abs() > 0.001 {
-                            gcode.push_str(&format!(
-                                "{}G01 X{} Y{} Z{}{}\n",
-                                line_prefix,
-                                self.fmt_coord(segment.end.x),
-                                self.fmt_coord(segment.end.y),
-                                self.fmt_coord(target_z),
-                                feed_rate_cmd
-                            ));
-                            current_z = target_z;
-                        } else {
-                            gcode.push_str(&format!(
-                                "{}G01 X{} Y{}{}\n",
-                                line_prefix,
-                                self.fmt_coord(segment.end.x),
-                                self.fmt_coord(segment.end.y),
-                                feed_rate_cmd
-                            ));
-                        }
+                        gcode.push_str(&format!(
+                            "{}{} X{} Y{}{}\n",
+                            line_prefix, "G01",
+                            self.fmt_coord(segment.end.x),
+                            self.fmt_coord(segment.end.y),
+                            feed_rate_cmd
+                        ));
                     }
 
                     line_number += 10;

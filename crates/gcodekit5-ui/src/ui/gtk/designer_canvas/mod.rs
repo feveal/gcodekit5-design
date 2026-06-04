@@ -380,6 +380,63 @@ impl DesignerCanvas {
             canvas_drag.handle_drag_begin(x, y);
         });
 
+        // Middle button drag for panning (like Visualizer)
+        let pan_drag_gesture = GestureDrag::new();
+        pan_drag_gesture.set_button(2);
+
+        let last_offset = Rc::new(std::cell::RefCell::new((0.0, 0.0)));
+
+        let canvas_pan = canvas.clone();
+        let last_offset_begin = last_offset.clone();
+        pan_drag_gesture.connect_drag_begin(move |_gesture, _x, _y| {
+            canvas_pan.widget.set_cursor_from_name(Some("grabbing"));
+            *last_offset_begin.borrow_mut() = (0.0, 0.0);
+        });
+
+        let canvas_pan_update = canvas.clone();
+        let last_offset_update = last_offset.clone();
+        pan_drag_gesture.connect_drag_update(move |_gesture, offset_x, offset_y| {
+            let (last_x, last_y) = *last_offset_update.borrow();
+
+            let delta_x = offset_x - last_x;
+            let delta_y = offset_y - last_y;
+
+            *last_offset_update.borrow_mut() = (offset_x, offset_y);
+
+            let (pan_x, pan_y, zoom) = {
+                let state = canvas_pan_update.state.borrow();
+                (state.canvas.pan_x(), state.canvas.pan_y(), state.canvas.zoom())
+            };
+
+            let sensitivity = 1.0;
+            let dx = (delta_x / zoom) * sensitivity;
+            let dy = (delta_y / zoom) * sensitivity;
+
+            let new_pan_x = pan_x + dx;
+            let new_pan_y = pan_y - dy;
+
+            {
+                let mut state = canvas_pan_update.state.borrow_mut();
+                state.canvas.set_pan(new_pan_x, new_pan_y);
+            }
+
+            if let Some(adj) = canvas_pan_update.hadjustment.borrow().as_ref() {
+                adj.set_value(-new_pan_x);
+            }
+            if let Some(adj) = canvas_pan_update.vadjustment.borrow().as_ref() {
+                adj.set_value(new_pan_y);
+            }
+
+            canvas_pan_update.widget.queue_draw();
+        });
+
+        let canvas_pan_end = canvas.clone();
+        pan_drag_gesture.connect_drag_end(move |_gesture, _offset_x, _offset_y| {
+            canvas_pan_end.widget.set_cursor_from_name(Some("grab"));
+        });
+
+        widget.add_controller(pan_drag_gesture);
+
         let canvas_drag_update = canvas.clone();
         drag_gesture.connect_drag_update(move |_gesture, offset_x, offset_y| {
             canvas_drag_update.handle_drag_update(offset_x, offset_y);

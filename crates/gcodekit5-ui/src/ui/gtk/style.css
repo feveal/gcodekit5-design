@@ -538,3 +538,41 @@ listbox.compact-list row .position-entry {
     padding: 0px 2px;
     margin: 0px;
 }
+
+/* Search Panel Compact (floating OSD) */
+.visualizer-osd entry {
+    min-height: 24px;
+    max-height: 26px;
+    padding: 1px 4px;
+    margin: 0px;
+    font-size: 11px;
+}
+
+.visualizer-osd button {
+    min-width: 26px;
+    min-height: 24px;
+    padding: 1px 4px;
+    margin: 0px;
+}
+
+.visualizer-osd button label {
+    font-size: 11px;
+}
+
+.visualizer-osd .compact-entry {
+    min-height: 22px;
+    max-height: 24px;
+    padding: 0px 4px;
+    font-size: 11px;
+}
+
+.visualizer-osd .compact-entry text {
+    min-height: 20px;
+}
+
+/* Reducir espaciado entre filas del panel de búsqueda */
+.visualizer-osd > box {
+    margin: 0px;
+    padding: 0px;
+    spacing: 2px;
+}

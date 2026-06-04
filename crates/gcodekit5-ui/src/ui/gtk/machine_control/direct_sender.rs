@@ -31,7 +31,6 @@ impl DirectSender {
         *is_paused.lock() = paused_flag.load(Ordering::SeqCst);
 
         let (tx, rx) = mpsc::channel();
-        //        println!("DEBUG: DirectSender");
         (
             Self {
                 communicator,
@@ -66,7 +65,7 @@ impl DirectSender {
         let total_lines = lines.len();
         self.send_progress(format!(
             "{} {} {}",
-            t!("Starting laser engraving:"),
+            t!("> Starting laser engraving:"),
             total_lines,
             t!("lines")
         ));
@@ -88,76 +87,90 @@ impl DirectSender {
             let total = lines.len();
             let mut last_percent: u32 = 0;
 
+            // Watchdog simple (sin enviar comandos extra)
+            let mut last_activity = std::time::Instant::now();
+            let mut stalled = false;
+
             while i < total && !stop_flag.load(Ordering::SeqCst) {
-                // SEND until the window is full
+                if paused_flag.load(Ordering::SeqCst) {
+                    thread::sleep(Duration::from_millis(10));
+                    continue;
+                }
 
-                while lines_in_flight < max_window && i < total {
-                    if paused_flag.load(Ordering::SeqCst) {
-                        break;
-                    }
-                    let cmd = format!("{}\n", lines[i]);
-
-                    let _ = progress_tx.send(format!("> {}", lines[i]));
-
+                // Enviar hasta llenar la ventana
+                {
                     let mut c = comm.lock();
-                    if c.send(cmd.as_bytes()).is_ok() {
-                        lines_in_flight += 1;
-                        i += 1;
-                    } else {
-                        break;
+                    while lines_in_flight < max_window && i < total {
+                        let cmd = format!("{}\n", lines[i]);
+                        if c.send(cmd.as_bytes()).is_ok() {
+                            lines_in_flight += 1;
+                            i += 1;
+                            last_activity = std::time::Instant::now();
+                            stalled = false;
+                        } else {
+                            break;
+                        }
                     }
                 }
 
-                // If the window is full, force waiting for a real 'ok'
+                // Leer respuestas y procesar OKs
                 let mut attempts = 0;
                 while lines_in_flight >= max_window && !stop_flag.load(Ordering::SeqCst) {
-                    {
-                        let mut c = comm.lock();
-                        if let Ok(data) = c.receive() {
+                    if let Ok(data) = { let mut c = comm.lock(); c.receive() } {
+                        if !data.is_empty() {
                             let resp = String::from_utf8_lossy(&data);
                             let ok_count = resp.matches("ok").count();
                             lines_in_flight = lines_in_flight.saturating_sub(ok_count);
+                            if ok_count > 0 {
+                                last_activity = std::time::Instant::now();
+                                stalled = false;
+                            }
                         }
                     }
 
                     attempts += 1;
                     if attempts > 100 {
-                        // If after many attempts there is no 'ok', we give the CPU a break.
                         thread::sleep(Duration::from_millis(1));
                         attempts = 0;
                     }
                 }
 
-                // Read whatever has arrived even if the window is not full
-                if let Ok(data) = {
-                    let mut c = comm.lock();
-                    // We use a non-blocking or fast read
-                    c.receive()
-                } {
+                // Lectura residual
+                if let Ok(data) = { let mut c = comm.lock(); c.receive() } {
                     if !data.is_empty() {
-                        // We only process data if there is actually data.
                         let resp = String::from_utf8_lossy(&data);
+                        let ok_count = resp.matches("ok").count();
+                        lines_in_flight = lines_in_flight.saturating_sub(ok_count);
+                        if ok_count > 0 {
+                            last_activity = std::time::Instant::now();
+                            stalled = false;
+                        }
 
                         if resp.contains("Grbl") || resp.contains("ALARM") {
                             stop_flag.store(true, Ordering::SeqCst);
                             break;
                         }
-
-                        let ok_count = resp.matches("ok").count();
-                        lines_in_flight = lines_in_flight.saturating_sub(ok_count);
                     }
                 }
+
+                // WATCHDOG Si pasa 30 segundos sin actividad, asumir que se completó
+                if last_activity.elapsed() > Duration::from_secs(30) && !stalled {
+                    let _ = progress_tx.send("> No activity for 30s, continuing...".to_string());
+                    stalled = true;
+                    lines_in_flight = 0; // Forzar continuación
+                }
+
                 thread::yield_now();
 
-                let percent = ((i as f64 / total as f64) * 100.0)
-                    .round()
-                    .clamp(0.0, 100.0) as u32;
+                let percent = ((i as f64 / total as f64) * 100.0).round().clamp(0.0, 100.0) as u32;
                 if percent != last_percent {
                     last_percent = percent;
                     let _ = progress_tx.send(format!("* {}%", percent));
                 }
             }
+
             streaming_flag.store(false, Ordering::SeqCst);
+            let _ = progress_tx.send("Job Completed".to_string());
         });
     }
 
@@ -276,7 +289,9 @@ impl DirectSender {
 
         total_time
     }
+
 }
+
 
 impl Clone for DirectSender {
     fn clone(&self) -> Self {

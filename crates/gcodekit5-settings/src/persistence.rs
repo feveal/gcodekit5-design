@@ -193,24 +193,24 @@ impl SettingsPersistence {
 
         // Startup Tab
         let startup_tabs = vec![
-            "Machine".to_string(),
-            "Editor".to_string(),
-            "Visualizer".to_string(),
-            "CamTools".to_string(),
             "Designer".to_string(),
+            "Visualizer".to_string(),
+            "Machine".to_string(),
+//            "Editor".to_string(),
+            "CamTools".to_string(),
             "Config".to_string(),
             "Devices".to_string(),
             "Tools".to_string(),
             "Materials".to_string(),
         ];
         let current_startup_tab = match ui.startup_tab {
+            crate::config::StartupTab::Designer => "Designer",
+            crate::config::StartupTab::Visualizer => "Visualizer",
             crate::config::StartupTab::Console => "Machine",
             crate::config::StartupTab::DeviceInfo => "Config",
             crate::config::StartupTab::Machine => "Machine",
-            crate::config::StartupTab::Editor => "Editor",
-            crate::config::StartupTab::Visualizer => "Visualizer",
+            crate::config::StartupTab::Editor => "Machine",
             crate::config::StartupTab::CamTools => "CamTools",
-            crate::config::StartupTab::Designer => "Designer",
             crate::config::StartupTab::Config => "Config",
             crate::config::StartupTab::Devices => "Devices",
             crate::config::StartupTab::Tools => "Tools",
@@ -469,7 +469,7 @@ impl SettingsPersistence {
             self.config.ui.startup_tab = match tab_str.as_str() {
                 "Machine" => crate::config::StartupTab::Machine,
                 "Console" => crate::config::StartupTab::Console,
-                "Editor" => crate::config::StartupTab::Editor,
+//                "Editor" => crate::config::StartupTab::Editor,
                 "Visualizer" => crate::config::StartupTab::Visualizer,
                 "CamTools" => crate::config::StartupTab::CamTools,
                 "Designer" => crate::config::StartupTab::Designer,
