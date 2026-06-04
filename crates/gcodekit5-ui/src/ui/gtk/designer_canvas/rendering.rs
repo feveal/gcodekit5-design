@@ -744,24 +744,34 @@ impl DesignerCanvas {
                 let _ = cr.stroke();
                 let _ = cr.restore();
             }
+
             Shape::Text(text) => {
-                // Basic text placeholder
                 let _ = cr.save();
-                // Rotate around text bounds center, then flip Y for text rendering.
+                // Obtener el bounding box del texto para la rotación (si es necesario)
                 let (x1, y1, x2, y2) = text.bounds();
-                let cx = (x1 + x2) / 2.0;
-                let cy = (y1 + y2) / 2.0;
-                // Use negative angle because we flip Y after rotation.
-                // Note: text.rotation is in degrees, convert to radians for Cairo
-                let angle = -text.rotation.to_radians();
+                let center_x = (x1 + x2) / 2.0;
+                let center_y = (y1 + y2) / 2.0;
 
-                cr.translate(cx, cy);
-                cr.rotate(angle);
-                cr.translate(-cx, -cy);
+                // Aplicar rotación alrededor del centro del texto
+                if text.rotation.abs() > 1e-6 {
+                    cr.translate(center_x, center_y);
+                    cr.rotate(-text.rotation.to_radians()); // Negativo porque Cairo es Y-down
+                    cr.translate(-center_x, -center_y);
+                }
 
-                // Flip Y back for text so it's not upside down
+                // IMPORTANTE: Mover a la posición ABSOLUTA del texto
+                cr.move_to(text.x, text.y);
+
+                // Invertir Y para que el texto no esté al revés (Cairo es Y-down, nuestro canvas es Y-up)
+                // DESPUÉS de move_to para que la posición sea correcta
+                let matrix = cr.matrix();
+                cr.set_matrix(matrix);
+
+                // Usar transformación directa
                 cr.translate(text.x, text.y);
                 cr.scale(1.0, -1.0);
+
+                // Configurar fuente
                 let slant = if text.italic {
                     gtk4::cairo::FontSlant::Italic
                 } else {
@@ -774,9 +784,13 @@ impl DesignerCanvas {
                 };
                 cr.select_font_face(&text.font_family, slant, weight);
                 cr.set_font_size(text.font_size);
+
+                // Dibujar en la posición (0,0) después de la transformación
                 let _ = cr.show_text(&text.text);
+
                 let _ = cr.restore();
             }
+
             Shape::Triangle(triangle) => {
                 let path = triangle.render();
                 cr.new_path();
