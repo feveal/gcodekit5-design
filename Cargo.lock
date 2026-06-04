@@ -902,7 +902,7 @@ dependencies = [
  "parry3d-f64",
  "rapier3d-f64",
  "robust",
- "stl_io",
+ "stl_io 0.8.6",
  "svg",
  "thiserror 2.0.18",
  "ttf-parser 0.25.1",
@@ -1497,7 +1497,7 @@ dependencies = [
  "serde",
  "serde_json",
  "smallvec",
- "stl_io",
+ "stl_io 0.11.0",
  "tempfile",
  "thiserror 2.0.18",
  "tiny-skia",
@@ -2856,9 +2856,9 @@ dependencies = [
 
 [[package]]
 name = "mutants"
-version = "0.0.4"
+version = "0.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "add0ac067452ff1aca8c5002111bd6b1c895baee6e45fcbc44e0193aea17be56"
+checksum = "bc0287524726960e07b119cebd01678f852f147742ae0d925e6a520dca956126"
 
 [[package]]
 name = "nalgebra"
@@ -4235,6 +4235,12 @@ dependencies = [
  "byteorder",
  "float-cmp",
 ]
+
+[[package]]
+name = "stl_io"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "567641995c51a3b8befddb13e1826187bcf7eb7ca8d13746bfd1cc5a22e89fa8"
 
 [[package]]
 name = "str_indices"
