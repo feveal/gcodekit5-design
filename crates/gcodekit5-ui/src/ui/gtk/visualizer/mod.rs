@@ -203,7 +203,7 @@ impl GcodeVisualizer {
         }
     }
 
-    fn apply_fit_to_device(
+    pub fn apply_fit_to_device(
         vis: &mut Visualizer,
         device_manager: &Option<Arc<DeviceManager>>,
         width: f32,

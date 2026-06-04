@@ -227,13 +227,22 @@ pub fn main() {
         ));
 
         // ==========================================
-        // DESIGNER - Movido aquí para que esté disponible antes
+        // DESIGNER
         // ==========================================
         let designer = DesignerView::new(
             Some(device_manager.clone()),
             settings_controller.clone(),
             Some(status_bar.clone()),
         );
+
+        // Forzar ajuste al área de trabajo del dispositivo después de que la ventana esté cargada
+        let designer_fit = designer.clone();
+        glib::timeout_add_local(std::time::Duration::from_millis(1500), move || {
+            designer_fit.canvas.fit_to_device_area();
+            designer_fit.canvas.widget.queue_draw();
+        //    println!("fit_to_device_area aplicado al designer");
+            glib::ControlFlow::Break
+        });
 
         // ==========================================
         // MACHINE CONTROL
@@ -247,7 +256,7 @@ pub fn main() {
         );
 
         // ==========================================
-        // CAM TOOLS - clonamos stack y editor antes de usarlos
+        // CAM TOOLS
         // ==========================================
         let stack_for_cam = stack.clone();
         let editor_for_cam = editor.clone();

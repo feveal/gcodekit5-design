@@ -376,7 +376,6 @@ impl ToolpathToGcode {
                     line_number += 10;
                 }
 
-                // ---
                 ToolpathSegmentType::ArcCW | ToolpathSegmentType::ArcCCW => {
                     // Handle Z plunge if needed
                     if has_z {
@@ -413,19 +412,16 @@ impl ToolpathToGcode {
 
                     let line_prefix = self.get_line_prefix(line_number);
 
-                    // Reset last point for arcs
-                    last_point = None;
+                    let min_radius_mm = 0.25; // Limite de radio mas pequeño
 
-                    // Turn on the laser
-                    if self.is_laser_2d && !laser_on {
-                        let line_prefix = self.get_line_prefix(line_number);
-                        gcode.push_str(&format!(
-                            "{}M4 S{}       ; Laser ON\n",
-                            line_prefix, segment.spindle_speed
-                        ));
-                        laser_on = true;
-                        line_number += 10;
-                    }
+                    let is_small_arc = if let Some(center) = segment.center {
+                        let i = center.x - segment.start.x;
+                        let j = center.y - segment.start.y;
+                        let radius = (i * i + j * j).sqrt();
+                        radius < min_radius_mm
+                    } else {
+                        true  // Sin centro, tratar como pequeño
+                    };
 
                     let feed_rate_cmd = if last_feed_rate.is_none_or(|fr| (fr - segment.feed_rate).abs() > 0.1) {
                         last_feed_rate = Some(segment.feed_rate);
@@ -434,25 +430,83 @@ impl ToolpathToGcode {
                         String::new()
                     };
 
-                    // Usar G01 (línea recta) en lugar de G02/G03
-                    if has_z && (target_z - current_z).abs() > 0.001 {
-                        gcode.push_str(&format!(
-                            "{}{} X{} Y{} Z{}{}\n",
-                            line_prefix, "G01",
-                            self.fmt_coord(segment.end.x),
-                            self.fmt_coord(segment.end.y),
-                            self.fmt_coord(target_z),
-                            feed_rate_cmd
-                        ));
-                        current_z = target_z;
+                    if is_small_arc {
+                        // Arco pequeño → convertir a línea recta
+                        if has_z && (target_z - current_z).abs() > 0.001 {
+                            gcode.push_str(&format!(
+                                "{}{} X{} Y{} Z{}{}\n",
+                                line_prefix, "G01",
+                                self.fmt_coord(segment.end.x),
+                                self.fmt_coord(segment.end.y),
+                                self.fmt_coord(target_z),
+                                feed_rate_cmd
+                            ));
+                            current_z = target_z;
+                        } else {
+                            gcode.push_str(&format!(
+                                "{}{} X{} Y{}{}\n",
+                                line_prefix, "G01",
+                                self.fmt_coord(segment.end.x),
+                                self.fmt_coord(segment.end.y),
+                                feed_rate_cmd
+                            ));
+                        }
                     } else {
-                        gcode.push_str(&format!(
-                            "{}{} X{} Y{}{}\n",
-                            line_prefix, "G01",
-                            self.fmt_coord(segment.end.x),
-                            self.fmt_coord(segment.end.y),
-                            feed_rate_cmd
-                        ));
+                        // Arco normal → usar G02/G03
+                        if let Some(center) = segment.center {
+                            let i = center.x - segment.start.x;
+                            let j = center.y - segment.start.y;
+                            let cmd = if segment.segment_type == ToolpathSegmentType::ArcCW {
+                                "G02"
+                            } else {
+                                "G03"
+                            };
+
+                            if has_z && (target_z - current_z).abs() > 0.001 {
+                                gcode.push_str(&format!(
+                                    "{}{} X{} Y{} Z{} I{} J{}{}\n",
+                                    line_prefix, cmd,
+                                    self.fmt_coord(segment.end.x),
+                                    self.fmt_coord(segment.end.y),
+                                    self.fmt_coord(target_z),
+                                    self.fmt_coord(i),
+                                    self.fmt_coord(j),
+                                    feed_rate_cmd
+                                ));
+                                current_z = target_z;
+                            } else {
+                                gcode.push_str(&format!(
+                                    "{}{} X{} Y{} I{} J{}{}\n",
+                                    line_prefix, cmd,
+                                    self.fmt_coord(segment.end.x),
+                                    self.fmt_coord(segment.end.y),
+                                    self.fmt_coord(i),
+                                    self.fmt_coord(j),
+                                    feed_rate_cmd
+                                ));
+                            }
+                        } else {
+                            // Sin centro → fallback a línea
+                            if has_z && (target_z - current_z).abs() > 0.001 {
+                                gcode.push_str(&format!(
+                                    "{}{} X{} Y{} Z{}{}\n",
+                                    line_prefix, "G01",
+                                    self.fmt_coord(segment.end.x),
+                                    self.fmt_coord(segment.end.y),
+                                    self.fmt_coord(target_z),
+                                    feed_rate_cmd
+                                ));
+                                current_z = target_z;
+                            } else {
+                                gcode.push_str(&format!(
+                                    "{}{} X{} Y{}{}\n",
+                                    line_prefix, "G01",
+                                    self.fmt_coord(segment.end.x),
+                                    self.fmt_coord(segment.end.y),
+                                    feed_rate_cmd
+                                ));
+                            }
+                        }
                     }
 
                     line_number += 10;
