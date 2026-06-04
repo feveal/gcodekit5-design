@@ -167,7 +167,7 @@ dependencies = [
  "futures-channel",
  "futures-util",
  "rand",
- "raw-window-handle 0.6.2",
+ "raw-window-handle",
  "serde",
  "serde_repr",
  "url",
@@ -1566,7 +1566,7 @@ dependencies = [
  "libloading",
  "lyon",
  "once_cell",
- "raw-window-handle 0.5.2",
+ "raw-window-handle",
  "rfd",
  "ropey",
  "serde",
@@ -2856,9 +2856,9 @@ dependencies = [
 
 [[package]]
 name = "mutants"
-version = "0.0.4"
+version = "0.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "add0ac067452ff1aca8c5002111bd6b1c895baee6e45fcbc44e0193aea17be56"
+checksum = "bc0287524726960e07b119cebd01678f852f147742ae0d925e6a520dca956126"
 
 [[package]]
 name = "nalgebra"
@@ -3711,12 +3711,6 @@ dependencies = [
 
 [[package]]
 name = "raw-window-handle"
-version = "0.5.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f2ff9a1f06a88b01621b7ae906ef0211290d1c8a168a15542486a8f61c0833b9"
-
-[[package]]
-name = "raw-window-handle"
 version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "20675572f6f24e9e76ef639bc5552774ed45f1c30e2951e1e99c59888861c539"
@@ -3812,7 +3806,7 @@ dependencies = [
  "objc2-core-foundation",
  "objc2-foundation",
  "pollster",
- "raw-window-handle 0.6.2",
+ "raw-window-handle",
  "urlencoding",
  "wasm-bindgen",
  "wasm-bindgen-futures",
