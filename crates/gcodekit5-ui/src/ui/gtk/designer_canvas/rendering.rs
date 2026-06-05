@@ -747,31 +747,6 @@ impl DesignerCanvas {
 
             Shape::Text(text) => {
                 let _ = cr.save();
-                // Obtener el bounding box del texto para la rotación (si es necesario)
-                let (x1, y1, x2, y2) = text.bounds();
-                let center_x = (x1 + x2) / 2.0;
-                let center_y = (y1 + y2) / 2.0;
-
-                // Aplicar rotación alrededor del centro del texto
-                if text.rotation.abs() > 1e-6 {
-                    cr.translate(center_x, center_y);
-                    cr.rotate(-text.rotation.to_radians()); // Negativo porque Cairo es Y-down
-                    cr.translate(-center_x, -center_y);
-                }
-
-                // IMPORTANTE: Mover a la posición ABSOLUTA del texto
-                cr.move_to(text.x, text.y);
-
-                // Invertir Y para que el texto no esté al revés (Cairo es Y-down, nuestro canvas es Y-up)
-                // DESPUÉS de move_to para que la posición sea correcta
-                let matrix = cr.matrix();
-                cr.set_matrix(matrix);
-
-                // Usar transformación directa
-                cr.translate(text.x, text.y);
-                cr.scale(1.0, -1.0);
-
-                // Configurar fuente
                 let slant = if text.italic {
                     gtk4::cairo::FontSlant::Italic
                 } else {
@@ -785,7 +760,28 @@ impl DesignerCanvas {
                 cr.select_font_face(&text.font_family, slant, weight);
                 cr.set_font_size(text.font_size);
 
-                // Dibujar en la posición (0,0) después de la transformación
+                let extents = match cr.text_extents(&text.text) {
+                    Ok(e) => e,
+                    Err(_) => {
+                        let _ = cr.restore();
+                        return;
+                    }
+                };
+
+                let _ = cr.save();
+
+                cr.translate(text.x, text.y);
+
+                if text.rotation.abs() > 1e-6 {
+                    cr.rotate(text.rotation.to_radians());
+                }
+
+                cr.scale(1.0, -1.0);
+
+                let x_offset = -extents.width() / 2.0;
+                let y_offset = -text.font_size / 2.0 + extents.height();
+
+                cr.move_to(x_offset, y_offset);
                 let _ = cr.show_text(&text.text);
 
                 let _ = cr.restore();

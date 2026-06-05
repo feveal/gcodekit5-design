@@ -10,8 +10,6 @@ use crate::ToolpathToGcode;
 use csgrs::traits::CSG;
 use gcodekit5_core::Units;
 
-//use crate::Shape;
-
 impl DesignerState {
     /// Obtiene los parámetros láser efectivos para un objeto
     fn get_effective_laser_params(&self, shape: &DrawingObject) -> Option<LaserParams> {

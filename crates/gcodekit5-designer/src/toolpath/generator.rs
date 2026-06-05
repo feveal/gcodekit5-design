@@ -907,25 +907,23 @@ impl ToolpathGenerator {
             font_manager::get_font_for(&text_shape.font_family, text_shape.bold, text_shape.italic);
         let scale = Scale::uniform(text_shape.font_size as f32);
         let v_metrics = font.v_metrics(scale);
-        let line_height = v_metrics.ascent - v_metrics.descent + v_metrics.line_gap;
+        let line_height = v_metrics.ascent - v_metrics.descent - v_metrics.line_gap;
 
-        let (min_x, min_y, max_x, max_y) = text_shape.bounds();
-        let baseline_y0 = (text_shape.y as f32) + v_metrics.ascent;
-        let rotation_center_raw = Point::new((min_x + max_x) / 2.0, (min_y + max_y) / 2.0);
-        let rotation_center = Point::new(
-            rotation_center_raw.x,
-            2.0 * baseline_y0 as f64 - rotation_center_raw.y,
-        );
+        // Obtener el bounding box centrado
+        let (left, bottom, right, top) = text_shape.bounds();
 
-        let mut caret_x = text_shape.x as f32;
+        let baseline_y0 = bottom as f32 + v_metrics.line_gap;
+
+        let rotation_center = Point::new((left + right) / 2.0, (bottom + top) / 2.0);
+
+        let mut caret_x = left as f32;
         let mut baseline_y = baseline_y0;
         let mut prev: Option<GlyphId> = None;
-
         let mut pen = Point::new(0.0, 0.0);
 
         for ch in text_shape.text.chars() {
             if ch == '\n' {
-                caret_x = text_shape.x as f32;
+                caret_x = left as f32;
                 baseline_y -= line_height;
                 prev = None;
                 continue;
