@@ -404,6 +404,14 @@ impl ToolpathToGcode {
                         }
                     }
 
+                    if self.is_laser_2d && !laser_on {
+                        let line_prefix = self.get_line_prefix(line_number);
+                        let laser_power = toolpath.segments.first().map(|s| s.spindle_speed).unwrap_or(1000);
+                        gcode.push_str(&format!("{}M4 S{}       ; Laser ON\n", line_prefix, laser_power));
+                        laser_on = true;
+                        line_number += 10;
+                    }
+
                     let target_z = segment.z_depth.unwrap_or(if segment.start_z.is_some() {
                         current_z
                     } else {

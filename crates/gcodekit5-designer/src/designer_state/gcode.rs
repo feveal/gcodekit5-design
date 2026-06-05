@@ -32,62 +32,6 @@ impl DesignerState {
             let mut params = shape.laser_params;
             params.use_global = false;
             Some(params)
-/*
-            // Usar valores específicos del objeto
-            match &shape.shape {
-                Shape::Rectangle(rect) => {
-                    let mut params = rect.laser_params;
-                    params.use_global = false;
-                    Some(params)
-                }
-                Shape::Circle(circle) => {
-                    let mut params = circle.laser_params;
-                    params.use_global = false;
-                    Some(params)
-                }
-                Shape::Ellipse(ellipse) => {
-                    let mut params = ellipse.laser_params;
-                    params.use_global = false;
-                    Some(params)
-                }
-                Shape::Line(line) => {
-                    let mut params = line.laser_params;
-                    params.use_global = false;
-                    Some(params)
-                }
-                Shape::Path(path) => {
-                    let mut params = path.laser_params;
-                    params.use_global = false;
-                    Some(params)
-                }
-                Shape::Polygon(poly) => {
-                    let mut params = poly.laser_params;
-                    params.use_global = false;
-                    Some(params)
-                }
-                Shape::Triangle(tri) => {
-                    let mut params = tri.laser_params;
-                    params.use_global = false;
-                    Some(params)
-                }
-                Shape::Text(text) => {
-                    let mut params = text.laser_params;
-                    params.use_global = false;
-                    Some(params)
-                }
-                Shape::Gear(gear) => {
-                    let mut params = gear.laser_params;
-                    params.use_global = false;
-                    Some(params)
-                }
-                Shape::Sprocket(sprocket) => {
-                    let mut params = sprocket.laser_params;
-                    params.use_global = false;
-                    Some(params)
-                }
-                Shape::RasterImage(_) => None,
-            }
-*/
         }
     }
 
