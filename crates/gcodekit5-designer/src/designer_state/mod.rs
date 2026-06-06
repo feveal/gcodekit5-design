@@ -209,17 +209,7 @@ impl DesignerState {
         self.tool_settings.step_down = step;
         self.gcode_generated = false;
     }
-/*
-    pub fn set_step_down(&mut self, step: f64) {
-        let step = if step <= 0.0 { 0.1 } else { step };
-        debug_assert!(
-            step.is_finite() && step > 0.0,
-            "step_down must be positive and finite, got {step}"
-        );
-        self.tool_settings.step_down = step;
-        self.gcode_generated = false;
-    }
-*/
+
     /// Gets the current machine mode
     pub fn machine_mode(&self) -> MachineMode {
         self.tool_settings.machine_mode

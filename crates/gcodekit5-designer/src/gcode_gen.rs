@@ -4,6 +4,15 @@ use super::toolpath::{Toolpath, ToolpathSegment, ToolpathSegmentType};
 use crate::model::Point;
 use gcodekit5_core::Units;
 
+/// Límites de la máquina para verificación
+#[derive(Debug, Clone)]
+pub struct MachineLimits {
+    pub x_min: f64,
+    pub x_max: f64,
+    pub y_min: f64,
+    pub y_max: f64,
+}
+
 /// G-code generator for converting toolpaths to G-code commands.
 pub struct ToolpathToGcode {
     _units: Units,
@@ -18,6 +27,8 @@ pub struct ToolpathToGcode {
     pub min_point_distance: f64,
     /// Tolerance for curve simplification (Ramer-Douglas-Peucker)
     pub curve_simplification_tolerance: f64,
+    /// Machine Limits
+    pub machine_limits: Option<MachineLimits>,
 }
 
 impl ToolpathToGcode {
@@ -31,6 +42,7 @@ impl ToolpathToGcode {
             is_laser_2d: false,
             min_point_distance: 0.1,
             curve_simplification_tolerance: 0.05,
+            machine_limits: None,
         }
     }
 
@@ -44,6 +56,7 @@ impl ToolpathToGcode {
             is_laser_2d: false,
             min_point_distance: 0.1,
             curve_simplification_tolerance: 0.05,
+            machine_limits: None,
         }
     }
 
@@ -178,6 +191,7 @@ impl ToolpathToGcode {
         total_length: f64,
     ) -> String {
         let mut gcode = String::new();
+
         gcode.push_str("; Generated G-code from Designer tool\n");
         gcode.push_str(&format!("; Tool diameter: {:.2}mm\n", tool_diameter));
         gcode.push_str(&format!("; Cut depth: {:.2}mm\n", depth));
@@ -551,6 +565,38 @@ impl ToolpathToGcode {
         gcode.push_str("G00 X0 Y0   ; Return to origin\n");
         gcode.push_str("M30         ; End program\n");
         gcode
+    }
+
+    pub fn has_boundary_violation(&self, toolpath: &Toolpath) -> bool {
+        let Some(limits) = &self.machine_limits else {
+            return false;
+        };
+
+        for segment in &toolpath.segments {
+            // Verificar punto inicial
+            if segment.start.x < limits.x_min || segment.start.x > limits.x_max ||
+               segment.start.y < limits.y_min || segment.start.y > limits.y_max {
+                return true;
+            }
+            // Verificar punto final
+            if segment.end.x < limits.x_min || segment.end.x > limits.x_max ||
+               segment.end.y < limits.y_min || segment.end.y > limits.y_max {
+                return true;
+            }
+            // Verificar centro de arco
+            if let Some(center) = segment.center {
+                if center.x < limits.x_min || center.x > limits.x_max ||
+                   center.y < limits.y_min || center.y > limits.y_max {
+                    return true;
+                }
+            }
+        }
+        false
+    }
+
+    pub fn with_machine_limits(mut self, limits: MachineLimits) -> Self {
+        self.machine_limits = Some(limits);
+        self
     }
 }
 

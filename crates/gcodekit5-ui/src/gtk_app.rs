@@ -398,7 +398,6 @@ pub fn main() {
         let stack_clone_gen = stack.clone();
         designer.set_on_gcode_generated(move |gcode| {
             editor_clone_gen.set_text(&gcode);
-            // Cambiar a la pestaña Machine Control en lugar de "editor"
             stack_clone_gen.set_visible_child_name("machine");
             editor_clone_gen.grab_focus();
         });

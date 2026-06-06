@@ -608,7 +608,23 @@ impl DesignerView {
                 state.toolpath_generator.set_start_depth(start_depth);
                 state.toolpath_generator.set_step_in(tool_diameter * 0.4);
 
-                let gcode = state.generate_gcode();
+                let limits = if let Some(dm) = &device_manager {
+                    if let Some(profile) = dm.get_active_profile() {
+                        Some(gcodekit5_designer::gcode_gen::MachineLimits {
+                            x_min: profile.x_axis.min,
+                            x_max: profile.x_axis.max,
+                            y_min: profile.y_axis.min,
+                            y_max: profile.y_axis.max,
+                        })
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                };
+
+                let gcode = state.generate_gcode(limits);
+
                 drop(state);
 
                 status_label_gen.set_text(&t!("G-Code generated"));

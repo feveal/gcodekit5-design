@@ -715,7 +715,7 @@ impl DesignerView {
                         state.toolpath_generator.set_start_depth(start_depth);
                         state.toolpath_generator.set_step_in(tool_diameter * 0.4); // Default stepover
 
-                        let gcode = state.generate_gcode();
+                        let gcode = state.generate_gcode(None);
 
                         match std::fs::write(&path, gcode) {
                             Ok(_) => {

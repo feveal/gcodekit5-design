@@ -9,6 +9,7 @@ use crate::shapes::OperationType;
 use crate::ToolpathToGcode;
 use csgrs::traits::CSG;
 use gcodekit5_core::Units;
+use crate::gcode_gen::MachineLimits;
 
 impl DesignerState {
     /// Obtiene los parámetros láser efectivos para un objeto
@@ -37,7 +38,7 @@ impl DesignerState {
 
     /// Generates G-code from the current design.
     #[allow(clippy::collapsible_else_if)]
-    pub fn generate_gcode(&mut self) -> String {
+   pub fn generate_gcode(&mut self, machine_limits: Option<MachineLimits>) -> String {
         let mut gcode = String::new();
         // Get safe_z from stock_material, default to 10.0 if not set
         let safe_z = self
@@ -46,6 +47,12 @@ impl DesignerState {
             .map(|s| s.safe_z as f64)
             .unwrap_or(10.0);
         let mut gcode_gen = ToolpathToGcode::new(Units::MM, safe_z);
+
+
+    if let Some(limits) = machine_limits {
+        gcode_gen = gcode_gen.with_machine_limits(limits);
+    }
+
         // Use state mode:
         match self.machine_mode() {
             MachineMode::Laser2D => {
@@ -370,6 +377,32 @@ impl DesignerState {
             header_depth,
             total_length,
         ));
+
+        // ========== ADVERTENCIA DE LÍMITES  ==========
+        let mut has_violation = false;
+        for (_, toolpaths, _) in &shape_toolpaths {
+            for toolpath in toolpaths {
+                if gcode_gen.has_boundary_violation(toolpath) {
+                    has_violation = true;
+                    break;
+                }
+            }
+            if has_violation {
+                break;
+            }
+        }
+
+        if has_violation {
+            gcode.push_str(";\n");
+            gcode.push_str("; *********************************************\n");
+            gcode.push_str("; ********** WARNING: OUT OF LIMITS ***********\n");
+            gcode.push_str("; ** This toolpath contains coordinates      **\n");
+            gcode.push_str("; ** outside the machine working area.       **\n");
+            gcode.push_str("; ** Risk of collision if no limit switches! **\n");
+            gcode.push_str("; *********************************************\n");
+            gcode.push_str(";\n");
+        }
+        // =============== FIN ADVERTENCIA ===============
 
         let mut line_number = 10;
 

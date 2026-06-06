@@ -22,6 +22,9 @@ GCodeKit5 is a Rust-based CNC machine controller providing a modern alternative 
 - The G-code Editing tab has been removed as it has been integrated into the Machine Control tab.
 - G-code output to the console has been removed to improve the speed of sending data to the machine.
 
+## Checking boundaries outside the work area
+- Boundary checking has been added to the Designer. If any point is outside the work area, a WARNING appears in the G-code alerting the user so they can take appropriate action.
+
 ## Architecture
 GCodeKit5 is organized as a Cargo workspace with 7 crates for modular compilation and better code organization:
 
