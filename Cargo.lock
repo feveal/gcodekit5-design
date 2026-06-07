@@ -1540,6 +1540,7 @@ version = "1.0.0-alpha.0"
 dependencies = [
  "dirs",
  "gcodekit5-core",
+ "gettext-rs",
  "serde",
  "serde_json",
  "thiserror",

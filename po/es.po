@@ -54,7 +54,7 @@ msgid "GCode Toolkit for CNC/Laser Machines"
 msgstr "Kit de herramientas GCode para máquinas CNC/Láser"
 
 msgid "GCodeKit Contributors"
-msgstr "Tim Hawkins y colaboradores de GCodeKit"
+msgstr "Tim Hawkins y colaboradores de GCodeKit (feveal)"
 
 msgid "GCodeKit5"
 msgstr "GCodeKit5"
@@ -103,6 +103,129 @@ msgstr "Guardar como..."
 
 msgid "Undo"
 msgstr "Deshacer"
+
+# crates/gcodekit5-ui/src/ui/gtk/settings.rs
+msgid "Controller"
+msgstr "Controlador"
+
+msgid "User Interface"
+msgstr "Interfaz de Usuario"
+
+msgid "File Processing"
+msgstr "Procesamiento de archivo"
+
+msgid "Shortcuts"
+msgstr "Atajos"
+
+msgid "Advanced"
+msgstr "Avanzado"
+
+msgid "Select Directory"
+msgstr "Selecciona Directorio"
+
+# crates/gcodekit5-settings/src/persistence.rs
+msgid "Measurement System"
+msgstr "Sistema de Medida"
+
+msgid "Units for display and input (Metric/mm or Imperial/inch)"
+msgstr "Unidades para visualización y entrada (métricas/mm o imperiales/pulgadas)"
+
+msgid "Feed Rate Units"
+msgstr "Unidades de Velocidad"
+
+msgid "Default Directory"
+msgstr "Directorio por defecto"
+
+msgid "Units for feed rate display and input"
+msgstr "Unidades para visualización e introducción de velocidad de alimentación"
+
+msgid "Default directory for file operations"
+msgstr "Directorio predeterminado para operaciones de archivos"
+
+msgid "System"
+msgstr "Sistema"
+
+msgid "Light"
+msgstr "Claro"
+
+msgid "Dark"
+msgstr "Oscuro"
+
+msgid "Theme"
+msgstr "Tema"
+
+msgid "Application color theme (Light, Dark, or System default)"
+msgstr "Tema de color de la aplicación (Claro, Oscuro o Predeterminado del sistema)"
+
+msgid "Language"
+msgstr "Idioma"
+
+msgid "User interface language (requires restart)"
+msgstr "Idioma de la interfaz de usuario (requiere reiniciar)"
+
+msgid "CamTools"
+msgstr "Herramientas CAM"
+
+msgid "Config"
+msgstr "Configuración"
+
+msgid "Devices"
+msgstr "Dispositivos"
+
+msgid "Tools"
+msgstr "Herramientas"
+
+msgid "Startup Tab"
+msgstr "Pestaña de inicio"
+
+msgid "Tab to show when application starts"
+msgstr "Pestaña de inicio de la aplicación"
+
+msgid "Show About on Startup"
+msgstr "Mostrar Acerca de... al inicio"
+
+msgid "Show the About dialog for 15 seconds when the application starts"
+msgstr "Mostrar diálogo Acerca de... durante 15 segundos al inicio"
+
+msgid "Grid Major Line Width (px)"
+msgstr "Ancho de línea principal de la cuadrícula (px)"
+
+msgid "Thickness in pixels for coarse grid lines (default: 2)"
+msgstr "Grosor en píxeles para líneas de cuadrícula gruesas (predeterminado: 2)"
+
+msgid "Grid Minor Line Width (px)"
+msgstr "Ancho de línea menor de la cuadrícula (px)"
+
+msgid "Thickness in pixels for fine grid lines (default: 1)"
+msgstr "Grosor en píxeles para líneas de cuadrícula finas (predeterminado: 1)"
+
+msgid "Preserve Comments"
+msgstr "Conservar comentarios"
+
+msgid "Keep G-code comments during file processing"
+msgstr "Conserva los comentarios del G-code al procesar el archivo"
+
+# crates/gcodekit5-ui/src/ui/gtk/designer/file_ops.rs
+msgid "Import SVG File"
+msgstr "Importar archivo SVG"
+
+msgid "Import STL File (3D Shadow)"
+msgstr "Importar archivo STL (Sombras 3D)"
+
+msgid "SVG Files"
+msgstr "Archivos SVG"
+
+msgid "DXF Files"
+msgstr "Archivos DXF"
+
+msgid "STL Files"
+msgstr "Archivos STL"
+
+msgid "Saved:"
+msgstr "Guardado:"
+
+msgid "Export SVG"
+msgstr "Exportar SVG"
 
 # crates/gcodekit5-settings/src/config.rs
 msgid "Machine Control"
@@ -1220,11 +1343,6 @@ msgstr "Estrategia:"
 msgid "Raster Fill (%):"
 msgstr "Relleno Raster (%):"
 
-# gcodekit5/crates/gcodekit5-ui/src/ui/gtk/designer_properties/mod.rs
-msgid "Select a shape to edit its properties"
-msgstr "Seleccione una forma para editar sus propiedades"
-
-# gcodekit5/crates/gcodekit5-ui/src/ui/gtk/designer_properties/builders.rs
 msgid "Laser Engraving"
 msgstr "Grabado Láser"
 
@@ -1242,6 +1360,22 @@ msgstr "Tramado:"
 
 msgid "Halftone Threshold:"
 msgstr "Umbral Semitonos:"
+
+msgid "Import SVG"
+msgstr "Importar SVG"
+
+msgid "Import DXF"
+msgstr "Importar DXF"
+
+msgid "Import STL"
+msgstr "Importar STL"
+
+msgid "Import Image"
+msgstr "Importar Imagen"
+
+# gcodekit5/crates/gcodekit5-ui/src/ui/gtk/designer_properties/mod.rs
+msgid "Select a shape to edit its properties"
+msgstr "Seleccione una forma para editar sus propiedades"
 
 # gcodekit5/crates/gcodekit5-ui/src/ui/gtk/designer_layers_rs
 msgid "Objects"

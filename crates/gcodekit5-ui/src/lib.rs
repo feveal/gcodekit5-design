@@ -30,3 +30,5 @@ pub use crate::types::{
 // Re-export the UI's Slint EditorBridge at the crate root so existing imports keep working.
 pub use crate::editor::EditorBridge;
 pub use crate::editor::SlintTextLine as TextLineUi;
+
+
