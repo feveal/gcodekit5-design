@@ -1212,7 +1212,7 @@ version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2aef9e8d9e33f51d8120a2e997a819f18239ad7c2735e353ade79208a9a1c442"
 dependencies = [
- "glam",
+ "glam 0.29.3",
  "ndshape",
 ]
 
@@ -1565,7 +1565,7 @@ dependencies = [
  "gcodekit5-visualizer",
  "gettext-rs",
  "gio",
- "glam",
+ "glam 0.33.1",
  "glib",
  "glib-build-tools",
  "glow 0.17.0",
@@ -1598,7 +1598,7 @@ dependencies = [
  "criterion",
  "gcodekit5-core",
  "gcodekit5-designer",
- "glam",
+ "glam 0.33.1",
  "glow 0.14.2",
  "lyon",
  "proptest",
@@ -1870,6 +1870,12 @@ name = "glam"
 version = "0.29.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8babf46d4c1c9d92deac9f7be466f76dfc4482b6452fc5024b5e8daf6ffeb3ee"
+
+[[package]]
+name = "glam"
+version = "0.33.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "898f5a568a84989b6c0f8caa50a93074b97dbdc58fc6d9543157bb4562758933"
 
 [[package]]
 name = "glib"
