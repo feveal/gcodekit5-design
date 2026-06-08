@@ -833,6 +833,13 @@ msgstr "Error al conectar"
 msgid "No valid G-Code lines found."
 msgstr "No se encontraron líneas de G-Code válidas."
 
+# crates/gcodekit5-ui/src/ui/gtk/cam-tools/mod.rs
+msgid "Select a tool"
+msgstr "Seleccione Herramienta"
+
+msgid "Choose a tool from the list to see details."
+msgstr "Seleccione una herramienta de la lista para ver los detalles."
+
 # crates/gcodekit5-ui/src/ui/gtk/cam-tools/bitmap_engraving.rs
 msgid "Convert bitmap images to G-code for laser engraving. Supports various halftoning methods and image transformations."
 msgstr "Convierte imágenes de mapa de bits a G-code para grabado láser. Admite diversos métodos de tramado y transformaciones de imagen."
@@ -1045,12 +1052,6 @@ msgstr "Grabador de imágenes por láser"
 
 msgid "Convert raster images to G-code for laser engraving"
 msgstr "Convierte imágenes rasterizadas a G-code para grabado láser"
-
-msgid "Laser Vector Engraver"
-msgstr "Grabador vectorial por láser"
-
-msgid "Convert SVG and DXF vector files to G-code"
-msgstr "Convierte archivos vectoriales SVG y DXF a G-code"
 
 msgid "Speeds and Feeds Calculator"
 msgstr "Calculadora de velocidades y avances"

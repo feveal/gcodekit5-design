@@ -398,7 +398,8 @@ pub fn main() {
         let stack_clone_gen = stack.clone();
         designer.set_on_gcode_generated(move |gcode| {
             editor_clone_gen.set_text(&gcode);
-            stack_clone_gen.set_visible_child_name("machine");
+//            stack_clone_gen.set_visible_child_name("machine");
+            stack_clone_gen.set_visible_child_name("visualizer");
             editor_clone_gen.grab_focus();
         });
 
@@ -537,13 +538,14 @@ pub fn main() {
 
         // File Run Action
         let run_action = gio::SimpleAction::new("file_run", None);
-        let machine_control_clone = machine_control.clone();
+//        let machine_control_clone = machine_control.clone();
         let stack_clone = stack.clone();
         run_action.connect_activate(move |_, _| {
-            // Switch to machine control view
-            stack_clone.set_visible_child_name("machine");
+            // Switch to visualizer
+//            stack_clone.set_visible_child_name("machine");
+            stack_clone.set_visible_child_name("visualizer");
             // Trigger send button
-            machine_control_clone.send_btn.emit_clicked();
+//            machine_control_clone.send_btn.emit_clicked();
         });
         app.add_action(&run_action);
 
@@ -561,7 +563,8 @@ pub fn main() {
                 // 3. Insert into the editor
                 editor_frame.set_text(&gcode);
                 // 4. Jump to the editor tab to view the code
-                stack_frame.set_visible_child_name("machine");
+//                stack_frame.set_visible_child_name("machine");
+                stack_frame.set_visible_child_name("visualizer");
             } else {
                 tracing::info!("Frame requested but canvas is empty - nothing to frame");
             }
