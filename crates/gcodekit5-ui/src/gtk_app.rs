@@ -31,6 +31,7 @@ use gtk4::{
 use std::cell::RefCell;
 use std::rc::Rc;
 use tracing::{debug, info};
+use crate::ui::gtk::help_browser;
 
 pub fn main() {
     let app = Application::builder()
@@ -92,22 +93,6 @@ pub fn main() {
             .borrow()
             .populate_dialog(&mut settings_dialog.borrow_mut());
 
-        // Apply initial theme
-        let current_theme = settings_persistence.borrow().config().ui.theme;
-        apply_theme(current_theme);
-
-        // Listen for theme changes
-        settings_controller.on_setting_changed(move |key, value| {
-            if key == "theme" {
-                let theme = match value {
-                    "Light" => Theme::Light,
-                    "Dark" => Theme::Dark,
-                    _ => Theme::System,
-                };
-                apply_theme(theme);
-            }
-        });
-
         let config_dir = dirs::config_dir().unwrap_or_else(|| std::path::PathBuf::from("."));
         let device_config_path = config_dir.join("gcodekit5").join("devices.json");
         if let Some(parent) = device_config_path.parent() {
@@ -125,8 +110,8 @@ pub fn main() {
         let window = ApplicationWindow::builder()
             .application(app)
             .title(t!("GCodeKit5"))
-            .default_width(1200)
-            .default_height(800)
+            .default_width(1100) // Ancho de ventana
+            .default_height(900) // Alto de ventana
             .build();
 
         // Use HeaderBar as titlebar
@@ -187,7 +172,7 @@ pub fn main() {
         content_box.append(&stack_switcher);
         content_box.append(&stack);
 
-        // 1. Device Console
+        // Device Console
         let device_console = DeviceConsoleView::new();
         let status_bar = StatusBar::new();
         device_manager.load().ok();
@@ -216,10 +201,28 @@ pub fn main() {
             device_manager.clone(),
         ));
 
-        // 3. G-Code Editor (Moved up to be available for MachineControl)
+        // G-Code Editor (Moved up to be available for MachineControl)
         let editor = Rc::new(GcodeEditor::new(Some(status_bar.clone())));
 
-        // 4. Visualizer (Created early for MachineControl dependency)
+        // Apply initial theme
+        let current_theme = settings_persistence.borrow().config().ui.theme;
+        apply_theme(current_theme);
+        let editor_for_theme = editor.clone();
+        // Listen for theme changes
+        settings_controller.on_setting_changed(move |key, value| {
+            if key == "theme" {
+                let theme = match value {
+                    "Light" => Theme::Light,
+                    "Dark" => Theme::Dark,
+                    _ => Theme::System,
+                };
+                apply_theme(theme);
+                // Actualizar el editor inmediatamente
+                editor_for_theme.update_theme_for_editor();
+            }
+        });
+
+        // Visualizer (Created early for MachineControl dependency)
         let visualizer = Rc::new(GcodeVisualizer::new(
             Some(device_manager.clone()),
             settings_controller.clone(),
@@ -235,7 +238,8 @@ pub fn main() {
             Some(status_bar.clone()),
         );
 
-        // Forzar ajuste al área de trabajo del dispositivo después de que la ventana esté cargada
+        // Forzar ajuste al área de trabajo del dispositivo después
+        // de que la ventana esté cargada
         let designer_fit = designer.clone();
         glib::timeout_add_local(std::time::Duration::from_millis(1500), move || {
             designer_fit.canvas.fit_to_device_area();
@@ -313,8 +317,6 @@ pub fn main() {
 
         // 4. Herramientas CAM
         stack.add_titled(cam_tools_view.widget(), Some("cam_tools"), &t!("CAM Tools"));
-
-
 
         // 5. Administrador de dispositivos
         stack.add_titled(
@@ -835,8 +837,12 @@ pub fn main() {
             if name == "quit" {
                 let app_for_quit = app.clone();
                 action.connect_activate(move |_, _| {
-                    // Gracefully quit the application
                     app_for_quit.quit();
+                });
+            } else if name == "help_docs" {
+                // Acción para abrir la ayuda principal
+                action.connect_activate(move |_, _| {
+                    help_browser::present("index");
                 });
             } else {
                 let name = name.to_string();
@@ -928,8 +934,15 @@ pub fn main() {
         };
         stack.set_visible_child_name(initial_tab);
 
-        window.maximize();
+//        window.maximize();
         window.present();
+
+        // Forzar actualización del editor después de que la ventana esté visible
+        let editor_for_startup = editor.clone();
+        glib::timeout_add_local(std::time::Duration::from_millis(100), move || {
+            editor_for_startup.update_theme_for_editor();
+            glib::ControlFlow::Break
+        });
 
         if settings_persistence
             .borrow()
@@ -1046,3 +1059,5 @@ fn apply_theme(theme: Theme) {
         Theme::Dark => manager.set_color_scheme(libadwaita::ColorScheme::ForceDark),
     }
 }
+
+

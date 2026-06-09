@@ -382,7 +382,7 @@ impl MachineControlView {
         // MAIN AREA
         // ═════════════════════════════════════════════
         let main_area = Box::new(Orientation::Vertical, 12);
-        main_area.set_hexpand(true);
+        main_area.set_hexpand(false); // false - No reducir del mínimo
         main_area.set_vexpand(true);
         main_area.set_margin_top(12);
         main_area.set_margin_bottom(12);
@@ -944,29 +944,10 @@ impl MachineControlView {
         inner_overlay.set_hexpand(true);
         inner_overlay.set_vexpand(true);
 
-        // Initial sizing, then let the user resize.
-        let inner_sized = Rc::new(Cell::new(false));
-        inner_paned.add_tick_callback({
-            let inner_sized = inner_sized.clone();
-            move |paned, _clock| {
-                if inner_sized.get() {
-                    return glib::ControlFlow::Break;
-                }
-                let width = paned.width();
-                if width <= 0 {
-                    return glib::ControlFlow::Continue;
-                }
-                // 0.6 = 60% para editor, 40% para consola
-                paned.set_position((width as f64 * 0.6) as i32);
-                inner_sized.set(true);
-                glib::ControlFlow::Break
-            }
-        });
-
         widget.set_start_child(Some(&sidebar_scroller));
         widget.set_end_child(Some(&inner_overlay));
 
-        // Initial sizing (20% sidebar / 80% main), then let the user resize.
+        // Initial sizing (20% left sidebar / 80% main), then let the user resize.
         let outer_sized = Rc::new(Cell::new(false));
         widget.add_tick_callback({
             let outer_sized = outer_sized.clone();
@@ -978,11 +959,14 @@ impl MachineControlView {
                 if width <= 0 {
                     return glib::ControlFlow::Continue;
                 }
-                paned.set_position((width as f64 * 0.15) as i32);
+                paned.set_position((width as f64 * 0.20) as i32);
                 outer_sized.set(true);
                 glib::ControlFlow::Break
             }
         });
+
+        // No reducir del tamaño menor definido
+        widget.set_shrink_start_child(false);
 
         let communicator = thread_safe(SerialCommunicator::new());
 

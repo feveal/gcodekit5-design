@@ -3,7 +3,7 @@
 //! Loads markdown help topics from GResources and displays them in a small in-app browser.
 //! Navigation uses markdown links of the form `(help:topic_id)`.
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{anyhow, Result};
 use gcodekit5_core::{shared, Shared, SharedVec};
 use gio::prelude::*;
 use gtk4::glib;
@@ -18,20 +18,69 @@ fn running_app() -> Result<Application> {
         .ok_or_else(|| anyhow!("No running GtkApplication"))
 }
 
-fn topic_resource_path(topic: &str) -> String {
+fn topic_resource_path(topic: &str, language: &str) -> String {
     let topic = topic.trim();
     let topic = if topic.is_empty() { "index" } else { topic };
-    format!("/com/gcodekit5/help/{}.md", topic)
+
+    // Idioma por defecto si no se encuentra el archivo
+    let lang = if language.is_empty() { "en" } else { language };
+
+    format!("/com/gcodekit5/help/{}/{}.md", lang, topic)
 }
 
-fn load_topic_markdown(topic: &str) -> Result<String> {
-    let path = topic_resource_path(topic);
-    let bytes = gio::resources_lookup_data(&path, gio::ResourceLookupFlags::NONE)
-        .with_context(|| format!("Missing help topic resource: {}", path))?;
+// Función para obtener el idioma actual desde la configuración
+fn get_current_language() -> String {
+    // Intentar obtener el idioma desde la configuración
+    let config_path = gcodekit5_settings::SettingsManager::config_file_path()
+        .unwrap_or_else(|_| std::path::PathBuf::from("config.json"));
 
-    let s = std::str::from_utf8(bytes.as_ref())
-        .map_err(|e| anyhow!("Invalid UTF-8 in {}: {}", path, e))?;
-    Ok(s.to_string())
+    let language = if config_path.exists() {
+        gcodekit5_settings::SettingsPersistence::load_from_file(&config_path)
+            .map(|p| p.config().ui.language.clone())
+            .unwrap_or_else(|_| "system".to_string())
+    } else {
+        "system".to_string()
+    };
+
+    // Convertir "system" a un idioma real (usar locale del sistema)
+    if language == "system" {
+        // Intentar obtener el idioma del sistema
+        let locale = std::env::var("LANG").unwrap_or_else(|_| "en_US.UTF-8".to_string());
+        let lang = locale.split('_').next().unwrap_or("en");
+        lang.to_string()
+    } else {
+        language
+    }
+}
+
+// Reemplaza la función existente con esta versión que usa fallback a inglés
+fn load_topic_markdown(topic: &str) -> Result<String> {
+    let preferred_lang = get_current_language();
+
+    // Primero intentar con el idioma preferido
+    let path = topic_resource_path(topic, &preferred_lang);
+    match gio::resources_lookup_data(&path, gio::ResourceLookupFlags::NONE) {
+        Ok(bytes) => {
+            let s = std::str::from_utf8(bytes.as_ref())
+                .map_err(|e| anyhow!("Invalid UTF-8 in {}: {}", path, e))?;
+            Ok(s.to_string())
+        }
+        Err(_) => {
+            // Si no existe, intentar con inglés
+            if preferred_lang != "en" {
+                let fallback_path = topic_resource_path(topic, "en");
+                if let Ok(bytes) = gio::resources_lookup_data(&fallback_path, gio::ResourceLookupFlags::NONE) {
+                    let s = std::str::from_utf8(bytes.as_ref())
+                        .map_err(|e| anyhow!("Invalid UTF-8 in {}: {}", fallback_path, e))?;
+                    tracing::info!("Using English fallback for topic '{}' (missing {})", topic, preferred_lang);
+                    return Ok(s.to_string());
+                }
+            }
+
+            // Si nada funciona, error
+            Err(anyhow!("Missing help topic resource: {} for language {}", topic, preferred_lang))
+        }
+    }
 }
 
 fn escape_pango(s: &str) -> String {
@@ -117,6 +166,12 @@ fn normalize_topic_link(href: &str) -> Option<String> {
     if let Some(rest) = href.strip_prefix("help:") {
         let topic = rest.trim().trim_start_matches('/');
         let topic = topic.split('#').next().unwrap_or(topic);
+        return Some(topic.to_string());
+    }
+
+    // Manejar enlaces directos a archivos .md (para compatibilidad)
+    if href.ends_with(".md") {
+        let topic = href.trim_end_matches(".md");
         return Some(topic.to_string());
     }
 
@@ -321,22 +376,73 @@ pub fn present_for_parent(topic: &str, parent: Option<&gtk4::Window>) {
 
     update_nav_sensitivity();
 
+    // Función auxiliar para navegar a un topic
+    let navigate_to = {
+        let title = title.clone();
+        let content_label = content_label.clone();
+        let window = window.clone();
+
+        move |topic: &str| -> Result<()> {
+            let md = load_topic_markdown(topic)?;
+            let markup = markdown_to_markup(&md);
+            title.set_text(topic);
+            content_label.set_markup(&markup);
+
+            // Scroll to top
+            let label_clone = content_label.clone();
+            glib::idle_add_local(move || {
+                label_clone.select_region(0, 0);
+                glib::ControlFlow::Break
+            });
+
+            window.set_title(Some("Help"));
+            Ok(())
+        }
+    };
+
+    // Función auxiliar para ir a un topic (con actualización de UI)
+    let go_to_topic = {
+        let navigate_to = navigate_to.clone();
+        let update_nav_sensitivity = update_nav_sensitivity.clone();
+
+        move |topic: &str| {
+            if let Err(e) = navigate_to(topic) {
+                eprintln!("Error loading help topic '{}': {}", topic, e);
+                // No panic, solo mostrar error
+            }
+            update_nav_sensitivity();
+        }
+    };
+
+    // Cargar el topic inicial
+    go_to_topic(topic);
+
     // Back
     {
         let history = history.clone();
         let history_idx = history_idx.clone();
-        let load_and_render = load_and_render.clone();
-        let update_nav_sensitivity = update_nav_sensitivity.clone();
+        let go_to_topic = go_to_topic.clone();
+
         back_btn.connect_clicked(move |_| {
-            let mut idx = history_idx.borrow_mut();
-            if *idx == 0 {
-                return;
+            // Obtener el nuevo índice en un bloque separado
+            let new_idx = {
+                let mut idx = history_idx.borrow_mut();
+                if *idx == 0 {
+                    return;
+                }
+                *idx -= 1;
+                *idx
+            };
+
+            // Obtener el topic en otro bloque
+            let topic = {
+                let hist = history.borrow();
+                hist.get(new_idx).cloned()
+            };
+
+            if let Some(topic) = topic {
+                go_to_topic(&topic);
             }
-            *idx -= 1;
-            if let Some(topic) = history.borrow().get(*idx).cloned() {
-                load_and_render(&topic);
-            }
-            update_nav_sensitivity();
         });
     }
 
@@ -344,19 +450,27 @@ pub fn present_for_parent(topic: &str, parent: Option<&gtk4::Window>) {
     {
         let history = history.clone();
         let history_idx = history_idx.clone();
-        let load_and_render = load_and_render.clone();
-        let update_nav_sensitivity = update_nav_sensitivity.clone();
+        let go_to_topic = go_to_topic.clone();
+
         fwd_btn.connect_clicked(move |_| {
-            let mut idx = history_idx.borrow_mut();
-            let len = history.borrow().len();
-            if *idx + 1 >= len {
-                return;
+            let new_idx = {
+                let mut idx = history_idx.borrow_mut();
+                let len = history.borrow().len();
+                if *idx + 1 >= len {
+                    return;
+                }
+                *idx += 1;
+                *idx
+            };
+
+            let topic = {
+                let hist = history.borrow();
+                hist.get(new_idx).cloned()
+            };
+
+            if let Some(topic) = topic {
+                go_to_topic(&topic);
             }
-            *idx += 1;
-            if let Some(topic) = history.borrow().get(*idx).cloned() {
-                load_and_render(&topic);
-            }
-            update_nav_sensitivity();
         });
     }
 
@@ -366,10 +480,30 @@ pub fn present_for_parent(topic: &str, parent: Option<&gtk4::Window>) {
         let history_idx = history_idx.clone();
         let load_and_render = load_and_render.clone();
         let update_nav_sensitivity = update_nav_sensitivity.clone();
+
         home_btn.connect_clicked(move |_| {
-            history.borrow_mut().truncate(*history_idx.borrow() + 1);
-            history.borrow_mut().push("index".to_string());
-            *history_idx.borrow_mut() = history.borrow().len() - 1;
+            // Verificar si ya estamos en index para no duplicar
+            let current_idx = *history_idx.borrow();
+            let current_topic = history.borrow().get(current_idx).cloned();
+
+            if current_topic == Some("index".to_string()) {
+                // Ya estamos en el home, no hacer nada
+                return;
+            }
+
+            // Agrupar todas las operaciones de préstamo mutable
+            {
+                let mut hist = history.borrow_mut();
+                let mut idx = history_idx.borrow_mut();
+
+                // Truncar después del índice actual (descartar forward history)
+                hist.truncate(*idx + 1);
+                // Añadir index al historial
+                hist.push("index".to_string());
+                // Actualizar índice al nuevo elemento
+                *idx = hist.len() - 1;
+            }
+
             load_and_render("index");
             update_nav_sensitivity();
         });
@@ -391,9 +525,27 @@ pub fn present_for_parent(topic: &str, parent: Option<&gtk4::Window>) {
             }
 
             if let Some(topic) = normalize_topic_link(href) {
-                history.borrow_mut().truncate(*history_idx.borrow() + 1);
-                history.borrow_mut().push(topic.clone());
-                *history_idx.borrow_mut() = history.borrow().len() - 1;
+                // Verificar si es el mismo tema para evitar duplicados
+                let current_idx = *history_idx.borrow();
+                let current_topic = history.borrow().get(current_idx).cloned();
+
+                if current_topic == Some(topic.clone()) {
+                    return glib::Propagation::Stop; // Mismo tema, ignorar
+                }
+
+                // Agrupar todas las operaciones de préstamo mutable
+                {
+                    let mut hist = history.borrow_mut();
+                    let mut idx = history_idx.borrow_mut();
+
+                    // Descartar cualquier historial hacia adelante
+                    hist.truncate(*idx + 1);
+                    // Añadir nuevo tema
+                    hist.push(topic.clone());
+                    // Actualizar índice
+                    *idx = hist.len() - 1;
+                }
+
                 load_and_render(&topic);
                 update_nav_sensitivity();
                 return glib::Propagation::Stop;

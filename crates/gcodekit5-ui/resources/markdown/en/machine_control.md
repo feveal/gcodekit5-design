@@ -27,9 +27,6 @@ If you have connection trouble:
 3. Use **Pause/Resume** as needed.
 4. **Stop** aborts the stream.
 
-## Screenshot
-- [Machine Control screenshot (placeholder)](resource:///com/gcodekit5/help/images/placeholder.png)
-
 ## Related
 - [Device Console](help:device_console)
 - [Visualizer](help:visualizer)

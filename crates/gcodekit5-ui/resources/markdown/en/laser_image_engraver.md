@@ -1,6 +1,7 @@
 # Laser Image Engraver
 
 Converts a bitmap (PNG/JPEG/etc) into a raster-style laser engraving toolpath (G-code).
+It uses a different G-code generation method than the one used in the Designer. Choose the one that best suits your needs.
 
 ## What it generates
 - A scanline engraving path (horizontal or vertical)

@@ -21,6 +21,7 @@ use std::sync::mpsc;
 use std::thread;
 use tracing::error;
 use crate::t;
+use libadwaita::StyleManager;
 
 pub struct GcodeEditor {
     pub widget: Overlay,
@@ -72,12 +73,31 @@ impl GcodeEditor {
         let style_path_refs: Vec<&str> = new_style_paths.iter().map(|s| s.as_str()).collect();
         scheme_manager.set_search_path(&style_path_refs);
 
-        // Try to load our custom bright scheme first
-        if let Some(scheme) = scheme_manager.scheme("gcode-bright") {
-            buffer.set_style_scheme(Some(&scheme));
-        } else if let Some(scheme) = scheme_manager.scheme("kate") {
-            buffer.set_style_scheme(Some(&scheme));
-        } else if let Some(scheme) = scheme_manager.scheme("classic") {
+        // Detectar si el sistema o la app está usando tema oscuro de forma dinámica
+        let style_manager = StyleManager::default();
+        let is_dark = style_manager.is_dark();
+
+        let scheme_name = if is_dark {
+            // Intenta usar esquemas oscuros
+            if scheme_manager.scheme("gcode-dark").is_some() {
+                "gcode-dark"
+            } else if scheme_manager.scheme("oblivion").is_some() {
+                "oblivion" // Esquema oscuro estándar de GtkSourceView
+            } else {
+                "classic"
+            }
+        } else {
+            // Esquemas claros originales
+            if scheme_manager.scheme("gcode-bright").is_some() {
+                "gcode-bright"
+            } else if scheme_manager.scheme("kate").is_some() {
+                "kate"
+            } else {
+                "classic"
+            }
+        };
+
+        if let Some(scheme) = scheme_manager.scheme(scheme_name) {
             buffer.set_style_scheme(Some(&scheme));
         }
 
@@ -528,7 +548,6 @@ impl GcodeEditor {
 
         // Initial update
         Self::update_line_counter(&buffer, &line_counter_label);
-
         editor
     }
 
@@ -718,5 +737,34 @@ impl GcodeEditor {
         });
 
         dialog.show();
+    }
+
+    // Método público para actualizar el tema
+    pub fn update_theme_for_editor(&self) {
+        let scheme_manager = StyleSchemeManager::default();
+        let style_manager = StyleManager::default();
+        let is_dark = style_manager.is_dark();
+
+        let scheme_name = if is_dark {
+            if scheme_manager.scheme("gcode-dark").is_some() {
+                "gcode-dark"
+            } else if scheme_manager.scheme("oblivion").is_some() {
+                "oblivion"
+            } else {
+                "classic"
+            }
+        } else {
+            if scheme_manager.scheme("gcode-bright").is_some() {
+                "gcode-bright"
+            } else if scheme_manager.scheme("kate").is_some() {
+                "kate"
+            } else {
+                "classic"
+            }
+        };
+
+        if let Some(scheme) = scheme_manager.scheme(scheme_name) {
+            self.buffer.set_style_scheme(Some(&scheme));
+        }
     }
 }

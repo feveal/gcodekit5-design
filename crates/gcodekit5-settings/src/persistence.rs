@@ -157,9 +157,9 @@ impl SettingsPersistence {
 
         // Theme
         let themes = vec![
-            t!("System"),
-            t!("Light"),
-            t!("Dark"),
+            "System".to_string(),
+            "Light".to_string(),
+            "Dark".to_string(),
         ];
         dialog.add_setting(
             Setting::new(

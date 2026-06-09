@@ -7,7 +7,6 @@ pub mod editor;
 pub mod gtk_app;
 pub mod helpers;
 pub mod i18n;
-// pub mod platform; // Moved to ui::gtk::platform
 pub mod types;
 pub mod ui;
 
