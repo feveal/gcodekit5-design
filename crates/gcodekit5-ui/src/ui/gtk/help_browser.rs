@@ -11,6 +11,8 @@ use gtk4::{
     StackSidebar, TextView, Window, WrapMode,
 };
 use crate::t;
+use std::cell::RefCell;
+use std::rc::Rc;
 
 // ============================================================================
 // CONSTANTES Y CONFIGURACIÓN
@@ -234,8 +236,6 @@ fn insert_inline_image(
         }
     }
 }
-
-
 
 // Crear tag para un link y retornar el topic_id
 fn create_link_tag(buffer: &gtk4::TextBuffer, topic_id: &str) -> gtk4::TextTag {
@@ -577,7 +577,7 @@ pub fn present_for_parent(initial_topic: &str, parent: Option<&Window>) {
 
     let window = Window::builder()
     .application(&app)
-    .title("Ayuda de GCodeKit5")
+    .title(&t!("GCodeKit5 Help"))
     .default_width(1000)
     .default_height(700)
     .build();
@@ -590,9 +590,6 @@ pub fn present_for_parent(initial_topic: &str, parent: Option<&Window>) {
     // =========================================================================
     // 1. ESTRUCTURA DEL HISTORIAL DE NAVEGACIÓN
     // =========================================================================
-    use std::cell::RefCell;
-    use std::rc::Rc;
-
     struct HelpHistory {
         back_stack: Vec<String>,
         forward_stack: Vec<String>,
@@ -613,18 +610,18 @@ pub fn present_for_parent(initial_topic: &str, parent: Option<&Window>) {
 
     // Botón Atrás
     let btn_back = Button::from_icon_name("go-previous-symbolic");
-    btn_back.set_tooltip_text(Some("Atrás"));
+    btn_back.set_tooltip_text(Some(&t!("Back")));
     btn_back.set_sensitive(false);
     header.pack_start(&btn_back);
 
     // Botón Adelante
     let btn_forward = Button::from_icon_name("go-next-symbolic");
-    btn_forward.set_tooltip_text(Some("Adelante"));
+    btn_forward.set_tooltip_text(Some(&t!("Forward")));
     btn_forward.set_sensitive(false);
     header.pack_start(&btn_forward);
 
     // Título
-    let title_label = Label::new(Some("Help"));
+    let title_label = Label::new(Some(&t!("Help")));
     title_label.set_halign(Align::Center);
     header.set_title_widget(Some(&title_label));
 
@@ -800,7 +797,7 @@ pub fn present_for_parent(initial_topic: &str, parent: Option<&Window>) {
 /// Create a help button that opens the help browser
 pub fn make_help_button(topic: &'static str) -> Button {
     let btn = Button::from_icon_name("dialog-question-symbolic");
-    btn.set_tooltip_text(Some("Help (F1)"));
+    btn.set_tooltip_text(Some(&t!("Help (F1)")));
 
     let topic = topic.to_string();
     btn.connect_clicked(move |_| {
@@ -899,7 +896,6 @@ fn process_line_for_display(line: &str) -> String {
         line.contains("<td") || line.contains("</td>") {
             return String::new();
         }
-
         // Si no contiene HTML, devolver el texto limpio de links
         if !line.contains('<') {
             return strip_markdown_links(line);

@@ -1494,3 +1494,15 @@ msgstr "🔨 Herramientas CNC"
 
 msgid "📦 Materials"
 msgstr "📦 Materiales"
+
+msgid "GCodeKit5 Help"
+msgstr "Ayuda Gcodekit5"
+
+msgid "Back"
+msgstr "Atrás"
+
+msgid "Forward"
+msgstr "Adelante"
+
+msgid "Help (F1)"
+msgstr "Ayuda (F1)"
