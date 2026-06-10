@@ -1,16 +1,15 @@
 # Visualizer
+<img src="../../help_images/visualizer.png" alt="Visualizer" width="600">
 
-The Visualizer previews toolpaths and (optionally) the machine work area bounds.
+The Visualizer displays a preview of the toolpaths and (optionally) the machine work area boundaries.
 
-## Machine bounds
-Enable **Show Machine Bounds** to display the device work area.
-
-## Experimental 3D stock removal
-3D stock removal visualization is only available when **Settings → Advanced → Show experimental** is enabled.
+- Show/Hide Quick Moves
+- Show/Hide Cutting Moves
+- Show/Hide Tool
+- Show/Hide Grid
+- Show/Hide Machine Boundaries
 
 ## Related
-- [Settings](help:settings)
-- [Machine Control](help:machine_control)
-- [Index](help:index)
-
-
+[Settings](help:settings)
+[Machine Control](help:machine_control)
+[Index](help:index)

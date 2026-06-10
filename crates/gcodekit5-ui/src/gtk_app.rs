@@ -110,7 +110,7 @@ pub fn main() {
         let window = ApplicationWindow::builder()
             .application(app)
             .title(t!("GCodeKit5"))
-            .default_width(1100) // Ancho de ventana
+            .default_width(1400) // Ancho de ventana
             .default_height(900) // Alto de ventana
             .build();
 

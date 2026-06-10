@@ -1,14 +1,15 @@
 # Visualizador
+<img src="../../help_images/visualizer.png" alt="Visualizer" width="600">
 
 El Visualizador muestra una vista previa de las trayectorias de la herramienta y (opcionalmente) los límites del área de trabajo de la máquina.
 
-## Límites de la máquina
-Active **Mostrar límites de la máquina** para visualizar el área de trabajo del dispositivo.
-
-## Eliminación de material 3D experimental
-La visualización de eliminación de material 3D solo está disponible cuando **Ajustes → Avanzado → Mostrar experimental** está activado.
+- Mostrar/Ocultar Movimientos rápidos
+- Mostrar/Ocultar Movimientos de corte
+- Mostrar/ocultar Herramienta
+- Mostrar/ocultar Rejilla
+- Mostrar/Ocultar Límites de Máquina
 
 ## Relacionado
-- [Ajustes](help:settings)
-- [Control de máquina](help:machine_control)
-- [Índice](help:index)
+[Preferencias](help:settings)
+[Control de Máquina](help:machine_control)
+[Índice](help:index)

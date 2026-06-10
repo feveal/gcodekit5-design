@@ -1433,3 +1433,64 @@ msgstr "No se pudo guardar"
 
 msgid "Save G-Code File"
 msgstr "Guardar Archivo G-Code"
+
+# gcodekit5/crates/gcodekit5-ui/src/ui/gtk/help_browser.rs
+msgid "🏠 Index"
+msgstr "🏠 Índice"
+
+msgid "🛠️ Preferences"
+msgstr "🛠️ Preferencias"
+
+msgid "✏️ Designer"
+msgstr "✏️ Diseñador"
+
+msgid "👁️ Visualizer"
+msgstr "👁️ Visualizador"
+
+msgid "⚙️ Machine Control"
+msgstr "⚙️ Control de Máquina"
+
+msgid "      •📝 G-code Editor"
+msgstr "      •📝 Editor de G-code"
+
+msgid "      •💻 Device console"
+msgstr "      •💻 Consola de Dispositivo"
+
+msgid "🧰 CAM Tools"
+msgstr "🧰 Herramientas CAM"
+
+msgid "      •📦 Tabbed Box Maker"
+msgstr "      •📦 Creador de Cajas"
+
+msgid "      •🧩 Jigsaw Puzzle Generator"
+msgstr "      •🧩 Generador de Puzles"
+
+msgid "      •🖼️ Laser Image Engraver"
+msgstr "      •🖼️ Grabador de Imágenes"
+
+msgid "      •🖩 Speed and Feeds Calculator"
+msgstr "      •🖩 Calculadora de Velocidades"
+
+msgid "      •🔧 Spoilboard Surfacing"
+msgstr "      •🔧 Nivelación de Sufridera"
+
+msgid "      •📏 Create Spoilboard Grid"
+msgstr "      •📏 Crear Rejilla en Sufridera"
+
+msgid "      •📠 Gerber To G-code"
+msgstr "      •📠 Gerber a G-code"
+
+msgid "      •🔧 Dirll Press"
+msgstr "      •🔧 Taladro de Columna"
+
+msgid "🔌 Device Manager"
+msgstr "🔌 Gestor de Dispositivos"
+
+msgid "⚙️ Device Config"
+msgstr "⚙️ Configuración de Dispositivo"
+
+msgid "🔨 CNC Tools"
+msgstr "🔨 Herramientas CNC"
+
+msgid "📦 Materials"
+msgstr "📦 Materiales"

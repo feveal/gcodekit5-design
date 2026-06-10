@@ -1,6 +1,12 @@
 # Settings
 
-Settings controls application behavior.
+Settings controls application behavior. Menu -->> Edit/Preferences
+- General
+- Controller
+- User Interface
+- File Procesing
+- Shortcuts
+- Advanced
 
 ## Advanced
 
