@@ -259,9 +259,8 @@ impl GcodeVisualizer {
             if show_intensity || force_intensity {
                 const INTENSITY_BUCKETS: usize = 20;
 
-                if cache.needs_rebuild(new_hash)
-                    || cache.intensity_buckets.len() != INTENSITY_BUCKETS
-                {
+                // ✅ FORZAR RECONSTRUCCIÓN SIEMPRE cuando hay comandos (ignorar hash)
+                if !vis.commands().is_empty() {
                     cache.cache_hash = new_hash;
                     cache.intensity_buckets = vec![Vec::new(); INTENSITY_BUCKETS];
                     cache.total_lines = 0;
