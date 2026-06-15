@@ -326,8 +326,8 @@ impl DesignerView {
         floating_box.add_css_class("visualizer-osd");
         floating_box.add_css_class("osd-controls");
         floating_box.set_halign(gtk4::Align::End);
-        floating_box.set_valign(gtk4::Align::End);
-        floating_box.set_margin_bottom(20);
+        floating_box.set_valign(gtk4::Align::Start);
+        floating_box.set_margin_top(10);
         floating_box.set_margin_end(20);
 
         let float_zoom_out = gtk4::Button::builder()
@@ -506,8 +506,8 @@ impl DesignerView {
         status_box.add_css_class("visualizer-osd");
         status_box.set_halign(gtk4::Align::Start);
         status_box.set_valign(gtk4::Align::End);
-        status_box.set_margin_bottom(20);
-        status_box.set_margin_start(20);
+        status_box.set_margin_bottom(-10); // Posición Vertical coordenadas puntero
+        status_box.set_margin_start(10); // Posición Horizontal coordenadas puntero
 
         let status_label_osd = Label::builder().label(" ").build();
         status_label_osd.set_hexpand(true);

@@ -812,8 +812,8 @@ impl GcodeVisualizer {
         let floating_box = Box::new(Orientation::Horizontal, 4);
         floating_box.add_css_class("visualizer-osd");
         floating_box.set_halign(gtk4::Align::End);
-        floating_box.set_valign(gtk4::Align::End);
-        floating_box.set_margin_bottom(20);
+        floating_box.set_valign(gtk4::Align::Start); // flotaing_box arriba
+        floating_box.set_margin_bottom(10);
         floating_box.set_margin_end(20);
 
         let float_zoom_out = Button::builder()
@@ -908,7 +908,7 @@ impl GcodeVisualizer {
         status_box.add_css_class("visualizer-osd");
         status_box.set_halign(gtk4::Align::Start);
         status_box.set_valign(gtk4::Align::End);
-        status_box.set_margin_bottom(20);
+        status_box.set_margin_bottom(-10); // Posicion Verticat Coordenadas
         status_box.set_margin_start(20);
 
         let status_label = Label::builder().label(" ").build();
