@@ -13,6 +13,7 @@ use gcodekit5_devicedb::DeviceManager;
 use gcodekit5_visualizer::visualizer::GCodeCommand;
 use gcodekit5_visualizer::Visualizer;
 use std::sync::Arc;
+use libadwaita::StyleManager;
 
 impl GcodeVisualizer {
     // Rendering pipeline requires all GL state and geometry parameters.
@@ -59,15 +60,18 @@ impl GcodeVisualizer {
             .lookup_color("warning_color")
             .unwrap_or(gtk4::gdk::RGBA::new(0.0, 0.8, 1.0, 1.0));
 
-        // Clear background
-        if show_intensity {
-            let bg = colors::to_rgb_f64(&colors::BACKGROUND_LIGHT);
-            cr.set_source_rgb(bg.0, bg.1, bg.2);
+        let style_manager = StyleManager::default();
+        let is_dark_theme = style_manager.is_dark();
+
+        // Elegir fondo según el tema (ignorando show_intensity para el fondo)
+        let bg = if is_dark_theme {
+            colors::to_rgb_f64(&colors::BACKGROUND_DARK)
         } else {
-            let bg = colors::to_rgb_f64(&colors::BACKGROUND_DARK);
-            cr.set_source_rgb(bg.0, bg.1, bg.2);
-        }
+            colors::to_rgb_f64(&colors::BACKGROUND_LIGHT)
+        };
+        cr.set_source_rgb(bg.0, bg.1, bg.2);
         let _ = cr.paint();
+
         // Determine Max S Value
         let max_s_value = if let Some(manager) = device_manager {
             manager

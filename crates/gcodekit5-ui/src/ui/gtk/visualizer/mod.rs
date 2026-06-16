@@ -156,7 +156,6 @@ pub struct GcodeVisualizer {
     pub(crate) _show_cut: CheckButton,
     pub(crate) _show_grid: CheckButton,
     pub(crate) _show_bounds: CheckButton,
-    pub(crate) _show_intensity: CheckButton,
     pub(crate) show_laser: CheckButton,
     pub(crate) show_stock_removal: CheckButton,
     // Stock removal simulation (2D)
@@ -428,10 +427,7 @@ impl GcodeVisualizer {
             .label(t!("Show Machine Bounds"))
             .active(true)
             .build();
-        let show_intensity = CheckButton::builder()
-            .label(t!("Show Intensity"))
-            .active(false)
-            .build();
+
         let show_laser = CheckButton::builder()
             .label(t!("Show Laser/Spindle"))
             .active(true)
@@ -451,7 +447,6 @@ impl GcodeVisualizer {
         show_stock_removal.set_visible(enable_stock_removal_3d);
 
         // Stock configuration
-
         let stock_width_entry = gtk4::Entry::builder()
             .placeholder_text(t!("Width"))
             .text("200.0")
@@ -563,7 +558,6 @@ impl GcodeVisualizer {
         simulation_box.set_margin_end(6);
         simulation_box.set_margin_top(6);
         simulation_box.set_margin_bottom(6);
-        simulation_box.append(&show_intensity);
         simulation_box.append(&show_stock_removal);
         simulation_box.append(&stock_revealer);
 
@@ -1055,7 +1049,6 @@ impl GcodeVisualizer {
         // Visibility Logic
         let nav_widget = nav_cube.widget.clone();
         let float_box = floating_box.clone();
-        let show_intensity_vis = show_intensity.clone();
         let mode_2d_btn_vis = mode_2d_btn.clone();
         let mode_3d_btn_vis = mode_3d_btn.clone();
 
@@ -1067,12 +1060,9 @@ impl GcodeVisualizer {
             if is_3d {
                 nav_widget.set_visible(true);
                 float_box.set_visible(false);
-                show_intensity_vis.set_active(false);
-                show_intensity_vis.set_sensitive(false);
             } else {
                 nav_widget.set_visible(false);
                 float_box.set_visible(true);
-                show_intensity_vis.set_sensitive(true);
             }
 
             if mode_3d_btn_vis.is_active() != is_3d {
@@ -1781,7 +1771,6 @@ impl GcodeVisualizer {
         let show_cut_draw = show_cut.clone();
         let show_grid_draw = show_grid.clone();
         let show_bounds_draw = show_bounds.clone();
-        let show_intensity_draw = show_intensity.clone();
         let show_laser_draw = show_laser.clone();
         let show_stock_removal_draw = show_stock_removal.clone();
         let simulation_result_draw = simulation_result.clone();
@@ -1811,7 +1800,7 @@ impl GcodeVisualizer {
                 show_cut_draw.is_active(),
                 show_grid_draw.is_active(),
                 show_bounds_draw.is_active(),
-                show_intensity_draw.is_active(),
+                true, // show_intensity_draw.is_active(),
                 show_laser_draw.is_active(),
                 show_stock_removal_draw.is_active(),
                 &simulation_result_draw.borrow(),
@@ -1927,12 +1916,6 @@ impl GcodeVisualizer {
         let da_update = drawing_area.clone();
         let gl_update = gl_area.clone();
         show_bounds.connect_toggled(move |_| {
-            da_update.queue_draw();
-            gl_update.queue_render();
-        });
-        let da_update = drawing_area.clone();
-        let gl_update = gl_area.clone();
-        show_intensity.connect_toggled(move |_| {
             da_update.queue_draw();
             gl_update.queue_render();
         });
@@ -2714,7 +2697,6 @@ impl GcodeVisualizer {
             _show_cut: show_cut,
             _show_grid: show_grid,
             _show_bounds: show_bounds,
-            _show_intensity: show_intensity,
             show_laser,
             show_stock_removal,
             stock_material,
@@ -2836,10 +2818,6 @@ impl GcodeVisualizer {
 
         if has_z_travel {
             self.stack.set_visible_child_name("3d");
-            // Explicitly disable intensity for 3D view
-            self._show_intensity.set_active(false);
-            self._show_intensity.set_sensitive(false);
-
             // Fit 3D view
             let (min_x, max_x, min_y, max_y, min_z, max_z) =
                 if let Some(bounds) = vis.get_cutting_bounds() {

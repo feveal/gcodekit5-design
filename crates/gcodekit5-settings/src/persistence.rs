@@ -202,15 +202,15 @@ impl SettingsPersistence {
 
         // Startup Tab
         let startup_tabs = vec![
-            t!("Designer"),
-            t!("Visualizer"),
-            t!("Machine"),
+            "Designer".to_string(),
+            "Visualizer".to_string(),
+            "Machine".to_string(),
 //            "Editor".to_string(),
-            t!("CamTools"),
-            t!("Config"),
-            t!("Devices"),
-            t!("Tools"),
-            t!("Materials"),
+            "CamTools".to_string(),
+            "Config".to_string(),
+            "Devices".to_string(),
+            "Tools".to_string(),
+            "Materials".to_string(),
         ];
         let current_startup_tab = match ui.startup_tab {
             crate::config::StartupTab::Designer => "Designer",
@@ -476,18 +476,19 @@ impl SettingsPersistence {
         if let Some(setting) = dialog.get_setting("startup_tab") {
             let tab_str = setting.value.as_str();
             self.config.ui.startup_tab = match tab_str.as_str() {
+
+                "Designer" => crate::config::StartupTab::Designer,
                 "Machine" => crate::config::StartupTab::Machine,
                 "Console" => crate::config::StartupTab::Console,
 //                "Editor" => crate::config::StartupTab::Editor,
                 "Visualizer" => crate::config::StartupTab::Visualizer,
                 "CamTools" => crate::config::StartupTab::CamTools,
-                "Designer" => crate::config::StartupTab::Designer,
                 "DeviceInfo" => crate::config::StartupTab::DeviceInfo,
                 "Config" => crate::config::StartupTab::Config,
                 "Devices" => crate::config::StartupTab::Devices,
                 "Tools" => crate::config::StartupTab::Tools,
                 "Materials" => crate::config::StartupTab::Materials,
-                _ => crate::config::StartupTab::Machine,
+                _ => crate::config::StartupTab::Designer,
             };
         }
 
