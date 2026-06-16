@@ -11,7 +11,6 @@ use std::time::Duration;
 pub struct DirectSender {
     communicator: ThreadSafe<SerialCommunicator>,
     is_streaming: Arc<AtomicBool>,
-    is_paused: Arc<AtomicBool>,
     should_stop: Arc<AtomicBool>,
     progress_tx: mpsc::Sender<String>,
 }
@@ -20,22 +19,19 @@ impl DirectSender {
     pub fn new(
         communicator: ThreadSafe<SerialCommunicator>,
         is_streaming: ThreadSafe<bool>,
-        is_paused: ThreadSafe<bool>,
+        _is_paused: ThreadSafe<bool>,  // Mantenemos el parámetro por compatibilidad pero no lo usamos
         _waiting_for_ack: ThreadSafe<bool>,
     ) -> (Self, mpsc::Receiver<String>) {
         let streaming_flag = Arc::new(AtomicBool::new(*is_streaming.lock()));
-        let paused_flag = Arc::new(AtomicBool::new(*is_paused.lock()));
         let stop_flag = Arc::new(AtomicBool::new(false));
 
         *is_streaming.lock() = streaming_flag.load(Ordering::SeqCst);
-        *is_paused.lock() = paused_flag.load(Ordering::SeqCst);
 
         let (tx, rx) = mpsc::channel();
         (
             Self {
                 communicator,
                 is_streaming: streaming_flag,
-                is_paused: paused_flag,
                 should_stop: stop_flag,
                 progress_tx: tx,
             },
@@ -71,12 +67,10 @@ impl DirectSender {
         ));
 
         self.is_streaming.store(true, Ordering::SeqCst);
-        self.is_paused.store(false, Ordering::SeqCst);
         self.should_stop.store(false, Ordering::SeqCst);
 
         let comm = self.communicator.clone();
         let streaming_flag = self.is_streaming.clone();
-        let paused_flag = self.is_paused.clone();
         let stop_flag = self.should_stop.clone();
         let progress_tx = self.progress_tx.clone();
 
@@ -87,45 +81,51 @@ impl DirectSender {
             let total = lines.len();
             let mut last_percent: u32 = 0;
 
-            // Watchdog simple (sin enviar comandos extra)
             let mut last_activity = std::time::Instant::now();
             let mut stalled = false;
 
             while i < total && !stop_flag.load(Ordering::SeqCst) {
-                if paused_flag.load(Ordering::SeqCst) {
-                    thread::sleep(Duration::from_millis(10));
-                    continue;
-                }
-
                 // Enviar hasta llenar la ventana
                 {
-                    let mut c = comm.lock();
-                    while lines_in_flight < max_window && i < total {
-                        let cmd = format!("{}\n", lines[i]);
-                        if c.send(cmd.as_bytes()).is_ok() {
-                            lines_in_flight += 1;
-                            i += 1;
-                            last_activity = std::time::Instant::now();
-                            stalled = false;
-                        } else {
-                            break;
+                    if let Some(mut c) = comm.try_lock() {
+                        while lines_in_flight < max_window && i < total {
+                            let cmd = format!("{}\n", lines[i]);
+                            if c.send(cmd.as_bytes()).is_ok() {
+                                lines_in_flight += 1;
+                                i += 1;
+                                last_activity = std::time::Instant::now();
+                                stalled = false;
+                            } else {
+                                break;
+                            }
                         }
+                    } else {
+                        thread::sleep(Duration::from_millis(1));
+                        continue;
                     }
                 }
 
                 // Leer respuestas y procesar OKs
                 let mut attempts = 0;
                 while lines_in_flight >= max_window && !stop_flag.load(Ordering::SeqCst) {
-                    if let Ok(data) = { let mut c = comm.lock(); c.receive() } {
-                        if !data.is_empty() {
-                            let resp = String::from_utf8_lossy(&data);
-                            let ok_count = resp.matches("ok").count();
-                            lines_in_flight = lines_in_flight.saturating_sub(ok_count);
-                            if ok_count > 0 {
-                                last_activity = std::time::Instant::now();
-                                stalled = false;
+                    if let Some(mut c) = comm.try_lock() {
+                        if let Ok(data) = c.receive() {
+                            if !data.is_empty() {
+                                let resp = String::from_utf8_lossy(&data);
+                                let ok_count = resp.matches("ok").count();
+                                lines_in_flight = lines_in_flight.saturating_sub(ok_count);
+                                if ok_count > 0 {
+                                    last_activity = std::time::Instant::now();
+                                    stalled = false;
+                                }
+                                if resp.contains("Grbl") || resp.contains("ALARM") {
+                                    stop_flag.store(true, Ordering::SeqCst);
+                                    break;
+                                }
                             }
                         }
+                    } else {
+                        thread::sleep(Duration::from_millis(1));
                     }
 
                     attempts += 1;
@@ -136,28 +136,32 @@ impl DirectSender {
                 }
 
                 // Lectura residual
-                if let Ok(data) = { let mut c = comm.lock(); c.receive() } {
-                    if !data.is_empty() {
-                        let resp = String::from_utf8_lossy(&data);
-                        let ok_count = resp.matches("ok").count();
-                        lines_in_flight = lines_in_flight.saturating_sub(ok_count);
-                        if ok_count > 0 {
-                            last_activity = std::time::Instant::now();
-                            stalled = false;
-                        }
+                if let Some(mut c) = comm.try_lock() {
+                    if let Ok(data) = c.receive() {
+                        if !data.is_empty() {
+                            let resp = String::from_utf8_lossy(&data);
+                            let ok_count = resp.matches("ok").count();
+                            lines_in_flight = lines_in_flight.saturating_sub(ok_count);
+                            if ok_count > 0 {
+                                last_activity = std::time::Instant::now();
+                                stalled = false;
+                            }
 
-                        if resp.contains("Grbl") || resp.contains("ALARM") {
-                            stop_flag.store(true, Ordering::SeqCst);
-                            break;
+                            if resp.contains("Grbl") || resp.contains("ALARM") {
+                                stop_flag.store(true, Ordering::SeqCst);
+                                break;
+                            }
                         }
                     }
+                } else {
+                    thread::sleep(Duration::from_millis(1));
                 }
 
-                // WATCHDOG Si pasa 30 segundos sin actividad, asumir que se completó
+                // WATCHDOG: Si pasa 30 segundos sin actividad, asumir que se completó
                 if last_activity.elapsed() > Duration::from_secs(30) && !stalled {
                     let _ = progress_tx.send("> No activity for 30s, continuing...".to_string());
                     stalled = true;
-                    lines_in_flight = 0; // Forzar continuación
+                    lines_in_flight = 0;
                 }
 
                 thread::yield_now();
@@ -179,14 +183,51 @@ impl DirectSender {
         self.should_stop.store(true, Ordering::SeqCst);
     }
 
+    /// Pause the current job by sending the GRBL feed hold command (!)
+    ///
+    /// This sends the ASCII character '!' (0x21) to GRBL which immediately
+    /// pauses the machine. The command buffer in GRBL remains intact.
+    /// The send thread continues sending commands to fill GRBL's buffer.
     pub fn pause(&self) {
+        let comm = self.communicator.clone();
+        let _ = thread::spawn(move || {
+            if let Some(mut comm) = comm.try_lock() {
+                // Usar send_command para emular exactamente el comportamiento de la consola
+                if let Err(e) = comm.send_command("!") {
+                    tracing::error!("Failed to send pause to GRBL: {}", e);
+                } else {
+                    tracing::debug!("Pause command (!) sent to GRBL");
+                }
+            } else {
+                tracing::warn!("Could not acquire lock for pause");
+            }
+        });
+
         let _ = self.progress_tx.send(t!("Paused").to_string());
-        self.is_paused.store(true, Ordering::SeqCst);
+        // NOTA: No tocamos ninguna bandera. El hilo de envío sigue funcionando.
     }
 
+    /// Resume the current job by sending the GRBL resume command (~)
+    ///
+    /// This sends the ASCII character '~' (0x7E) to GRBL which resumes
+    /// the paused job exactly where it was interrupted.
     pub fn resume(&self) {
+        let comm = self.communicator.clone();
+        let _ = thread::spawn(move || {
+            if let Some(mut comm) = comm.try_lock() {
+                // Usar send_command para emular exactamente el comportamiento de la consola
+                if let Err(e) = comm.send_command("~") {
+                    tracing::error!("Failed to send resume to GRBL: {}", e);
+                } else {
+                    tracing::debug!("Resume command (~) sent to GRBL");
+                }
+            } else {
+                tracing::warn!("Could not acquire lock for resume");
+            }
+        });
+
         let _ = self.progress_tx.send(t!("Resuming").to_string());
-        self.is_paused.store(false, Ordering::SeqCst);
+        // NOTA: No tocamos ninguna bandera. El hilo de envío sigue funcionando.
     }
 
     pub fn unlock(&self) {
@@ -194,19 +235,22 @@ impl DirectSender {
 
         let comm = self.communicator.clone();
         let _ = thread::spawn(move || {
-            let mut comm = comm.lock();
-            let _ = comm.send_command("$X");
+            if let Some(mut comm) = comm.try_lock() {
+                let _ = comm.send_command("$X");
+            } else {
+                tracing::warn!("Could not acquire lock for unlock");
+            }
         });
     }
 
     /// Calcula el tiempo estimado de ejecución en segundos analizando el G-code
     pub fn estimate_execution_time(gcode: &str) -> f64 {
         let mut total_time = 0.0;
-        let mut current_feed = 0.0; // mm/min
+        let mut current_feed = 0.0;
         let mut last_x = 0.0;
         let mut last_y = 0.0;
         let mut last_z = 0.0;
-        let mut is_absolute = true; // G90 por defecto
+        let mut is_absolute = true;
 
         for line in gcode.lines() {
             let line = line.trim();
@@ -214,14 +258,12 @@ impl DirectSender {
                 continue;
             }
 
-            // Detectar modo de posicionamiento
             if line.contains("G90") {
                 is_absolute = true;
             } else if line.contains("G91") {
                 is_absolute = false;
             }
 
-            // Detectar velocidad de avance
             if let Some(f_pos) = line.find('F') {
                 let f_end = line[f_pos + 1..]
                     .find(|c: char| !c.is_ascii_digit() && c != '.')
@@ -231,7 +273,6 @@ impl DirectSender {
                 }
             }
 
-            // Detectar movimiento lineal G0, G1
             let is_move = line.contains("G0")
                 || line.contains("G1")
                 || line.contains("G00")
@@ -242,7 +283,6 @@ impl DirectSender {
                 let mut y = last_y;
                 let mut z = last_z;
 
-                // Extraer coordenadas
                 if let Some(x_pos) = line.find('X') {
                     let x_end = line[x_pos + 1..]
                         .find(|c: char| !c.is_ascii_digit() && c != '.' && c != '-')
@@ -270,14 +310,12 @@ impl DirectSender {
                     }
                 }
 
-                // Calcular distancia (convertir a f64 explícitamente)
                 let dx = x - last_x;
                 let dy = y - last_y;
                 let dz = z - last_z;
                 let distance = (dx * dx + dy * dy + dz * dz).sqrt();
 
                 if distance > 0.0 && current_feed > 0.0 {
-                    // tiempo = distancia / velocidad (convertir mm/min a mm/seg)
                     total_time += distance / (current_feed / 60.0);
                 }
 
@@ -289,16 +327,13 @@ impl DirectSender {
 
         total_time
     }
-
 }
-
 
 impl Clone for DirectSender {
     fn clone(&self) -> Self {
         Self {
             communicator: self.communicator.clone(),
             is_streaming: self.is_streaming.clone(),
-            is_paused: self.is_paused.clone(),
             should_stop: self.should_stop.clone(),
             progress_tx: self.progress_tx.clone(),
         }

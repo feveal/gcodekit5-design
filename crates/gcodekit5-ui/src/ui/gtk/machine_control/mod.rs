@@ -1358,57 +1358,38 @@ impl MachineControlView {
             let is_paused = view.is_paused.clone();
             let console = view.device_console.clone();
             let view_pause = view.clone();
+
+        // Boton de pausa
             view.pause_btn.connect_clicked(move |_| {
                 if let Some(c) = console.as_ref() {
-                    c.append_log("> M5 (Laser off)\n");
+                    c.append_log("> ! (Pause)\n");
                 }
 
-                let communicator = communicator.clone();
-                let console = console.clone();
-                let is_paused = is_paused.clone();
-                let view_pause = view_pause.clone();
-
-                // Send M5 and wait for ok
                 {
                     let mut comm = communicator.lock();
-                    let _ = comm.send_command("M5");
+
+                    // Detectar modo láser: leer $32, si no disponible → CNC (false)
+                    let is_laser = device_status::get_grbl_setting(32)
+                        .and_then(|v| v.parse::<i32>().ok())
+                        .map(|v| v == 1)
+                        .unwrap_or(false);  // ← Default: CNC
+
+                    if !is_laser {
+                        // CNC: Enviar M5 para detener el spindle
+                        let _ = comm.send_command("M5");
+                        if let Some(c) = console.as_ref() {
+                            c.append_log("> M5 (Spindle off)\n");
+                        }
+                    }
+                    // Láser: solo enviar ! (GRBL apaga el láser automáticamente)
+                    let _ = comm.send(b"!");
                 }
 
-                // Wait for GRBL to confirm M5 with ok
-                // Use a timeout to avoid blocking
-                let start = std::time::Instant::now();
-                let timeout = std::time::Duration::from_millis(500);
+                *is_paused.lock() = true;
 
-                glib::timeout_add_local(std::time::Duration::from_millis(10), move || {
-                    let ok_received = {
-                        let mut comm = communicator.lock();
-                        match comm.receive() {
-                            Ok(data) if !data.is_empty() => {
-                                let resp = String::from_utf8_lossy(&data);
-                                resp.contains("ok")
-                            }
-                            _ => false,
-                        }
-                    };
-
-                    if ok_received || start.elapsed() >= timeout {
-                        // Received OK or timeout, now send!
-                        if let Some(c) = console.as_ref() {
-                            c.append_log("> ! (Pause)\n");
-                        }
-                        {
-                            let mut comm = communicator.lock();
-                            let _ = comm.send(b"!");
-                        }
-                        *is_paused.lock() = true;
-                        if let Some(sender) = view_pause.direct_sender.lock().as_ref() {
-                            sender.pause();
-                        }
-                        glib::ControlFlow::Break
-                    } else {
-                        glib::ControlFlow::Continue
-                    }
-                });
+                if let Some(sender) = view_pause.direct_sender.lock().as_ref() {
+                    sender.pause();
+                }
             });
 
             // Unlock button handler
