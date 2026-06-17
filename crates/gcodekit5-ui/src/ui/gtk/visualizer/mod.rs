@@ -27,7 +27,7 @@ use gcodekit5_settings::controller::SettingsController;
 use gcodekit5_settings::manager::SettingsManager;
 use gcodekit5_visualizer::visualizer::{generate_surface_mesh, StockSimulator3D};
 use glam::Vec3;
-
+/*
 /// A bucket entry for intensity-based line batching in the visualizer.
 ///
 /// This struct replaces the complex tuple type `Vec<Vec<(f64, f64, f64, f64, f32)>>`
@@ -58,7 +58,7 @@ impl IntensityBucket {
         }
     }
 }
-
+*/
 // Stock removal visualization cache
 #[derive(Clone)]
 pub(crate) struct ContourLayer {
@@ -100,14 +100,8 @@ use std::sync::Arc;
 // Render cache for expensive computations
 #[derive(Clone)]
 pub(crate) struct RenderCache {
-    pub(crate) cache_hash: u64,
-    /// Intensity buckets for batching lines by laser intensity/power.
-    /// Each bucket contains lines with similar intensity values for efficient rendering.
-    pub(crate) intensity_buckets: Vec<Vec<IntensityBucket>>,
     pub(crate) cutting_bounds: Option<(f32, f32, f32, f32, f32, f32)>,
-    pub(crate) total_lines: usize,
     pub(crate) _rapid_lines: usize,
-    pub(crate) cut_lines: usize,
 }
 
 pub(crate) struct RendererState {
@@ -125,19 +119,9 @@ pub(crate) struct RendererState {
 impl Default for RenderCache {
     fn default() -> Self {
         Self {
-            cache_hash: 0,
-            intensity_buckets: vec![Vec::new(); 20],
             cutting_bounds: None,
-            total_lines: 0,
             _rapid_lines: 0,
-            cut_lines: 0,
         }
-    }
-}
-
-impl RenderCache {
-    pub(crate) fn needs_rebuild(&self, new_hash: u64) -> bool {
-        self.cache_hash != new_hash
     }
 }
 
@@ -1800,7 +1784,7 @@ impl GcodeVisualizer {
                 show_cut_draw.is_active(),
                 show_grid_draw.is_active(),
                 show_bounds_draw.is_active(),
-                true, // show_intensity_draw.is_active(),
+                true, // show_intensity_draw.is_active(), // Intensidad en objetos vectoriales
                 show_laser_draw.is_active(),
                 show_stock_removal_draw.is_active(),
                 &simulation_result_draw.borrow(),
@@ -2729,7 +2713,7 @@ impl GcodeVisualizer {
 
         // Phase 4: Invalidate render cache when G-code changes
         let mut cache = self.render_cache.borrow_mut();
-        cache.cache_hash = 0; // Force rebuild
+//        cache.cache_hash = 0; // Force rebuild
         cache.cutting_bounds = None;
         drop(cache);
 
