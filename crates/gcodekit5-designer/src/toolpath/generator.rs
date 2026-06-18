@@ -450,13 +450,11 @@ impl ToolpathGenerator {
             )
         };
 
-        let half_w = triangle.width / 2.0;
-        let half_h = triangle.height / 2.0;
+        // Obtener los vértices locales del triángulo usando get_local_vertices_f64()
+        // Esto respeta right_angle_corner
+        let [p1_local, p2_local, p3_local] = triangle.get_local_vertices_f64();
 
-        let p1_local = Point::new(-half_w, -half_h);
-        let p2_local = Point::new(half_w, -half_h);
-        let p3_local = Point::new(-half_w, half_h);
-
+        // Aplicar rotación y traslación
         let rotation = triangle.rotation;
         let center = triangle.center;
 

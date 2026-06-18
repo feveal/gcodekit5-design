@@ -682,9 +682,7 @@ impl DesignerCanvas {
     pub(super) fn handle_click(&self, x: f64, y: f64, ctrl_pressed_arg: bool, n_press: i32) {
         // Combine gesture modifier state with tracked keyboard state for reliability
         let ctrl_pressed = ctrl_pressed_arg || *self.ctrl_pressed.borrow();
-        // ---
         let shift_pressed = *self.shift_pressed.borrow();
-        // ---
         // Reset drag flag
         *self.did_drag.borrow_mut() = false;
 
@@ -773,7 +771,7 @@ impl DesignerCanvas {
                         }
                     }
                 }
-                // ---
+
                 // Check if we clicked on an existing shape
                 let mut clicked_shape_id = None;
                 let tolerance = 3.0;
@@ -1471,6 +1469,7 @@ impl DesignerCanvas {
                         None
                     }
                 }
+
                 DesignerTool::Triangle => {
                     let width = (end.0 - start.0).abs();
                     let height = (end.1 - start.1).abs();
@@ -1478,15 +1477,26 @@ impl DesignerCanvas {
                     let cy = (start.1 + end.1) / 2.0;
 
                     if width > 1.0 && height > 1.0 {
-                        Some(Shape::Triangle(Triangle::new(
+                        // Determinar la esquina del ángulo recto según la dirección del arrastre
+                        // end.1 > start.1 significa que el mouse está más arriba (porque el eje Y en canvas va hacia arriba)
+                        let corner = match (end.0 >= start.0, end.1 >= start.1) {
+                            (true, true) => 2,   // Superior-Izquierda (arrastre derecha-arriba)
+                            (true, false) => 0,  // Inferior-Izquierda (arrastre derecha-abajo)
+                            (false, true) => 3,  // Superior-Derecha (arrastre izquierda-arriba)
+                            (false, false) => 1, // Inferior-Derecha (arrastre izquierda-abajo)
+                        };
+
+                        Some(Shape::Triangle(Triangle::new_with_corner(
                             Point::new(cx, cy),
                             width,
                             height,
+                            corner,
                         )))
                     } else {
                         None
                     }
                 }
+
                 DesignerTool::Polygon => {
                     let cx = (start.0 + end.0) / 2.0;
                     let cy = (start.1 + end.1) / 2.0;
