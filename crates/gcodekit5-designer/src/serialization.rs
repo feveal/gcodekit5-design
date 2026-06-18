@@ -66,6 +66,8 @@ pub struct ShapeData {
     pub width: f64,
     pub height: f64,
     #[serde(default)]
+    pub right_angle_corner: u8,
+    #[serde(default)]
     pub points: Vec<(f64, f64)>,
     pub selected: bool,
     #[serde(default)]
@@ -159,15 +161,6 @@ pub struct ShapeData {
     pub dithering: String,
     #[serde(default = "default_halftone_threshold")]
     pub halftone_threshold: u8,
-/*
-    // ========== CAMPOS LÁSER PARA CADA OBJETO ==========
-    #[serde(default = "default_feed_rate")]
-    pub laser_feed_rate: f64,
-    #[serde(default = "default_laser_power")]
-    pub laser_power: f64,
-    #[serde(default = "default_laser_passes")]
-    pub laser_passes: i32,
-*/
 }
 
 fn default_true() -> bool {
@@ -520,6 +513,12 @@ impl DesignFile {
                 )
             };
 
+        let right_angle_corner = if let Shape::Triangle(t) = &obj.shape {
+            t.right_angle_corner
+        } else {
+                0
+        };
+
         let laser_params = obj.laser_params;
 
         ShapeData {
@@ -530,6 +529,7 @@ impl DesignFile {
             y: cy,
             width: real_width,
             height: real_height,
+            right_angle_corner,
             points: shape_points,
             selected: obj.selected,
             use_custom_values: obj.use_custom_values,
@@ -629,7 +629,13 @@ impl DesignFile {
             }
             "triangle" => {
                 let center = Point::new(data.x, data.y);
-                let mut triangle = Triangle::new(center, data.width, data.height);
+                let mut triangle = Triangle::new_with_corner(
+                    center,
+                    data.width,
+                    data.height,
+                    data.right_angle_corner
+                );
+                triangle.rotation = data.rotation;
                 triangle.laser_params = laser_params;
                 Shape::Triangle(triangle)
             }

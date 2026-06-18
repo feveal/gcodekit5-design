@@ -119,7 +119,7 @@ This modular structure enables:
 
 ### 🎨 2D CAD/CAM Designer
 - **Vector Drawing Tools**:
-  - Geometric shapes: rectangles, circles, ellipses
+  - Geometric shapes: rectangles, circles, ellipses, triangles
   - Lines, polygons, Bezier curves, and arcs
   - Round rectangles with adjustable corner radius
 - **File Import**: Import SVG and DXF vector files
@@ -572,6 +572,21 @@ You may choose either license for your use of this software.
 **Current Version**: 0.41.0-alpha.1
 **Status**: Active Development
 **Stability**: Alpha (breaking changes may occur)
+
+### Recent Updates (1.0.0-alpha.1) - Multiple modifications and adjustments
+
+- Triangle generation in the designer has been corrected. Triangles can now be generated in all four positions and true symmetry can be applied. Previously, they could only be generated in one position.
+- The bounds of the triangles are now generated correctly and updated when the triangle is rotated.
+- The G-code and the Visualizer correctly reproduce the position of the triangles.
+- The triangles are now correctly saved in the gckd file
+- The display establishes a color scale based on the power S to preview the movements
+- In the designer, the bounds for the created lines are corrected. They now take into account the size and rotation of the line, which they didn't do before.
+- The Pause and Resume function in laser mode, which turned off the laser during some movements, has been fixed.
+- Help is implemented via F1 with explanatory images for each program module
+- The program translation has been expanded, including the help section.
+- A Warning is added to the G-code when the path goes outside the machine area (negative coordinates)
+- The positioning of texts and their grips is corrected.
+- Other visual modifications
 
 ### Recent Updates (v0.41.0-alpha.1) - Non-Destructive Geometry
 - **Designer**: Implemented non-destructive geometry operations (Offset, Fillet, Chamfer).

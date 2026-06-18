@@ -19,6 +19,7 @@ pub struct DesignTriangle {
     pub center: Point,
     pub rotation: f64,
     pub laser_params: LaserParams,
+    #[serde(default)]
     // Especifica la posición del vértice del ángulo recto
     // 0: Inferior-Izquierda, 1: Inferior-Derecha, 2: Superior-Izquierda, 3: Superior-Derecha
     pub right_angle_corner: u8,
@@ -32,7 +33,7 @@ impl DesignTriangle {
             center,
             rotation: 0.0,
             laser_params: LaserParams::default(),
-            right_angle_corner: 0, // Ángulo recto en esquina inferior-izquierda
+            right_angle_corner: 0,
         }
     }
 
