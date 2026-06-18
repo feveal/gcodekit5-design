@@ -6,7 +6,7 @@
 #, fuzzy
 msgid ""
 msgstr ""
-"Project-Id-Version: GCodeKit5 0.1.0\n"
+"Project-Id-Version: GCodeKit5 1.0.1-alpha.0\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2025-12-12 17:54+0700\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
@@ -106,6 +106,129 @@ msgstr ""
 msgid "Undo"
 msgstr ""
 
+# crates/gcodekit5-ui/src/ui/gtk/settings.rs
+msgid "Controller"
+msgstr ""
+
+msgid "User Interface"
+msgstr ""
+
+msgid "File Processing"
+msgstr ""
+
+msgid "Shortcuts"
+msgstr ""
+
+msgid "Advanced"
+msgstr ""
+
+msgid "Select Directory"
+msgstr ""
+
+# crates/gcodekit5-settings/src/persistence.rs
+msgid "Measurement System"
+msgstr ""
+
+msgid "Units for display and input (Metric/mm or Imperial/inch)"
+msgstr ""
+
+msgid "Feed Rate Units"
+msgstr ""
+
+msgid "Default Directory"
+msgstr ""
+
+msgid "Units for feed rate display and input"
+msgstr ""
+
+msgid "Default directory for file operations"
+msgstr ""
+
+msgid "System"
+msgstr ""
+
+msgid "Light"
+msgstr ""
+
+msgid "Dark"
+msgstr ""
+
+msgid "Theme"
+msgstr ""
+
+msgid "Application color theme (Light, Dark, or System default)"
+msgstr ""
+
+msgid "Language"
+msgstr ""
+
+msgid "User interface language (requires restart)"
+msgstr ""
+
+msgid "CamTools"
+msgstr ""
+
+msgid "Config"
+msgstr ""
+
+msgid "Devices"
+msgstr ""
+
+msgid "Tools"
+msgstr ""
+
+msgid "Startup Tab"
+msgstr ""
+
+msgid "Tab to show when application starts"
+msgstr ""
+
+msgid "Show About on Startup"
+msgstr ""
+
+msgid "Show the About dialog for 15 seconds when the application starts"
+msgstr ""
+
+msgid "Grid Major Line Width (px)"
+msgstr ""
+
+msgid "Thickness in pixels for coarse grid lines (default: 2)"
+msgstr ""
+
+msgid "Grid Minor Line Width (px)"
+msgstr ""
+
+msgid "Thickness in pixels for fine grid lines (default: 1)"
+msgstr ""
+
+msgid "Preserve Comments"
+msgstr ""
+
+msgid "Keep G-code comments during file processing"
+msgstr ""
+
+# crates/gcodekit5-ui/src/ui/gtk/designer/file_ops.rs
+msgid "Import SVG File"
+msgstr ""
+
+msgid "Import STL File (3D Shadow)"
+msgstr ""
+
+msgid "SVG Files"
+msgstr ""
+
+msgid "DXF Files"
+msgstr ""
+
+msgid "STL Files"
+msgstr ""
+
+msgid "Saved:"
+msgstr ""
+
+msgid "Export SVG"
+msgstr ""
+
 # crates/gcodekit5-settings/src/config.rs
 msgid "Machine Control"
 msgstr ""
@@ -184,16 +307,31 @@ msgstr ""
 msgid "Shape Gallery…"
 msgstr ""
 
-msgid "Feed (Speed Laser)"
+msgid "Machine Mode"
 msgstr ""
 
-msgid "Feed Rate or Speed Laser"
+msgid "Laser Speed"
 msgstr ""
 
-msgid "Speed (Power Laser)"
+msgid "Feed rate:"
 msgstr ""
 
-msgid "Spindle Speed or Power Laser %"
+msgid "Power:"
+msgstr ""
+
+msgid "Passes:"
+msgstr ""
+
+msgid "Laser Config (Object)"
+msgstr ""
+
+msgid "Use global values"
+msgstr ""
+
+msgid "Laser Power"
+msgstr ""
+
+msgid "Spindle Speed"
 msgstr ""
 
 msgid "Tool Dia"
@@ -211,6 +349,9 @@ msgstr ""
 msgid "Step Down"
 msgstr ""
 
+msgid "Passes"
+msgstr ""
+
 msgid "Depth per pass"
 msgstr ""
 
@@ -218,30 +359,6 @@ msgid "Tool Settings…"
 msgstr ""
 
 msgid "Tool Parameters"
-msgstr ""
-
-msgid "Starting laser engraving:"
-msgstr ""
-
-msgid "lines"
-msgstr ""
-
-msgid "Work completed."
-msgstr ""
-
-msgid "Work stopped."
-msgstr ""
-
-msgid "Stopping..."
-msgstr ""
-
-msgid "Paused"
-msgstr ""
-
-msgid "Resuming"
-msgstr ""
-
-msgid "Unlocking..."
 msgstr ""
 
 msgid "Stock Width"
@@ -290,6 +407,53 @@ msgid "Stock Parameters"
 msgstr ""
 
 msgid "Generate G-Code"
+msgstr ""
+
+#: gcodekit5-ui/src/ui/gtk/machine_control/direct_sender.rs
+msgid "> Starting laser engraving:"
+msgstr ""
+
+msgid "lines"
+msgstr ""
+
+msgid "> No activity for 30s, continuing..."
+msgstr ""
+
+msgid "> Engraving completed"
+msgstr ""
+
+msgid "> Starting job (Simple Mode):"
+msgstr ""
+
+msgid "> Send error, stopping..."
+msgstr ""
+
+msgid "> Machine error: {}"
+msgstr ""
+
+msgid "> Resuming... (waiting {}s on line {})"
+msgstr ""
+
+msgid "> {} in: {}:{:02}"
+msgstr ""
+
+msgid "Job completed"
+msgstr ""
+
+msgid "Stopping..."
+msgstr ""
+
+msgid "Paused"
+msgstr ""
+
+msgid "Resuming"
+msgstr ""
+
+msgid "Unlocking..."
+msgstr ""
+
+#: gcodekit5-ui/src/ui/gtk/machine_control/mod.rs.rs
+msgid "✅ Work completed in:"
 msgstr ""
 
 # crates/gcodekit5-ui/src/ui/gtk/designer.rs
@@ -671,6 +835,13 @@ msgstr ""
 msgid "No valid G-Code lines found."
 msgstr ""
 
+# crates/gcodekit5-ui/src/ui/gtk/cam-tools/mod.rs
+msgid "Select a tool"
+msgstr ""
+
+msgid "Choose a tool from the list to see details."
+msgstr ""
+
 # crates/gcodekit5-ui/src/ui/gtk/cam-tools/bitmap_engraving.rs
 msgid "Convert bitmap images to G-code for laser engraving. Supports various halftoning methods and image transformations."
 msgstr ""
@@ -802,10 +973,10 @@ msgstr ""
 msgid "Feed Rate:"
 msgstr ""
 
-msgid "Travel Rate:"
+msgid "Spindle Speed:"
 msgstr ""
 
-msgid "Laser Power"
+msgid "Travel Rate:"
 msgstr ""
 
 msgid "Cut Power (%):"
@@ -824,9 +995,6 @@ msgid "Multi-Pass Settings"
 msgstr ""
 
 msgid "Multi-Pass:"
-msgstr ""
-
-msgid "Number of Passes:"
 msgstr ""
 
 msgid "Hatching"
@@ -885,12 +1053,6 @@ msgid "Laser Image Engraver"
 msgstr ""
 
 msgid "Convert raster images to G-code for laser engraving"
-msgstr ""
-
-msgid "Laser Vector Engraver"
-msgstr ""
-
-msgid "Convert SVG and DXF vector files to G-code"
 msgstr ""
 
 msgid "Speeds and Feeds Calculator"
@@ -1035,9 +1197,6 @@ msgstr ""
 msgid "Laser Settings"
 msgstr ""
 
-msgid "Passes:"
-msgstr ""
-
 msgid "Power (S):"
 msgstr ""
 
@@ -1175,9 +1334,6 @@ msgstr ""
 msgid "Depth:"
 msgstr ""
 
-msgid "Step Down:"
-msgstr ""
-
 msgid "Step In:"
 msgstr ""
 
@@ -1190,11 +1346,6 @@ msgstr ""
 msgid "Raster Fill (%):"
 msgstr ""
 
-# gcodekit5/crates/gcodekit5-ui/src/ui/gtk/designer_properties/mod.rs
-msgid "Select a shape to edit its properties"
-msgstr ""
-
-# gcodekit5/crates/gcodekit5-ui/src/ui/gtk/designer_properties/builders.rs
 msgid "Laser Engraving"
 msgstr ""
 
@@ -1211,4 +1362,149 @@ msgid "Dithering:"
 msgstr ""
 
 msgid "Halftone Threshold:"
+msgstr ""
+
+msgid "Import SVG"
+msgstr ""
+
+msgid "Import DXF"
+msgstr ""
+
+msgid "Import STL"
+msgstr ""
+
+msgid "Import Image"
+msgstr ""
+
+# gcodekit5/crates/gcodekit5-ui/src/ui/gtk/designer_properties/mod.rs
+msgid "Select a shape to edit its properties"
+msgstr ""
+
+# gcodekit5/crates/gcodekit5-ui/src/ui/gtk/designer_layers_rs
+msgid "Objects"
+msgstr ""
+
+# gcodekit5/crates/gcodekit5-ui/src/ui/gtk/editor.rs
+msgid "Calculating..."
+msgstr ""
+
+msgid "0 matches"
+msgstr ""
+
+msgid "of"
+msgstr ""
+
+msgid "matches"
+msgstr ""
+
+msgid "Search..."
+msgstr ""
+
+msgid "Previous Match"
+msgstr ""
+
+msgid "Next Match"
+msgstr ""
+
+msgid "Replace with ..."
+msgstr ""
+
+msgid "Replace"
+msgstr ""
+
+msgid "Replace All"
+msgstr ""
+
+msgid "Please wait"
+msgstr ""
+
+msgid "Open G-Code File"
+msgstr ""
+
+msgid "Error Reading File"
+msgstr ""
+
+msgid "Could not open"
+msgstr ""
+
+msgid "Error Saving File"
+msgstr ""
+
+msgid "Could not save"
+msgstr ""
+
+msgid "Save G-Code File"
+msgstr ""
+
+# gcodekit5/crates/gcodekit5-ui/src/ui/gtk/help_browser.rs
+msgid "🏠 Index"
+msgstr ""
+
+msgid "🛠️ Preferences"
+msgstr ""
+
+msgid "✏️ Designer"
+msgstr ""
+
+msgid "👁️ Visualizer"
+msgstr ""
+
+msgid "⚙️ Machine Control"
+msgstr ""
+
+msgid "      •📝 G-code Editor"
+msgstr ""
+
+msgid "      •💻 Device console"
+msgstr ""
+
+msgid "🧰 CAM Tools"
+msgstr ""
+
+msgid "      •📦 Tabbed Box Maker"
+msgstr ""
+
+msgid "      •🧩 Jigsaw Puzzle Generator"
+msgstr ""
+
+msgid "      •🖼️ Laser Image Engraver"
+msgstr ""
+
+msgid "      •🖩 Speed and Feeds Calculator"
+msgstr ""
+
+msgid "      •🔧 Spoilboard Surfacing"
+msgstr ""
+
+msgid "      •📏 Create Spoilboard Grid"
+msgstr ""
+
+msgid "      •📠 Gerber To G-code"
+msgstr ""
+
+msgid "      •🔧 Dirll Press"
+msgstr ""
+
+msgid "🔌 Device Manager"
+msgstr ""
+
+msgid "⚙️ Device Config"
+msgstr ""
+
+msgid "🔨 CNC Tools"
+msgstr ""
+
+msgid "📦 Materials"
+msgstr ""
+
+msgid "GCodeKit5 Help"
+msgstr ""
+
+msgid "Back"
+msgstr ""
+
+msgid "Forward"
+msgstr ""
+
+msgid "Help (F1)"
 msgstr ""
