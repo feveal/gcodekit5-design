@@ -60,24 +60,6 @@ impl DesignerCanvas {
         // Apply Zoom
         cr.scale(zoom, zoom);
 
-// ---
-/*
-         // Draw Grid según zoom de ventana (en common/rendering.rs)
-        crate::ui::gtk::common::rendering::draw_cartesian_grid(
-            cr,
-            width,
-            height,
-            state.grid_spacing_mm,
-            &fg_color,
-            zoom,
-            grid_major_line_width,    // ← Cambiado: antes era major_line_width
-            grid_minor_line_width,    // ← Cambiado: antes era minor_line_width
-            pan_x / zoom,             // view_offset_x
-            -pan_y / zoom,            // view_offset_y (por el flip Y)
-            true,                     // flip_y = true porque el canvas es Y-up
-        );
-*/
-
         // Draw Grid
         if state.show_grid {
             Self::draw_grid(

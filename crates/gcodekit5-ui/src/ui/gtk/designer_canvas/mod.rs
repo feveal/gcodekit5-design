@@ -315,11 +315,40 @@ impl DesignerCanvas {
                 .current_event_state()
                 .contains(ModifierType::CONTROL_MASK);
             if is_ctrl {
-                if dy > 0.0 {
-                    canvas_scroll.zoom_out();
-                } else if dy < 0.0 {
-                    canvas_scroll.zoom_in();
+                // Obtener la posición del puntero en coordenadas de canvas
+                let (mouse_x, mouse_y) = *canvas_scroll.mouse_pos.borrow();
+
+                // Obtener el estado actual del zoom y pan
+                let (current_zoom, pan_x, pan_y) = {
+                    let state = canvas_scroll.state.borrow();
+                    (state.canvas.zoom(), state.canvas.pan_x(), state.canvas.pan_y())
+                };
+
+                // Calcular el factor de zoom
+                let zoom_factor = if dy > 0.0 { 1.0 / 1.2 } else { 1.2 };
+                let new_zoom = current_zoom * zoom_factor;
+
+                // Calcular la nueva posición del pan para centrar el zoom en el punto del mouse
+                // Ecuación: pan_new = pan_old + (mouse - pan_old) * (1 - zoom_factor)
+                let new_pan_x = pan_x + (mouse_x - pan_x) * (1.0 - zoom_factor);
+                let new_pan_y = pan_y + (mouse_y - pan_y) * (1.0 - zoom_factor);
+
+                // Aplicar el zoom y pan
+                {
+                    let mut state = canvas_scroll.state.borrow_mut();
+                    state.canvas.set_zoom(new_zoom);
+                    state.canvas.set_pan(new_pan_x, new_pan_y);
                 }
+
+                // Actualizar los adjustments
+                if let Some(adj) = canvas_scroll.hadjustment.borrow().as_ref() {
+                    adj.set_value(-new_pan_x);
+                }
+                if let Some(adj) = canvas_scroll.vadjustment.borrow().as_ref() {
+                    adj.set_value(new_pan_y);
+                }
+
+                canvas_scroll.widget.queue_draw();
             } else {
                 let pan_step = 20.0;
                 let mut state = canvas_scroll.state.borrow_mut();
@@ -408,9 +437,11 @@ impl DesignerCanvas {
                 (state.canvas.pan_x(), state.canvas.pan_y(), state.canvas.zoom())
             };
 
-            let sensitivity = 1.0;
-            let dx = (delta_x / zoom) * sensitivity;
-            let dy = (delta_y / zoom) * sensitivity;
+            let zoom_factor = zoom.max(0.01); // Evitar división por cero
+            let sensitivity = zoom_factor.powf(0.1) * 1.6; // factor de pan segun zoom
+
+            let dx = delta_x * sensitivity;
+            let dy = delta_y * sensitivity;
 
             let new_pan_x = pan_x + dx;
             let new_pan_y = pan_y - dy;
