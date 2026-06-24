@@ -859,8 +859,8 @@ msgstr "Ruta de la imagen:"
 msgid "Scanning"
 msgstr "Escaneando"
 
-msgid "Scan Direction:"
-msgstr "Dirección de Escaneo:"
+msgid "Scan:"
+msgstr "Escaneo:"
 
 msgid "Pixels per mm:"
 msgstr "Pixels por mm:"
@@ -894,9 +894,6 @@ msgstr "Método:"
 
 msgid "Dot Size:"
 msgstr "Tamaño de Punto:"
-
-msgid "Threshold:"
-msgstr "Límite:"
 
 msgid "Select Image"
 msgstr "Seleccionar imagen"
@@ -975,7 +972,7 @@ msgid "Spindle Speed:"
 msgstr "Velocidad de husillo:"
 
 msgid "Travel Rate:"
-msgstr "Velocidad en vacío:"
+msgstr "Vel. en vacío:"
 
 msgid "Cut Power (%):"
 msgstr "Potencia de corte (%):"
@@ -1279,7 +1276,7 @@ msgid "Size"
 msgstr "Tamaño"
 
 msgid "Lock Aspect:"
-msgstr "Bloquear Aspecto:"
+msgstr "Bloquear:"
 
 msgid "Angle:"
 msgstr "Angulo:"
@@ -1359,8 +1356,8 @@ msgstr "Resolución:"
 msgid "Dithering:"
 msgstr "Tramado:"
 
-msgid "Halftone Threshold:"
-msgstr "Umbral Semitonos:"
+msgid "Halftone:"
+msgstr "Semitonos:"
 
 msgid "Import SVG"
 msgstr "Importar SVG"

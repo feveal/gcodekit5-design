@@ -897,9 +897,6 @@ msgstr ""
 msgid "Dot Size:"
 msgstr ""
 
-msgid "Threshold:"
-msgstr ""
-
 msgid "Select Image"
 msgstr ""
 
@@ -1361,7 +1358,7 @@ msgstr ""
 msgid "Dithering:"
 msgstr ""
 
-msgid "Halftone Threshold:"
+msgid "Halftone:"
 msgstr ""
 
 msgid "Import SVG"

@@ -5,9 +5,26 @@ use gcodekit5_designer::model::RasterImage;
 
 // UI Section builders
 impl PropertiesPanel {
+/*
     pub(crate) fn create_section(title: &str) -> Frame {
         Frame::new(Some(title))
     }
+*/
+
+    pub(crate) fn create_section(title: &str) -> Frame {
+        let frame = Frame::new(None);
+
+        let title_label = Label::new(None);
+        title_label.set_markup(&format!("<b>{}</b>", title));
+        title_label.set_halign(gtk4::Align::Start);
+        title_label.set_margin_start(8);
+        title_label.set_margin_top(4);
+        title_label.set_margin_bottom(4);
+//        title_label.add_css_class("section-title"); // ← Opcional para CSS
+        frame.set_label_widget(Some(&title_label));
+        frame
+    }
+
 
     pub(crate) fn build_position_section() -> (Frame, Entry, Entry, Label, Label) {
         let frame = Self::create_section(&t!("Position"));
@@ -117,7 +134,6 @@ impl PropertiesPanel {
         let rot_label = Label::new(Some(&t!("Angle:")));
         rot_label.set_halign(gtk4::Align::Start);
         let rotation_entry = Entry::new();
-        rotation_entry.set_hexpand(true);
         let rot_unit = Label::new(Some("deg"));
 
         grid.attach(&rot_label, 0, 0, 1, 1);
@@ -142,7 +158,6 @@ impl PropertiesPanel {
         let radius_label = Label::new(Some(&t!("Radius:")));
         radius_label.set_halign(gtk4::Align::Start);
         let corner_radius_entry = Entry::new();
-        corner_radius_entry.set_hexpand(true);
         let radius_unit_label = Label::new(Some("mm"));
         radius_unit_label.set_width_chars(4);
         radius_unit_label.set_halign(gtk4::Align::End);
@@ -184,7 +199,6 @@ impl PropertiesPanel {
         let text_content_label = Label::new(Some(&t!("Content:")));
         text_content_label.set_halign(gtk4::Align::Start);
         let text_entry = Entry::new();
-        text_entry.set_hexpand(true);
 
         let font_label = Label::new(Some(&t!("Font:")));
         font_label.set_halign(gtk4::Align::Start);
@@ -196,7 +210,6 @@ impl PropertiesPanel {
             }
         }
         let font_family_combo = DropDown::new(Some(font_model), None::<Expression>);
-        font_family_combo.set_hexpand(true);
 
         let style_label = Label::new(Some(&t!("Style:")));
         style_label.set_halign(gtk4::Align::Start);
@@ -209,7 +222,6 @@ impl PropertiesPanel {
         let font_size_label = Label::new(Some(&t!("Size:")));
         font_size_label.set_halign(gtk4::Align::Start);
         let font_size_entry = Entry::new();
-        font_size_entry.set_hexpand(true);
         let font_size_unit_label = Label::new(Some("pt"));
         font_size_unit_label.set_width_chars(4);
         font_size_unit_label.set_halign(gtk4::Align::End);
@@ -251,7 +263,6 @@ impl PropertiesPanel {
         let sides_label = Label::new(Some(&t!("Sides:")));
         sides_label.set_halign(gtk4::Align::Start);
         let sides_entry = Entry::new();
-        sides_entry.set_hexpand(true);
 
         grid.attach(&sides_label, 0, 0, 1, 1);
         grid.attach(&sides_entry, 1, 0, 1, 1);
@@ -297,17 +308,14 @@ impl PropertiesPanel {
         let module_label = Label::new(Some(&t!("Module:")));
         module_label.set_halign(gtk4::Align::Start);
         let gear_module_entry = Entry::new();
-        gear_module_entry.set_hexpand(true);
 
         let teeth_label = Label::new(Some(&t!("Teeth:")));
         teeth_label.set_halign(gtk4::Align::Start);
         let gear_teeth_entry = Entry::new();
-        gear_teeth_entry.set_hexpand(true);
 
         let pa_label = Label::new(Some(&t!("Pressure Angle:")));
         pa_label.set_halign(gtk4::Align::Start);
         let gear_pressure_angle_entry = Entry::new();
-        gear_pressure_angle_entry.set_hexpand(true);
 
         grid.attach(&module_label, 0, 0, 1, 1);
         grid.attach(&gear_module_entry, 1, 0, 1, 1);
@@ -339,17 +347,14 @@ impl PropertiesPanel {
         let pitch_label = Label::new(Some(&t!("Pitch:")));
         pitch_label.set_halign(gtk4::Align::Start);
         let sprocket_pitch_entry = Entry::new();
-        sprocket_pitch_entry.set_hexpand(true);
 
         let teeth_label = Label::new(Some(&t!("Teeth:")));
         teeth_label.set_halign(gtk4::Align::Start);
         let sprocket_teeth_entry = Entry::new();
-        sprocket_teeth_entry.set_hexpand(true);
 
         let roller_label = Label::new(Some(&t!("Roller Dia:")));
         roller_label.set_halign(gtk4::Align::Start);
         let sprocket_roller_diameter_entry = Entry::new();
-        sprocket_roller_diameter_entry.set_hexpand(true);
 
         grid.attach(&pitch_label, 0, 0, 1, 1);
         grid.attach(&sprocket_pitch_entry, 1, 0, 1, 1);
@@ -383,21 +388,18 @@ impl PropertiesPanel {
         offset_label.set_halign(gtk4::Align::Start);
         let offset_entry = Entry::new();
         offset_entry.set_text("1.0");
-        offset_entry.set_hexpand(true);
         let offset_unit_label = Label::new(Some("mm"));
 
         let fillet_label = Label::new(Some(&t!("Fillet:")));
         fillet_label.set_halign(gtk4::Align::Start);
         let fillet_entry = Entry::new();
         fillet_entry.set_text("2.0");
-        fillet_entry.set_hexpand(true);
         let fillet_unit_label = Label::new(Some("mm"));
 
         let chamfer_label = Label::new(Some(&t!("Chamfer:")));
         chamfer_label.set_halign(gtk4::Align::Start);
         let chamfer_entry = Entry::new();
         chamfer_entry.set_text("2.0");
-        chamfer_entry.set_hexpand(true);
         let chamfer_unit_label = Label::new(Some("mm"));
 
         grid.attach(&offset_label, 0, 0, 1, 1);
@@ -454,13 +456,11 @@ impl PropertiesPanel {
         op_model.append(&t!("Profile"));
         op_model.append(&t!("Pocket"));
         let op_type_combo = DropDown::new(Some(op_model), None::<Expression>);
-        op_type_combo.set_hexpand(true);
 
         // Pocket Depth
         let depth_label = Label::new(Some(&t!("Depth:")));
         depth_label.set_halign(gtk4::Align::Start);
         let depth_entry = Entry::new();
-        depth_entry.set_hexpand(true);
         let depth_unit_label = Label::new(Some("mm"));
         depth_unit_label.set_width_chars(4);
         depth_unit_label.set_halign(gtk4::Align::End);
@@ -470,7 +470,6 @@ impl PropertiesPanel {
         let step_down_label = Label::new(Some(&t!("Step Down:")));
         step_down_label.set_halign(gtk4::Align::Start);
         let step_down_entry = Entry::new();
-        step_down_entry.set_hexpand(true);
         let step_down_unit_label = Label::new(Some("mm"));
         step_down_unit_label.set_width_chars(4);
         step_down_unit_label.set_halign(gtk4::Align::End);
@@ -480,7 +479,6 @@ impl PropertiesPanel {
         let step_in_label = Label::new(Some(&t!("Step In:")));
         step_in_label.set_halign(gtk4::Align::Start);
         let step_in_entry = Entry::new();
-        step_in_entry.set_hexpand(true);
         let step_in_unit_label = Label::new(Some("mm"));
         step_in_unit_label.set_width_chars(4);
         step_in_unit_label.set_halign(gtk4::Align::End);
@@ -490,7 +488,6 @@ impl PropertiesPanel {
         let ramp_angle_label = Label::new(Some(&t!("Ramp Angle:")));
         ramp_angle_label.set_halign(gtk4::Align::Start);
         let ramp_angle_entry = Entry::new();
-        ramp_angle_entry.set_hexpand(true);
         let ramp_angle_unit_label = Label::new(Some("deg"));
         ramp_angle_unit_label.set_width_chars(4);
         ramp_angle_unit_label.set_halign(gtk4::Align::End);
@@ -504,13 +501,11 @@ impl PropertiesPanel {
         strategy_model.append(&t!("Offset"));
         strategy_model.append(&t!("Adaptive"));
         let strategy_combo = DropDown::new(Some(strategy_model), None::<Expression>);
-        strategy_combo.set_hexpand(true);
 
         // Raster Fill (inverse inset)
         let raster_fill_label = Label::new(Some(&t!("Raster Fill (%):")));
         raster_fill_label.set_halign(gtk4::Align::Start);
         let raster_fill_entry = Entry::new();
-        raster_fill_entry.set_hexpand(true);
         let raster_fill_hint = Label::new(Some("0 = no raster, 100 = full length"));
         raster_fill_hint.add_css_class("dim-label");
         raster_fill_hint.set_halign(gtk4::Align::Start);
@@ -576,36 +571,47 @@ impl PropertiesPanel {
 
         // Feed Rate
         let feed_label = Label::new(Some(&t!("Feed Rate:")));
+        feed_label.set_halign(gtk4::Align::Start);
         let feed_entry = Entry::new();
+        feed_entry.set_max_width_chars(8);
         let feed_unit = Label::new(Some("mm/s"));
         feed_entry.set_text(&RasterImage::default().feed_rate.to_string());
 
         // Travel Rate
         let travel_label = Label::new(Some(&t!("Travel Rate:")));
+        travel_label.set_halign(gtk4::Align::Start);
         let travel_entry = Entry::new();
+        travel_entry.set_max_width_chars(8);
         let travel_unit = Label::new(Some("mm/s"));
         travel_entry.set_text(&RasterImage::default().travel_rate.to_string());
 
         // Min Power
         let min_power_label = Label::new(Some(&t!("Min Power:")));
+        min_power_label.set_halign(gtk4::Align::Start);
         let min_power_entry = Entry::new();
+        min_power_entry.set_max_width_chars(8);
         let power_unit = Label::new(Some("%"));
         min_power_entry.set_text(&RasterImage::default().min_power.to_string());
 
         // Max Power
         let max_power_label = Label::new(Some(&t!("Max Power:")));
+        max_power_label.set_halign(gtk4::Align::Start);
         let max_power_entry = Entry::new();
+        max_power_entry.set_max_width_chars(8);
         let max_power_unit = Label::new(Some("%"));
         max_power_entry.set_text(&RasterImage::default().max_power.to_string());
 
         // PPI
         let ppi_label = Label::new(Some(&t!("Resolution:")));
+        ppi_label.set_halign(gtk4::Align::Start);
         let ppi_entry = Entry::new();
+        ppi_entry.set_max_width_chars(8);
         let ppi_unit = Label::new(Some("PPI"));
         ppi_entry.set_text(&RasterImage::default().ppi.to_string());
 
         // Scan Direction
-        let scan_label = Label::new(Some(&t!("Scan Direction:")));
+        let scan_label = Label::new(Some(&t!("Scan:")));
+        scan_label.set_halign(gtk4::Align::Start);
         let scan_combo = ComboBoxText::new();
         scan_combo.append(Some("horizontal"), &t!("Horizontal"));
         scan_combo.append(Some("vertical"), &t!("Vertical"));
@@ -613,26 +619,31 @@ impl PropertiesPanel {
 
         // Bidirectional
         let bidir_label = Label::new(Some(&t!("Bidirectional:")));
+        bidir_label.set_halign(gtk4::Align::Start);
         let bidir_check = CheckButton::new();
         bidir_check.set_active(RasterImage::default().bidirectional);
 
         // Dithering
         let dither_label = Label::new(Some(&t!("Dithering:")));
+        dither_label.set_halign(gtk4::Align::Start);
         let dither_combo = ComboBoxText::new();
         dither_combo.append(Some("none"), &t!("None"));
         dither_combo.append(Some("threshold"), &t!("Threshold"));
-        dither_combo.append(Some("floyd"), &t!("Floyd-Steinberg"));
+        dither_combo.append(Some("floyd"), &t!("Floyd-Ste."));
         dither_combo.append(Some("atkinson"), &t!("Atkinson"));
         dither_combo.append(Some("bayer"), &t!("Bayer"));
         dither_combo.set_active_id(Some(&RasterImage::default().dithering));
 
         // Invert
         let invert_label = Label::new(Some(&t!("Invert:")));
+        invert_label.set_halign(gtk4::Align::Start);
         let invert_check = CheckButton::new();
 
         // Halftone_threshold
-        let halftone_label = Label::new(Some(&t!("Halftone Threshold:")));
+        let halftone_label = Label::new(Some(&t!("Halftone:")));
+        halftone_label.set_halign(gtk4::Align::Start);
         let halftone_entry = Entry::new();
+        halftone_entry.set_max_width_chars(8);  // <-- Limitar a 8 caracteres
         halftone_entry.set_placeholder_text(Some("0-255"));
         halftone_entry.set_text("127"); // Valor por defecto
         let halftone_range = Label::new(Some("(0-255)"));
@@ -721,7 +732,7 @@ impl PropertiesPanel {
         // Feed Rate
         let feed_label = Label::new(Some(&t!("Feed rate:")));
         let feed_entry = Entry::new();
-        feed_entry.set_hexpand(true);
+        feed_entry.set_max_width_chars(8);
         feed_entry.set_placeholder_text(Some(&t!("Global")));
         feed_entry.set_sensitive(false); // Por defecto deshabilitado
         let feed_unit = Label::new(Some("mm/min"));
@@ -729,7 +740,7 @@ impl PropertiesPanel {
         // Power
         let power_label = Label::new(Some(&t!("Power:")));
         let power_entry = Entry::new();
-        power_entry.set_hexpand(true);
+        power_entry.set_max_width_chars(8);
         power_entry.set_placeholder_text(Some(&t!("Global")));
         power_entry.set_sensitive(false); // Por defecto deshabilitado
         let power_unit = Label::new(Some("%"));
@@ -737,7 +748,7 @@ impl PropertiesPanel {
         // Passes
         let passes_label = Label::new(Some(&t!("Passes:")));
         let passes_entry = Entry::new();
-        passes_entry.set_hexpand(true);
+        passes_entry.set_max_width_chars(8);
         passes_entry.set_placeholder_text(Some(&t!("Global")));
         passes_entry.set_sensitive(false); // Por defecto deshabilitado
 
