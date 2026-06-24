@@ -26,7 +26,8 @@ GCodeKit5 is a Rust-based CNC machine controller providing a modern alternative 
 - Boundary checking has been added to the Designer. If any point is outside the work area, a WARNING appears in the G-code alerting the user so they can take appropriate action.
 
 ## Recommendation
-CAM Tools has a built-in box creator with tabs, but it's recommended to install the **"boxes"** plugin for **Inkscape**  (https://github.com/florianfesti/boxes), which offers many more features. After generating the desired box or shape, save it as an SVG file and import it directly into gcodekit5-design. Once imported, you can arrange the objects, organize them within the workspace, delete those that don't fit, and place them in a separate gckd file.
+- CAM Tools has a built-in box creator with tabs, but it's recommended to install the **"boxes"** plugin for **Inkscape**  (https://github.com/florianfesti/boxes), which offers many more features. After generating the desired box or shape, save it as an SVG file and import it directly into gcodekit5-design. Once imported, you can arrange the objects, organize them within the workspace, delete those that don't fit, and place them in a separate gckd file.
+- This "boxes" plugin also has the ability to create gears and sprokets of different types with greater flexibility and possibilities than the tools in gcodekit-design, so the use of "boxes" is also recommended for these topics.
 
 ## Architecture
 GCodeKit5 is organized as a Cargo workspace with 7 crates for modular compilation and better code organization:
