@@ -9,15 +9,12 @@
 //! from the GTK main thread only.
 
 mod gl_loader;
-mod interaction;
-mod rendering;
 
 use gcodekit5_core::constants as core_constants;
 use gcodekit5_designer::stock_removal::{SimulationResult, StockMaterial};
 use gcodekit5_devicedb::DeviceManager;
 use gcodekit5_visualizer::visualizer::GCodeCommand;
 use gcodekit5_visualizer::{Camera3D, Visualizer};
-// use gcodekit5_designer::stock_removal::visualization::generate_2d_contours;
 use crate::t;
 use crate::ui::gtk::common::spacing;
 use crate::ui::gtk::osd_format::format_zoom_center_cursor;
@@ -27,49 +24,10 @@ use gcodekit5_settings::controller::SettingsController;
 use gcodekit5_settings::manager::SettingsManager;
 use gcodekit5_visualizer::visualizer::{generate_surface_mesh, StockSimulator3D};
 use glam::Vec3;
-/*
-/// A bucket entry for intensity-based line batching in the visualizer.
-///
-/// This struct replaces the complex tuple type `Vec<Vec<(f64, f64, f64, f64, f32)>>`
-/// with named fields for better readability and maintainability.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) struct IntensityBucket {
-    /// Start X coordinate
-    pub from_x: f64,
-    /// Start Y coordinate
-    pub from_y: f64,
-    /// End X coordinate
-    pub to_x: f64,
-    /// End Y coordinate
-    pub to_y: f64,
-    /// Laser intensity/power value
-    pub intensity: f32,
-}
-
-impl IntensityBucket {
-    /// Create a new intensity bucket entry
-    pub fn new(from_x: f64, from_y: f64, to_x: f64, to_y: f64, intensity: f32) -> Self {
-        Self {
-            from_x,
-            from_y,
-            to_x,
-            to_y,
-            intensity,
-        }
-    }
-}
-*/
-// Stock removal visualization cache
-#[derive(Clone)]
-pub(crate) struct ContourLayer {
-    pub(crate) _z_height: f32,
-    pub(crate) color: (f32, f32, f32),
-    pub(crate) contours: Vec<Vec<(f32, f32)>>,
-}
 
 #[derive(Clone)]
 pub(crate) struct StockRemovalVisualization {
-    pub(crate) contour_layers: Vec<ContourLayer>,
+//    pub(crate) contour_layers: Vec<ContourLayer>,
 }
 use crate::ui::gtk::nav_cube::NavCube;
 use crate::ui::gtk::renderer_3d::{
@@ -78,9 +36,8 @@ use crate::ui::gtk::renderer_3d::{
 };
 use crate::ui::gtk::shaders::ShaderProgram;
 use glow::HasContext;
-use gtk4::gdk::Key;
 use gtk4::prelude::*;
-use gtk4::{EventControllerKey, GestureClick, Popover, Separator};
+use gtk4::{GestureClick, Popover, Separator};
 use tracing::debug;
 
 use gl_loader::load_gl_func;
@@ -88,11 +45,10 @@ use gl_loader::load_gl_func;
 use gcodekit5_core::{shared, shared_none, thread_safe_none, Shared, SharedOption};
 use gtk4::prelude::{BoxExt, ButtonExt, CheckButtonExt, WidgetExt};
 use gtk4::{
-    accessible::Property as AccessibleProperty, gdk::ModifierType, Adjustment, Box, Button,
+    accessible::Property as AccessibleProperty, Adjustment, Box, Button,
     CheckButton, ComboBoxText, DrawingArea, EventControllerMotion, EventControllerScroll,
     EventControllerScrollFlags, Expander, GLArea, GestureDrag, Grid, Image, Label, ListBox,
     ListBoxRow, Orientation, Overlay, Paned, Revealer, Scrollbar, SelectionMode, Spinner, Stack,
-    ToggleButton,
 };
 use std::rc::Rc;
 use std::sync::Arc;
@@ -141,9 +97,14 @@ pub struct GcodeVisualizer {
     pub(crate) _show_grid: CheckButton,
     pub(crate) _show_bounds: CheckButton,
     pub(crate) show_laser: CheckButton,
+    /// Legacy 2D stock removal toggle - retained for UI but unused in 3D-only mode
+    #[allow(dead_code)]
     pub(crate) show_stock_removal: CheckButton,
-    // Stock removal simulation (2D)
+    /// Legacy 2D stock removal simulation - retained for future use but unused
+    #[allow(dead_code)]
     pub(crate) stock_material: SharedOption<StockMaterial>,
+    /// Legacy 2D simulation result - retained for future use but unused
+    #[allow(dead_code)]
     pub(crate) simulation_result: SharedOption<SimulationResult>,
     pub(crate) _simulation_visualization: SharedOption<StockRemovalVisualization>,
     pub(crate) _simulation_resolution: Shared<f32>,
@@ -151,8 +112,11 @@ pub struct GcodeVisualizer {
     // Stock removal simulation (3D)
     pub(crate) _stock_simulator_3d: SharedOption<StockSimulator3D>,
     pub(crate) _stock_simulation_3d_pending: Shared<bool>,
-    // Scrollbars
+    /// Legacy 2D horizontal scrollbar - retained for future use but unused
+    #[allow(dead_code)]
     pub(crate) hadjustment: Adjustment,
+    /// Legacy 2D vertical scrollbar - retained for future use but unused
+    #[allow(dead_code)]
     pub(crate) vadjustment: Adjustment,
     pub(crate) hadjustment_3d: Adjustment,
     pub(crate) vadjustment_3d: Adjustment,
@@ -246,6 +210,19 @@ impl GcodeVisualizer {
         }
     }
 
+    fn apply_top_3d_view(&self, min: Vec3, max: Vec3) {
+        let (target_x, target_y) = {
+            let mut cam = self.camera.borrow_mut();
+            cam.set_view(0.0, 90.0);
+            cam.fit_to_bounds(min, max);
+            (cam.target.x, cam.target.y)
+        };
+
+        self.hadjustment_3d.set_value(target_x as f64);
+        self.vadjustment_3d.set_value(target_y as f64);
+        self.gl_area.queue_render();
+    }
+
     pub fn new(
         device_manager: Option<Arc<DeviceManager>>,
         settings_controller: Rc<SettingsController>,
@@ -311,47 +288,9 @@ impl GcodeVisualizer {
 
         sidebar.append(&view_controls);
 
-        // Compact 2D/3D segmented control (in a list row)
-        let mode_box = Box::new(Orientation::Horizontal, 0);
-        mode_box.add_css_class("linked");
-
-        let mode_2d_btn = ToggleButton::new();
-        mode_2d_btn.set_tooltip_text(Some(&t!("2D View")));
-        mode_2d_btn.update_property(&[AccessibleProperty::Label(&t!("2D View"))]);
-        let mode_2d_child = Box::new(Orientation::Horizontal, 4);
-        mode_2d_child.append(&Image::from_icon_name("view-grid-symbolic"));
-        mode_2d_child.append(&Label::new(Some(&t!("2D"))));
-        mode_2d_btn.set_child(Some(&mode_2d_child));
-
-        let mode_3d_btn = ToggleButton::new();
-        mode_3d_btn.set_tooltip_text(Some(&t!("3D View")));
-        mode_3d_btn.update_property(&[AccessibleProperty::Label(&t!("3D View"))]);
-        let mode_3d_child = Box::new(Orientation::Horizontal, 4);
-        mode_3d_child.append(&Image::from_icon_name("video-display-symbolic"));
-        mode_3d_child.append(&Label::new(Some(&t!("3D"))));
-        mode_3d_btn.set_child(Some(&mode_3d_child));
-
-        mode_2d_btn.set_active(true);
-
-        mode_box.append(&mode_2d_btn);
-        mode_box.append(&mode_3d_btn);
-
         let sidebar_list = ListBox::new();
         sidebar_list.set_selection_mode(SelectionMode::None);
         sidebar_list.add_css_class("visualizer-sidebar-list");
-
-        {
-            let row = ListBoxRow::new();
-            let mode_row = Box::new(Orientation::Horizontal, 8);
-            let mode_label = Label::new(Some(&t!("Mode")));
-            mode_label.add_css_class("caption");
-            mode_label.set_halign(gtk4::Align::Start);
-            mode_label.set_hexpand(true);
-            mode_row.append(&mode_label);
-            mode_row.append(&mode_box);
-            row.set_child(Some(&mode_row));
-            sidebar_list.append(&row);
-        }
 
         let show_rapid = CheckButton::builder()
             .label(t!("Show Rapid Moves"))
@@ -695,19 +634,10 @@ impl GcodeVisualizer {
         hscrollbar.set_visible(false);
         vscrollbar.set_visible(false);
 
-        // Stack for 2D/3D
+        // Stack 3D
         let stack = Stack::new();
         stack.set_hexpand(true);
         stack.set_vexpand(true);
-
-        // 2D Page (Grid with DrawingArea + Scrollbars)
-        let grid = Grid::builder().hexpand(true).vexpand(true).build();
-
-        grid.attach(&drawing_area, 0, 0, 1, 1);
-        grid.attach(&vscrollbar, 1, 0, 1, 1);
-        grid.attach(&hscrollbar, 0, 1, 1, 1);
-
-        stack.add_titled(&grid, Some("2d"), &t!("2D View"));
 
         // 3D Page
         let gl_area = GLArea::builder().hexpand(true).vexpand(true).build();
@@ -729,8 +659,8 @@ impl GcodeVisualizer {
             .build();
 
         // Default hidden (toggleable) to maximize canvas space
-        hscrollbar_3d.set_visible(false);
-        vscrollbar_3d.set_visible(false);
+        hscrollbar_3d.set_visible(true);
+        vscrollbar_3d.set_visible(true);
 
         let grid_3d = Grid::builder().hexpand(true).vexpand(true).build();
 
@@ -758,7 +688,7 @@ impl GcodeVisualizer {
         let stock_material = shared(initial_stock);
         let tool_diameter = shared(3.175f32); // Default 1/8" end mill
         let simulation_result = shared_none();
-        let simulation_visualization = shared_none();
+        let simulation_visualization = shared_none::<StockRemovalVisualization>();
         let simulation_resolution = shared(0.1);
         let simulation_running = shared(false);
         let stock_simulator_3d = shared_none();
@@ -786,50 +716,40 @@ impl GcodeVisualizer {
         empty_box.set_visible(true);
         overlay.add_overlay(&empty_box);
 
-        // Floating Controls (Bottom Right)
-        let floating_box = Box::new(Orientation::Horizontal, 4);
+        // Floating Controls
+        let floating_box = Box::new(Orientation::Vertical, 4);
         floating_box.add_css_class("visualizer-osd");
         floating_box.set_halign(gtk4::Align::End);
-        floating_box.set_valign(gtk4::Align::Start); // flotaing_box arriba
-        floating_box.set_margin_bottom(10);
-        floating_box.set_margin_end(20);
+        floating_box.set_valign(gtk4::Align::Start);
+        floating_box.set_margin_top(150);
+        floating_box.set_margin_end(10);
 
-        let float_zoom_out = Button::builder()
-            .icon_name("zoom-out-symbolic")
-            .tooltip_text(t!("Zoom Out"))
-            .build();
-        float_zoom_out.update_property(&[AccessibleProperty::Label(&t!("Zoom Out"))]);
-
-        let float_fit = Button::builder()
-            .icon_name("zoom-fit-best-symbolic")
-            .tooltip_text(t!("Fit to Content"))
-            .build();
-        float_fit.update_property(&[AccessibleProperty::Label(&t!("Fit to Content"))]);
-
-        let float_reset = Button::builder()
-            .icon_name("view-restore-symbolic")
-            .tooltip_text(t!("Fit to Viewport"))
-            .build();
-        float_reset.update_property(&[AccessibleProperty::Label(&t!("Fit to Viewport"))]);
-
-        let float_fit_device = Button::builder()
-            .icon_name("preferences-desktop-display-symbolic")
-            .tooltip_text(t!("Fit to Device Working Area"))
-            .build();
-        float_fit_device
-            .update_property(&[AccessibleProperty::Label(&t!("Fit to Device Working Area"))]);
-
+        // Scroll bars
         let scrollbars_btn = Button::builder()
             .icon_name("view-list-symbolic")
             .tooltip_text(t!("Toggle Scrollbars"))
             .build();
         scrollbars_btn.update_property(&[AccessibleProperty::Label(&t!("Toggle Scrollbars"))]);
 
+        // Top View
+        let top_view_btn = Button::builder()
+            .icon_name("view-top-symbolic")
+            .tooltip_text(t!("Top View"))
+            .build();
+        scrollbars_btn.update_property(&[AccessibleProperty::Label(&t!("Top View"))]);
+
+        // Fit to device area button
+        let nav_fit_device_btn = Button::builder()
+            .icon_name("preferences-desktop-display-symbolic")
+            .tooltip_text(t!("Fit to Device Working Area"))
+            .build();
+        nav_fit_device_btn.update_property(&[AccessibleProperty::Label(&t!("Fit to Device Working Area"))]);
+
         let help_btn = Button::builder()
             .label("?")
-            .tooltip_text(t!("Keyboard Shortcuts"))
+            .tooltip_text(t!("Mouse Controls"))
             .build();
-        help_btn.update_property(&[AccessibleProperty::Label(&t!("Keyboard Shortcuts"))]);
+        help_btn.update_property(&[AccessibleProperty::Label(&t!("Mouse Controls"))]);
 
         let help_popover = Popover::new();
         help_popover.set_parent(&help_btn);
@@ -840,12 +760,10 @@ impl GcodeVisualizer {
             help_box.set_margin_end(12);
             help_box.set_margin_top(12);
             help_box.set_margin_bottom(12);
-            help_box.append(&Label::new(Some(&t!("Visualizer shortcuts"))));
-            help_box.append(&Label::new(Some("+ / -  —  Zoom")));
-            help_box.append(&Label::new(Some("F  —  Fit to Content")));
-            help_box.append(&Label::new(Some("R  —  Fit to Viewport")));
-            help_box.append(&Label::new(Some("D  —  Fit to Device Working Area")));
-            help_box.append(&Label::new(Some(&t!("Right click for context menu"))));
+            help_box.append(&Label::new(Some(&t!("* Use mouse to orbit, pan and zoom *"))));
+            help_box.append(&Label::new(Some(&t!("Shift+Left button+Drag: Pan"))));
+            help_box.append(&Label::new(Some(&t!("Mouse wheel: Zoom+/-"))));
+            help_box.append(&Label::new(Some(&t!("Left Button+Drag: Orbit"))));
             help_popover.set_child(Some(&help_box));
         }
         {
@@ -853,33 +771,14 @@ impl GcodeVisualizer {
             help_btn.connect_clicked(move |_| pop.popup());
         }
 
-        let float_zoom_in = Button::builder()
-            .icon_name("zoom-in-symbolic")
-            .tooltip_text(t!("Zoom In"))
-            .build();
-        float_zoom_in.update_property(&[AccessibleProperty::Label(&t!("Zoom In"))]);
-
-        for b in [
-            &float_zoom_out,
-            &float_fit,
-            &float_reset,
-            &float_fit_device,
-            &scrollbars_btn,
-            &help_btn,
-            &float_zoom_in,
-        ] {
+        for b in [&scrollbars_btn, &help_btn] {
             b.set_size_request(32, 32);
         }
 
-        floating_box.append(&float_zoom_out);
-        floating_box.append(&float_fit);
-        floating_box.append(&float_reset);
-        if device_manager.is_some() {
-            floating_box.append(&float_fit_device);
-        }
         floating_box.append(&scrollbars_btn);
+        floating_box.append(&top_view_btn);
+        floating_box.append(&nav_fit_device_btn);
         floating_box.append(&help_btn);
-        floating_box.append(&float_zoom_in);
 
         // Status Panel (Bottom Left)
         let status_box = Box::new(Orientation::Horizontal, 4);
@@ -969,6 +868,33 @@ impl GcodeVisualizer {
 
         container.set_end_child(Some(&overlay));
 
+        // Connect NavCube fit device button
+        if device_manager.is_some() {
+            let cam_fit_nav = camera.clone();
+            let gl_area_fit_nav = gl_area.clone();
+            let device_manager_fit_nav = device_manager.clone();
+            nav_fit_device_btn.connect_clicked(move |_| {
+                if let Some(manager) = device_manager_fit_nav.as_ref() {
+                    if let Some(profile) = manager.get_active_profile() {
+                        let min_x = profile.x_axis.min as f32;
+                        let max_x = profile.x_axis.max as f32;
+                        let min_y = profile.y_axis.min as f32;
+                        let max_y = profile.y_axis.max as f32;
+                        let min_z = profile.z_axis.min as f32;
+                        let max_z = profile.z_axis.max as f32;
+
+                        let mut cam = cam_fit_nav.borrow_mut();
+                        cam.fit_to_bounds(
+                            Vec3::new(min_x, min_y, min_z),
+                            Vec3::new(max_x, max_y, max_z),
+                        );
+
+                        gl_area_fit_nav.queue_render();
+                    }
+                }
+            });
+        }
+
         // Connect NavCube Fit Button
         let fit_btn_3d = nav_cube.fit_btn.clone();
         let vis_fit_3d = visualizer.clone();
@@ -1004,58 +930,14 @@ impl GcodeVisualizer {
             gl_area_fit_3d.queue_render();
         });
 
-        // View mode switching
-        {
-            let stack = stack.clone();
-            let other = mode_3d_btn.clone();
-            mode_2d_btn.connect_toggled(move |btn| {
-                if btn.is_active() {
-                    stack.set_visible_child_name("2d");
-                    if other.is_active() {
-                        other.set_active(false);
-                    }
-                }
-            });
-        }
-        {
-            let stack = stack.clone();
-            let other = mode_2d_btn.clone();
-            mode_3d_btn.connect_toggled(move |btn| {
-                if btn.is_active() {
-                    stack.set_visible_child_name("3d");
-                    if other.is_active() {
-                        other.set_active(false);
-                    }
-                }
-            });
-        }
-
         // Visibility Logic
         let nav_widget = nav_cube.widget.clone();
         let float_box = floating_box.clone();
-        let mode_2d_btn_vis = mode_2d_btn.clone();
-        let mode_3d_btn_vis = mode_3d_btn.clone();
 
-        // Initial state
-        nav_widget.set_visible(false); // Start in 2D mode
+        nav_widget.set_visible(true);
+        float_box.set_visible(true);
 
-        stack.connect_visible_child_name_notify(move |stack| {
-            let is_3d = stack.visible_child_name().as_deref() == Some("3d");
-            if is_3d {
-                nav_widget.set_visible(true);
-                float_box.set_visible(false);
-            } else {
-                nav_widget.set_visible(false);
-                float_box.set_visible(true);
-            }
-
-            if mode_3d_btn_vis.is_active() != is_3d {
-                mode_3d_btn_vis.set_active(is_3d);
-            }
-            if mode_2d_btn_vis.is_active() == is_3d {
-                mode_2d_btn_vis.set_active(!is_3d);
-            }
-        });
+        stack.set_visible_child_name("3d");
 
         // Helper to update status
         let cursor_pos = shared((0.0_f32, 0.0_f32));
@@ -1115,79 +997,14 @@ impl GcodeVisualizer {
         });
         drawing_area.add_controller(motion);
 
-        // Keyboard shortcuts (when the canvas has focus)
-        drawing_area.set_focusable(true);
-        drawing_area.set_can_focus(true);
-        {
-            let click_for_focus = GestureClick::new();
-            let da_focus = drawing_area.clone();
-            click_for_focus.connect_pressed(move |_, _, _, _| {
-                da_focus.grab_focus();
-            });
-            drawing_area.add_controller(click_for_focus);
-        }
-        {
-            let key_controller = EventControllerKey::new();
-            let vis_keys = visualizer.clone();
-            let da_keys = drawing_area.clone();
-            let update_keys = update_status_fn.clone();
-            let device_mgr_keys = device_manager.clone();
-            key_controller.connect_key_pressed(move |_, key, _code, modifiers: ModifierType| {
-                if modifiers.contains(ModifierType::CONTROL_MASK)
-                    || modifiers.contains(ModifierType::ALT_MASK)
-                {
-                    return gtk4::glib::Propagation::Proceed;
-                }
-
-                match key {
-                    Key::plus | Key::KP_Add | Key::equal => {
-                        vis_keys.borrow_mut().zoom_in();
-                        update_keys();
-                        da_keys.queue_draw();
-                        gtk4::glib::Propagation::Stop
-                    }
-                    Key::minus | Key::KP_Subtract | Key::underscore => {
-                        vis_keys.borrow_mut().zoom_out();
-                        update_keys();
-                        da_keys.queue_draw();
-                        gtk4::glib::Propagation::Stop
-                    }
-                    Key::f | Key::F => {
-                        let width = da_keys.width() as f32;
-                        let height = da_keys.height() as f32;
-                        if width > 0.0 && height > 0.0 {
-                            vis_keys.borrow_mut().fit_to_view(width, height);
-                            update_keys();
-                            da_keys.queue_draw();
-                        }
-                        gtk4::glib::Propagation::Stop
-                    }
-                    Key::r | Key::R => {
-                        let mut v = vis_keys.borrow_mut();
-                        v.reset_zoom();
-                        v.reset_pan();
-                        drop(v);
-                        update_keys();
-                        da_keys.queue_draw();
-                        gtk4::glib::Propagation::Stop
-                    }
-                    Key::d | Key::D => {
-                        let width = da_keys.width() as f32;
-                        let height = da_keys.height() as f32;
-                        if width > 0.0 && height > 0.0 {
-                            let mut v = vis_keys.borrow_mut();
-                            Self::apply_fit_to_device(&mut v, &device_mgr_keys, width, height);
-                            drop(v);
-                            update_keys();
-                            da_keys.queue_draw();
-                        }
-                        gtk4::glib::Propagation::Stop
-                    }
-                    _ => gtk4::glib::Propagation::Proceed,
-                }
-            });
-            drawing_area.add_controller(key_controller);
-        }
+        // connect_cliked for top_view_btn
+        let cam_top = camera.clone();
+        let gl_top = gl_area.clone();
+        top_view_btn.connect_clicked(move |_| {
+            let mut cam = cam_top.borrow_mut();
+            cam.set_view(0.0, 90.0);  // Vista TOP
+            gl_top.queue_render();
+        });
 
         // Right-click context menu (matches Designer structure)
         {
@@ -1493,79 +1310,16 @@ impl GcodeVisualizer {
             da_v.queue_draw();
         });
 
-        // Connect Floating Controls
-        let vis_float_out = visualizer.clone();
-        let da_float_out = drawing_area.clone();
-        let update_status = update_ui.clone();
-        float_zoom_out.connect_clicked(move |_| {
-            vis_float_out.borrow_mut().zoom_out();
-            update_status();
-            da_float_out.queue_draw();
-        });
+        // 3D-only floating controls - legacy 2D handlers removed
 
-        let vis_float_in = visualizer.clone();
-        let da_float_in = drawing_area.clone();
-        let update_status = update_ui.clone();
-        float_zoom_in.connect_clicked(move |_| {
-            vis_float_in.borrow_mut().zoom_in();
-            update_status();
-            da_float_in.queue_draw();
-        });
-
-        let vis_float_fit = visualizer.clone();
-        let da_float_fit = drawing_area.clone();
-        let update_status = update_ui.clone();
-        float_fit.connect_clicked(move |_| {
-            let width = da_float_fit.width() as f32;
-            let height = da_float_fit.height() as f32;
-            if width > 0.0 && height > 0.0 {
-                vis_float_fit.borrow_mut().fit_to_view(width, height);
-                update_status();
-                da_float_fit.queue_draw();
-            }
-        });
-
-        let vis_float_reset = visualizer.clone();
-        let da_float_reset = drawing_area.clone();
-        let update_status = update_ui.clone();
-        float_reset.connect_clicked(move |_| {
-            let mut vis = vis_float_reset.borrow_mut();
-            vis.reset_zoom();
-            vis.reset_pan();
-            drop(vis);
-            update_status();
-            da_float_reset.queue_draw();
-        });
-
-        // Fit to device in OSD (matches Designer)
-        let vis_float_fit_dev = visualizer.clone();
-        let da_float_fit_dev = drawing_area.clone();
-        let update_status = update_ui.clone();
-        let device_manager_fit_dev = device_manager.clone();
-        float_fit_device.connect_clicked(move |_| {
-            let width = da_float_fit_dev.width() as f32;
-            let height = da_float_fit_dev.height() as f32;
-            if width > 0.0 && height > 0.0 {
-                let mut v = vis_float_fit_dev.borrow_mut();
-                Self::apply_fit_to_device(&mut v, &device_manager_fit_dev, width, height);
-                drop(v);
-                update_status();
-                da_float_fit_dev.queue_draw();
-            }
-        });
-
-        // Scrollbars toggle (2D + 3D)
+        // Scrollbars toggle for 3D only
         let show_scrollbars = Rc::new(std::cell::Cell::new(false));
-        let hsb_2d = hscrollbar.clone();
-        let vsb_2d = vscrollbar.clone();
         let hsb_3d = hscrollbar_3d.clone();
         let vsb_3d = vscrollbar_3d.clone();
         let show_scrollbars_btn = show_scrollbars.clone();
         scrollbars_btn.connect_clicked(move |_| {
             let next = !show_scrollbars_btn.get();
             show_scrollbars_btn.set(next);
-            hsb_2d.set_visible(next);
-            vsb_2d.set_visible(next);
             hsb_3d.set_visible(next);
             vsb_3d.set_visible(next);
         });
@@ -1748,100 +1502,38 @@ impl GcodeVisualizer {
             }
         });
 
-        // Connect Draw Signal
-        let vis_draw = visualizer.clone();
-        let render_cache_draw = shared(RenderCache::default());
-        let show_rapid_draw = show_rapid.clone();
-        let show_cut_draw = show_cut.clone();
-        let show_grid_draw = show_grid.clone();
-        let show_bounds_draw = show_bounds.clone();
-        let show_laser_draw = show_laser.clone();
-        let show_stock_removal_draw = show_stock_removal.clone();
-        let simulation_result_draw = simulation_result.clone();
-        let simulation_visualization_draw = simulation_visualization.clone();
-        let stock_material_draw = stock_material.clone();
-        let device_manager_draw = device_manager.clone();
-        let current_pos_draw = current_pos.clone();
-        let grid_spacing_draw = grid_spacing_mm.clone();
-        let settings_draw = settings_controller.clone();
-
-        drawing_area.set_draw_func(move |da, cr, width, height| {
-            let vis = vis_draw.borrow();
-            let mut cache = render_cache_draw.borrow_mut();
-            let pos = *current_pos_draw.borrow();
-            let style = da.style_context();
-            let config = settings_draw.persistence.borrow();
-            let grid_major_width = config.config().ui.grid_major_line_width;
-            let grid_minor_width = config.config().ui.grid_minor_line_width;
-            drop(config);
-            Self::draw(
-                cr,
-                &vis,
-                &mut cache,
-                width as f64,
-                height as f64,
-                show_rapid_draw.is_active(),
-                show_cut_draw.is_active(),
-                show_grid_draw.is_active(),
-                show_bounds_draw.is_active(),
-                true, // show_intensity_draw.is_active(), // Intensidad en objetos vectoriales
-                show_laser_draw.is_active(),
-                show_stock_removal_draw.is_active(),
-                &simulation_result_draw.borrow(),
-                &simulation_visualization_draw.borrow(),
-                &stock_material_draw.borrow(),
-                pos,
-                &device_manager_draw,
-                grid_spacing_draw.get(),
-                grid_major_width,
-                grid_minor_width,
-                &style,
-            );
-        });
-
         // Connect Controls
         let vis_fit = visualizer.clone();
-        let da_fit = drawing_area.clone();
         let gl_area_fit = gl_area.clone();
-        let stack_fit = stack.clone();
         let camera_fit = camera.clone();
-        let update_status = update_ui.clone();
         let hadj_fit_main_3d = hadjustment_3d.clone();
         let vadj_fit_main_3d = vadjustment_3d.clone();
         let is_updating_fit_main_3d = is_updating_3d.clone();
 
         fit_btn.connect_clicked(move |_| {
-            if stack_fit.visible_child_name().as_deref() == Some("3d") {
-                let vis = vis_fit.borrow();
-                let (min_x, max_x, min_y, max_y, min_z, max_z) =
-                    if let Some(bounds) = vis.get_cutting_bounds() {
-                        bounds
-                    } else {
-                        let (min_x_2d, max_x_2d, min_y_2d, max_y_2d) = vis.get_bounds();
-                        (min_x_2d, max_x_2d, min_y_2d, max_y_2d, vis.min_z, vis.max_z)
-                    };
-                drop(vis);
+            let vis = vis_fit.borrow();
+            let (min_x, max_x, min_y, max_y, min_z, max_z) =
+                if let Some(bounds) = vis.get_cutting_bounds() {
+                    bounds
+                } else {
+                    let (min_x_2d, max_x_2d, min_y_2d, max_y_2d) = vis.get_bounds();
+                    (min_x_2d, max_x_2d, min_y_2d, max_y_2d, vis.min_z, vis.max_z)
+                };
+            drop(vis);
 
-                let mut cam = camera_fit.borrow_mut();
-                cam.fit_to_bounds(
-                    Vec3::new(min_x, min_y, min_z),
-                    Vec3::new(max_x, max_y, max_z),
-                );
+            let mut cam = camera_fit.borrow_mut();
+            cam.fit_to_bounds(
+                Vec3::new(min_x, min_y, min_z),
+                Vec3::new(max_x, max_y, max_z),
+            );
 
-                // Update scrollbars
-                *is_updating_fit_main_3d.borrow_mut() = true;
-                hadj_fit_main_3d.set_value(cam.target.x as f64);
-                vadj_fit_main_3d.set_value(cam.target.y as f64);
-                *is_updating_fit_main_3d.borrow_mut() = false;
+            // Update scrollbars
+            *is_updating_fit_main_3d.borrow_mut() = true;
+            hadj_fit_main_3d.set_value(cam.target.x as f64);
+            vadj_fit_main_3d.set_value(cam.target.y as f64);
+            *is_updating_fit_main_3d.borrow_mut() = false;
 
-                gl_area_fit.queue_render();
-            } else {
-                let width = da_fit.width() as f32;
-                let height = da_fit.height() as f32;
-                vis_fit.borrow_mut().fit_to_view(width, height);
-                update_status();
-                da_fit.queue_draw();
-            }
+            gl_area_fit.queue_render();
         });
 
         // Fit to Device button
@@ -2203,9 +1895,6 @@ impl GcodeVisualizer {
                 *tool_diameter.borrow_mut() = diameter;
             }
         });
-
-        // Mouse Interaction
-        Self::setup_interaction(&drawing_area, &visualizer, update_ui.clone());
 
         // Auto-fit when mapped (visible/focused) with a slight delay to allow layout
         let vis_map = visualizer.clone();
@@ -2624,7 +2313,7 @@ impl GcodeVisualizer {
             }
             let val = adj.value();
             let mut cam = camera_v.borrow_mut();
-            cam.target.y = val as f32;
+            cam.target.y = -val as f32;
             gl_area_v.queue_render();
         });
 
@@ -2667,6 +2356,14 @@ impl GcodeVisualizer {
             gtk4::glib::Propagation::Stop
         });
         gl_area.add_controller(scroll_3d);
+
+        // Click focus
+        let click_focus = GestureClick::new();
+        let gl_focus = gl_area.clone();
+        click_focus.connect_pressed(move |_, _, _, _| {
+            gl_focus.grab_focus();
+        });
+        gl_area.add_controller(click_focus);
 
         Self {
             widget: container,
@@ -2825,66 +2522,23 @@ impl GcodeVisualizer {
             self.vadjustment_3d.set_value(target_y as f64);
 
             self.gl_area.queue_render();
-        } else {
-            self.stack.set_visible_child_name("2d");
         }
 
-        // Run stock removal simulation if enabled
-        if self.show_stock_removal.is_active() {
-            if let Some(stock) = self.stock_material.borrow().as_ref() {
-                use gcodekit5_designer::stock_removal::StockSimulator2D;
-                use gcodekit5_designer::{create_arc_segment, create_linear_segment};
-
-                // Convert GCode commands to toolpath segments
-                let mut toolpath_segments = Vec::new();
-                for cmd in vis.commands() {
-                    match cmd {
-                        GCodeCommand::Move {
-                            from, to, rapid, ..
-                        } => {
-                            let segment = create_linear_segment(
-                                from.x, from.y, from.z, to.x, to.y, to.z, *rapid,
-                                100.0, // Default feed rate
-                                3000,  // Default spindle speed
-                            );
-                            toolpath_segments.push(segment);
-                        }
-                        GCodeCommand::Arc {
-                            from,
-                            to,
-                            center,
-                            clockwise,
-                            ..
-                        } => {
-                            let segment = create_arc_segment(
-                                from.x, from.y, from.z, to.x, to.y, to.z, center.x, center.y,
-                                *clockwise, 100.0, // Default feed rate
-                                3000,  // Default spindle speed
-                            );
-                            toolpath_segments.push(segment);
-                        }
-                        GCodeCommand::Dwell { .. } => {
-                            // Dwell commands don't remove material, skip
-                        }
-                    }
-                }
-
-                // Create simulator with default tool radius
-                let tool_radius = 1.585; // 3.17mm diameter / 2
-                let resolution = 0.1; // 0.1mm resolution
-                let mut simulator = StockSimulator2D::new(stock.clone(), tool_radius, resolution);
-
-                // Run simulation
-                simulator.simulate_toolpath(&toolpath_segments);
-                let result = simulator.get_simulation_result();
-                *self.simulation_result.borrow_mut() = Some(result);
-            }
+        let (min_x, max_x, min_y, max_y, min_z, max_z) = if let Some(bounds) = vis.get_cutting_bounds() {
+            bounds
         } else {
-            *self.simulation_result.borrow_mut() = None;
-        }
-
+            let (min_x_2d, max_x_2d, min_y_2d, max_y_2d) = vis.get_bounds();
+            (min_x_2d, max_x_2d, min_y_2d, max_y_2d, vis.min_z, vis.max_z)
+        };
         drop(vis);
-        self.update_scrollbars();
+
+        // Force 3D top view and fit whenever G-code is loaded
+        self.stack.set_visible_child_name("3d");
+        self.apply_top_3d_view(
+            Vec3::new(min_x, min_y, min_z),
+            Vec3::new(max_x, max_y, max_z),
+        );
+
         self.drawing_area.queue_draw();
     }
 }

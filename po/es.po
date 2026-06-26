@@ -491,8 +491,23 @@ msgstr "Ajustar al Area de trabajo"
 msgid "Toggle Scrollbars"
 msgstr "Barras de desplazamiento si/no"
 
-msgid "Keyboard Shortcuts"
-msgstr "Atajos de Teclado"
+msgid "Top View"
+msgstr "Vista Superior"
+
+msgid "Mouse Controls"
+msgstr "Controles de Ratón"
+
+msgid "* Use mouse to orbit, pan and zoom *"
+msgstr "* Use el ratón para Orbita, encuadre y zoom *"
+
+msgid "Shift+Left button+Drag: Pan"
+msgstr "Shift+botón izq.+arrastrar: Encuadre"
+
+msgid "Mouse wheel: Zoom+/-"
+msgstr "Rueda del Ratón: Zoom +/-"
+
+msgid "Left Button+Drag: Orbit"
+msgstr "Botón izq.+arrastrar: Orbita"
 
 msgid "Designer shortcuts"
 msgstr "Atajos de diseño"

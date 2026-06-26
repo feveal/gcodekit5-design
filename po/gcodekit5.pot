@@ -493,7 +493,22 @@ msgstr ""
 msgid "Toggle Scrollbars"
 msgstr ""
 
-msgid "Keyboard Shortcuts"
+msgid "Top View"
+msgstr ""
+
+msgid "Mouse Controls"
+msgstr ""
+
+msgid "* Use mouse to orbit, pan and zoom *"
+msgstr ""
+
+msgid "Shift+Left button+Drag: Pan"
+msgstr ""
+
+msgid "Mouse wheel: Zoom+/-"
+msgstr ""
+
+msgid "Left Button+Drag: Orbit"
 msgstr ""
 
 msgid "Designer shortcuts"
@@ -861,7 +876,7 @@ msgstr ""
 msgid "Scanning"
 msgstr ""
 
-msgid "Scan Direction:"
+msgid "Scan:"
 msgstr ""
 
 msgid "Pixels per mm:"
