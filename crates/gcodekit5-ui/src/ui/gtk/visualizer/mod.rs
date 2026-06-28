@@ -26,9 +26,8 @@ use gcodekit5_visualizer::visualizer::{generate_surface_mesh, StockSimulator3D};
 use glam::Vec3;
 
 #[derive(Clone)]
-pub(crate) struct StockRemovalVisualization {
-//    pub(crate) contour_layers: Vec<ContourLayer>,
-}
+pub(crate) struct StockRemovalVisualization;
+
 use crate::ui::gtk::nav_cube::NavCube;
 use crate::ui::gtk::renderer_3d::{
     generate_axis_data, generate_bounds_data, generate_grid_data, generate_tool_marker_data,
@@ -89,7 +88,7 @@ pub struct GcodeVisualizer {
     pub(crate) visualizer: Shared<Visualizer>,
     pub(crate) camera: Shared<Camera3D>,
     pub(crate) _renderer_state: SharedOption<RendererState>,
-    // Phase 4: Render cache
+    // Render cache
     pub(crate) render_cache: Shared<RenderCache>,
     // Visibility toggles
     pub(crate) _show_rapid: CheckButton,
@@ -97,14 +96,11 @@ pub struct GcodeVisualizer {
     pub(crate) _show_grid: CheckButton,
     pub(crate) _show_bounds: CheckButton,
     pub(crate) show_laser: CheckButton,
-    /// Legacy 2D stock removal toggle - retained for UI but unused in 3D-only mode
-    #[allow(dead_code)]
+     #[allow(dead_code)]
     pub(crate) show_stock_removal: CheckButton,
-    /// Legacy 2D stock removal simulation - retained for future use but unused
     #[allow(dead_code)]
     pub(crate) stock_material: SharedOption<StockMaterial>,
-    /// Legacy 2D simulation result - retained for future use but unused
-    #[allow(dead_code)]
+     #[allow(dead_code)]
     pub(crate) simulation_result: SharedOption<SimulationResult>,
     pub(crate) _simulation_visualization: SharedOption<StockRemovalVisualization>,
     pub(crate) _simulation_resolution: Shared<f32>,
@@ -112,10 +108,8 @@ pub struct GcodeVisualizer {
     // Stock removal simulation (3D)
     pub(crate) _stock_simulator_3d: SharedOption<StockSimulator3D>,
     pub(crate) _stock_simulation_3d_pending: Shared<bool>,
-    /// Legacy 2D horizontal scrollbar - retained for future use but unused
     #[allow(dead_code)]
     pub(crate) hadjustment: Adjustment,
-    /// Legacy 2D vertical scrollbar - retained for future use but unused
     #[allow(dead_code)]
     pub(crate) vadjustment: Adjustment,
     pub(crate) hadjustment_3d: Adjustment,
@@ -127,12 +121,12 @@ pub struct GcodeVisualizer {
     pub(crate) max_s_value: Label,
     pub(crate) avg_s_value: Label,
     pub(crate) _status_label: Label,
-    pub(crate) device_manager: Option<Arc<DeviceManager>>,
     pub(crate) settings_controller: Rc<SettingsController>,
     // Optional status bar reference for future OSD integration.
     #[allow(dead_code)]
     pub(crate) status_bar: Option<StatusBar>,
     pub(crate) current_pos: Shared<(f32, f32, f32)>,
+    pub(crate) fit_btn_3d: Button,
 }
 
 impl GcodeVisualizer {
@@ -610,12 +604,6 @@ impl GcodeVisualizer {
             .css_classes(vec!["visualizer-canvas"])
             .build();
 
-        // Queue redraw on grid spacing change
-        {
-            let drawing_area = drawing_area.clone();
-            grid_spacing_combo.connect_changed(move |_| drawing_area.queue_draw());
-        }
-
         // Scrollbars
         let hadjustment = Adjustment::new(0.0, 0.0, 100.0, 1.0, 10.0, 10.0);
         let vadjustment = Adjustment::new(0.0, 0.0, 100.0, 1.0, 10.0, 10.0);
@@ -642,6 +630,22 @@ impl GcodeVisualizer {
         // 3D Page
         let gl_area = GLArea::builder().hexpand(true).vexpand(true).build();
         gl_area.set_required_version(3, 3);
+
+        {
+            let drawing_area = drawing_area.clone();
+            let gl_area = gl_area.clone();
+            let grid_spacing_mm = grid_spacing_mm.clone();
+
+            grid_spacing_combo.connect_changed(move |cb| {
+                if let Some(id) = cb.active_id() {
+                    if let Ok(mm) = id.parse::<f64>() {
+                        grid_spacing_mm.set(mm);
+                    }
+                }
+                drawing_area.queue_draw();
+                gl_area.queue_draw(); // <--- Provocar que connect_render se ejecute inmediatamente
+            });
+        }
 
         // 3D Scrollbars
         let extent = core_constants::WORLD_EXTENT_MM;
@@ -910,24 +914,28 @@ impl GcodeVisualizer {
                 if let Some(bounds) = vis.get_cutting_bounds() {
                     bounds
                 } else {
-                    let (min_x_2d, max_x_2d, min_y_2d, max_y_2d) = vis.get_bounds();
-                    (min_x_2d, max_x_2d, min_y_2d, max_y_2d, vis.min_z, vis.max_z)
+                    let (min_x, max_x, min_y, max_y) = vis.get_bounds();
+                    (min_x, max_x, min_y, max_y, vis.min_z, vis.max_z)
                 };
             drop(vis);
 
-            let mut cam = cam_fit_3d.borrow_mut();
-            cam.fit_to_bounds(
-                Vec3::new(min_x, min_y, min_z),
-                Vec3::new(max_x, max_y, max_z),
-            );
+            // Comprobar contenido
+            let has_content = (max_x - min_x).abs() > 0.001 || (max_y - min_y).abs() > 0.001;
 
-            // Update scrollbars
-            *is_updating_fit_3d.borrow_mut() = true;
-            hadj_fit_3d.set_value(cam.target.x as f64);
-            vadj_fit_3d.set_value(cam.target.y as f64);
-            *is_updating_fit_3d.borrow_mut() = false;
+            if has_content {
+                let mut cam = cam_fit_3d.borrow_mut();
+                cam.fit_to_bounds(
+                    Vec3::new(min_x, min_y, min_z),
+                    Vec3::new(max_x, max_y, max_z),
+                );
 
-            gl_area_fit_3d.queue_render();
+                *is_updating_fit_3d.borrow_mut() = true;
+                hadj_fit_3d.set_value(cam.target.x as f64);
+                vadj_fit_3d.set_value(cam.target.y as f64);
+                *is_updating_fit_3d.borrow_mut() = false;
+
+                gl_area_fit_3d.queue_render();
+            }
         });
 
         // Visibility Logic
@@ -1502,40 +1510,6 @@ impl GcodeVisualizer {
             }
         });
 
-        // Connect Controls
-        let vis_fit = visualizer.clone();
-        let gl_area_fit = gl_area.clone();
-        let camera_fit = camera.clone();
-        let hadj_fit_main_3d = hadjustment_3d.clone();
-        let vadj_fit_main_3d = vadjustment_3d.clone();
-        let is_updating_fit_main_3d = is_updating_3d.clone();
-
-        fit_btn.connect_clicked(move |_| {
-            let vis = vis_fit.borrow();
-            let (min_x, max_x, min_y, max_y, min_z, max_z) =
-                if let Some(bounds) = vis.get_cutting_bounds() {
-                    bounds
-                } else {
-                    let (min_x_2d, max_x_2d, min_y_2d, max_y_2d) = vis.get_bounds();
-                    (min_x_2d, max_x_2d, min_y_2d, max_y_2d, vis.min_z, vis.max_z)
-                };
-            drop(vis);
-
-            let mut cam = camera_fit.borrow_mut();
-            cam.fit_to_bounds(
-                Vec3::new(min_x, min_y, min_z),
-                Vec3::new(max_x, max_y, max_z),
-            );
-
-            // Update scrollbars
-            *is_updating_fit_main_3d.borrow_mut() = true;
-            hadj_fit_main_3d.set_value(cam.target.x as f64);
-            vadj_fit_main_3d.set_value(cam.target.y as f64);
-            *is_updating_fit_main_3d.borrow_mut() = false;
-
-            gl_area_fit.queue_render();
-        });
-
         // Fit to Device button
         if let Some(device_mgr) = device_manager.clone() {
             let vis_fit_dev = visualizer.clone();
@@ -1939,6 +1913,11 @@ impl GcodeVisualizer {
         let show_laser_3d = show_laser.clone();
         let show_stock_removal_3d = show_stock_removal.clone();
 
+        // ---
+        let grid_spacing_mm_render = grid_spacing_mm.clone();
+        // Guardar el último valor procesado para detectar cambios
+        let last_grid_spacing = std::cell::Cell::new(50.0_f64);
+
         gl_area.connect_render(move |area, _context| {
             if let Some(err) = area.error() {
                 tracing::error!(error = %err, "GLArea error");
@@ -2042,6 +2021,14 @@ impl GcodeVisualizer {
                     vis.clear_dirty();
                 }
                 drop(vis);
+
+                // --- Actualización dinámica de la rejilla ---
+                let current_spacing = grid_spacing_mm_render.get();
+                if current_spacing != last_grid_spacing.get() {
+                    let grid_data = generate_grid_data(4000.0, current_spacing as f32);
+                    state.grid_buffers.update(&grid_data);
+                    last_grid_spacing.set(current_spacing); // Guardar estado
+                }
 
                 // Update bounds buffer
                 if let Some(manager) = &device_manager_3d {
@@ -2397,10 +2384,10 @@ impl GcodeVisualizer {
             max_s_value,
             avg_s_value,
             _status_label: status_label,
-            device_manager,
             settings_controller,
             status_bar,
             current_pos,
+            fit_btn_3d,
         }
     }
 
@@ -2408,15 +2395,13 @@ impl GcodeVisualizer {
         let mut vis = self.visualizer.borrow_mut();
         vis.parse_gcode(gcode);
 
-        // Phase 4: Invalidate render cache when G-code changes
+        // Invalidate render cache when G-code changes
         let mut cache = self.render_cache.borrow_mut();
 //        cache.cache_hash = 0; // Force rebuild
         cache.cutting_bounds = None;
         drop(cache);
 
         // Update bounds
-        // Note: Visualizer::get_bounds() includes viewport padding and an origin clamp (min <= 0) for nicer navigation.
-        // For the Inspector we want the true cutting extents.
         let (min_x, max_x, min_y, max_y) = vis
             .get_cutting_bounds()
             .map(|(min_x, max_x, min_y, max_y, _min_z, _max_z)| (min_x, max_x, min_y, max_y))
@@ -2479,57 +2464,12 @@ impl GcodeVisualizer {
             self.avg_s_value.set_text(&t!("N/A"));
         }
 
-        // Auto fit
-        let width = self.drawing_area.width() as f32;
-        let height = self.drawing_area.height() as f32;
-        if width > 0.0 && height > 0.0 {
-            if vis.get_command_count() > 0 {
-                vis.fit_to_view(width, height);
-            } else {
-                Self::apply_fit_to_device(&mut vis, &self.device_manager, width, height);
-            }
-        }
-
-        // Auto-detect 3D content
-        let has_z_travel = if let Some((_, _, _, _, min_z, max_z)) = vis.get_cutting_bounds() {
-            (max_z - min_z).abs() > 0.001
-        } else {
-            false
-        };
-
-        if has_z_travel {
-            self.stack.set_visible_child_name("3d");
-            // Fit 3D view
-            let (min_x, max_x, min_y, max_y, min_z, max_z) =
-                if let Some(bounds) = vis.get_cutting_bounds() {
-                    bounds
-                } else {
-                    let (min_x_2d, max_x_2d, min_y_2d, max_y_2d) = vis.get_bounds();
-                    (min_x_2d, max_x_2d, min_y_2d, max_y_2d, vis.min_z, vis.max_z)
-                };
-
-            let (target_x, target_y) = {
-                let mut cam = self.camera.borrow_mut();
-                cam.fit_to_bounds(
-                    Vec3::new(min_x, min_y, min_z),
-                    Vec3::new(max_x, max_y, max_z),
-                );
-                (cam.target.x, cam.target.y)
-            };
-
-            // Update 3D scrollbars
-            self.hadjustment_3d.set_value(target_x as f64);
-            self.vadjustment_3d.set_value(target_y as f64);
-
-            self.gl_area.queue_render();
-        }
-
-        let (min_x, max_x, min_y, max_y, min_z, max_z) = if let Some(bounds) = vis.get_cutting_bounds() {
-            bounds
-        } else {
-            let (min_x_2d, max_x_2d, min_y_2d, max_y_2d) = vis.get_bounds();
-            (min_x_2d, max_x_2d, min_y_2d, max_y_2d, vis.min_z, vis.max_z)
-        };
+        let (min_x, max_x, min_y, max_y, min_z, max_z) = vis
+            .get_cutting_bounds()
+            .unwrap_or_else(|| {
+                let (min_x, max_x, min_y, max_y) = vis.get_bounds();
+                (min_x, max_x, min_y, max_y, vis.min_z, vis.max_z)
+            });
         drop(vis);
 
         // Force 3D top view and fit whenever G-code is loaded
@@ -2538,6 +2478,13 @@ impl GcodeVisualizer {
             Vec3::new(min_x, min_y, min_z),
             Vec3::new(max_x, max_y, max_z),
         );
+
+        // Simular Click Fit button
+        let fit_btn = self.fit_btn_3d.clone();
+        gtk4::glib::timeout_add_local(std::time::Duration::from_millis(100), move || {
+            fit_btn.emit_clicked();
+            gtk4::glib::ControlFlow::Break
+        });
 
         self.drawing_area.queue_draw();
     }
