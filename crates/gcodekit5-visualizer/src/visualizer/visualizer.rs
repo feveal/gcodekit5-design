@@ -595,24 +595,34 @@ impl Visualizer {
         );
     }
 
-    /// Private auxiliary methods
-    /// Extract all parameters from a G-code line
-    fn extract_all_params(line: &str) -> ExtractedParams {
-        let mut params = ExtractedParams::new();
+/// Extraer todos los parámetros de una línea de G-code sin usar regex
+fn extract_all_params(line: &str) -> ExtractedParams {
+    let mut params = ExtractedParams::new();
+    let chars: Vec<char> = line.chars().collect();
+    let mut i = 0;
 
-        for part in line.split_whitespace() {
-            if part.len() < 2 {
-                continue;
+    while i < chars.len() {
+        let c = chars[i];
+        // Buscar parámetros: X, Y, Z, I, J, S, F
+        if c == 'X' || c == 'Y' || c == 'Z' || c == 'I' || c == 'J' || c == 'S' || c == 'F' {
+            i += 1;
+            let mut num_str = String::new();
+
+            // Leer el número (incluyendo signo negativo y decimal)
+            while i < chars.len() {
+                let ch = chars[i];
+                if ch.is_ascii_digit() || ch == '.' || ch == '-' {
+                    if ch == '.' {
+                    }
+                    num_str.push(ch);
+                    i += 1;
+                } else {
+                    break;
+                }
             }
 
-            let first_char = match part.chars().next() {
-                Some(c) => c,
-                None => continue,
-            };
-
-            let value_str = &part[1..];
-            if let Ok(value) = value_str.parse::<f32>() {
-                match first_char {
+            if let Ok(value) = num_str.parse::<f32>() {
+                match c {
                     'X' => params.x = Some(value),
                     'Y' => params.y = Some(value),
                     'Z' => params.z = Some(value),
@@ -623,28 +633,42 @@ impl Visualizer {
                     _ => {}
                 }
             }
+        } else {
+            i += 1;
         }
-
-        params
     }
 
-    /// Extract the command number G from a line
-    fn extract_gcode_num(line: &str) -> Option<u32> {
-        if !line.starts_with('G') {
+    params
+}
+
+/// Extraer el número del comando G sin usar regex
+fn extract_gcode_num(line: &str) -> Option<u32> {
+    let chars: Vec<char> = line.chars().collect();
+    let mut i = 0;
+
+    while i < chars.len() {
+        if chars[i] == 'G' {
+            i += 1;
+            let mut num_str = String::new();
+
+            // Leer los dígitos después de G
+            while i < chars.len() && chars[i].is_ascii_digit() {
+                num_str.push(chars[i]);
+                i += 1;
+            }
+
+            if !num_str.is_empty() {
+                if let Ok(num) = num_str.parse::<u32>() {
+                    return Some(num);
+                }
+            }
             return None;
         }
-        let after_g = &line[1..];
-        // Find end of number
-        let end_idx = after_g
-            .find(|c: char| !c.is_ascii_digit())
-            .unwrap_or(after_g.len());
-
-        if end_idx == 0 {
-            return None;
-        }
-
-        after_g[..end_idx].parse::<u32>().ok()
+        i += 1;
     }
+
+    None
+}
 
     /// Get bounds information
     pub fn get_bounds(&self) -> (f32, f32, f32, f32) {

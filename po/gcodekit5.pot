@@ -41,6 +41,9 @@ msgstr ""
 msgid "Emergency stop (Ctrl-X)"
 msgstr ""
 
+msgid "Import Image..."
+msgstr ""
+
 msgid "Export G-Code..."
 msgstr ""
 
