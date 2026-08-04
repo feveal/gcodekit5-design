@@ -110,7 +110,6 @@ pub struct GcodeVisualizer {
      #[allow(dead_code)]
     pub(crate) simulation_result: SharedOption<SimulationResult>,
     pub(crate) _simulation_visualization: SharedOption<StockRemovalVisualization>,
-    pub(crate) _simulation_resolution: Shared<f32>,
     pub(crate) _simulation_running: Shared<bool>,
     // Stock removal simulation (3D)
     pub(crate) _stock_simulator_3d: SharedOption<StockSimulator3D>,
@@ -857,7 +856,6 @@ impl GcodeVisualizer {
         let tool_diameter = shared(3.175f32); // Default 1/8" end mill
         let simulation_result = shared_none();
         let simulation_visualization = shared_none::<StockRemovalVisualization>();
-        let simulation_resolution = shared(0.1);
         let simulation_running = shared(false);
         let stock_simulator_3d = shared_none();
         let stock_simulation_3d_pending = shared(false);
@@ -2708,7 +2706,6 @@ impl GcodeVisualizer {
             stock_material,
             simulation_result,
             _simulation_visualization: shared_none(),
-            _simulation_resolution: simulation_resolution,
             _simulation_running: simulation_running,
             _stock_simulator_3d: stock_simulator_3d,
             _stock_simulation_3d_pending: stock_simulation_3d_pending,

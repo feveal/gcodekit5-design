@@ -397,12 +397,6 @@ msgstr "Altura Z de Seguridad"
 msgid "Safe height for rapid moves"
 msgstr "Altura en Z para movimientos rápidos"
 
-msgid "Resolution"
-msgstr "Resolucion"
-
-msgid "Simulation resolution (lower = more detail)"
-msgstr "Resolución de simulación (menor = mayor detalle)"
-
 msgid "Show Stock Removal"
 msgstr "Mostrar eliminacion de material"
 

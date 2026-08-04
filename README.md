@@ -88,7 +88,7 @@ This modular structure enables:
   - Coolant control
   - Tool change support
 
-### 📝 G-Code Editor & Streaming
+### 📝 G-Code Editor & Streaming (Into Machine Control)
 - **Text Editor (Phase 2 - COMPLETE)**:
   - ✅ Full keyboard input support (characters, arrows, backspace, delete)
   - ✅ Text insertion and deletion with proper cursor tracking at correct position
@@ -121,7 +121,7 @@ This modular structure enables:
   - Concurrent status polling via real-time `?` command
 - **Real-time Validation**: Syntax checking while editing
 
-### 🎨 2D CAD/CAM Designer
+### 🎨 2D/3D CAD/CAM Designer
 - **Vector Drawing Tools**:
   - Geometric shapes: rectangles, circles, ellipses, triangles
   - Lines, polygons, Bezier curves, and arcs
@@ -136,10 +136,10 @@ This modular structure enables:
   - Example: 37-path tiger head design converts to 26,000+ precise movement commands with optimal path breaks
 - **Interactive Editing**:
   - Zoom, pan, and fit-to-view controls
-  - **NEW**: Floating status panel (Zoom, Pan, Grid)
-  - **NEW**: Array Tools (Linear, Circular, Grid) with automatic grouping
-  - **NEW**: Dynamic grid and origin indicator
-  - **NEW**: View controls (Zoom In/Out, Fit, Reset)
+  - Floating status panel (Zoom, Pan, Grid)
+  - Array Tools (Linear, Circular, Grid) with automatic grouping
+  - Dynamic grid and origin indicator
+  - View controls (Zoom In/Out, Fit, Reset)
   - Precise positioning (X, Y, Width, Height inputs)
   - Properties dialog for detailed shape adjustments
   - Dual-grid system (10mm major + 1mm minor)
@@ -149,10 +149,10 @@ This modular structure enables:
   - Align horizontally (Left/Center/Right) or vertically (Top/Center/Bottom) across multi-selection groups
   - Selecting "Properties" with multiple shapes opens a "Multiple Shapes" dialog that applies pocket/text/toolpath settings to every selected object while keeping individual positions intact
 - **Toolpath Generation**: Convert designs to executable G-code
-- **NEW**: Frame button to generate Bounds Gcode
+- Frame button to generate Bounds Gcode
 - **Image Import**: Import raster files, jpg, png, bmp ...
   - New features in the image engraving Inspector
-  - **NEW**: G-code generator optimized for raster images
+  - G-code generator optimized for raster images
 
 - **New improvements in Designer**
   - Multiple images and vector objects can now be placed on the canvas, and G-code can be generated for all of them according to the order set in the Layers panel. Laser parameters for vector objects are set using the "Tool Settings" button, while image engraving parameters are set independently for each image in the object properties.
@@ -168,22 +168,33 @@ The object positioning issue when opening "gckd" files.
   **Individual properties by object**
   - In addition to the general properties for laser engraving and cutting that apply to all objects in the Designer and are set in "Tool Settings", you can now define individual properties for each object by selecting, via a checkbox, whether you want to use global or specific properties for that object.
 
+  **Shape Gallery**
+  - In the shapes gallery, you can quickly draw various objects such as pinions and gears. These can then be edited by changing the pitch and number of teeth.
+  - Now the shapes are drawn correctly
+  - The ability to edit Timing Pulleys, which were previously not editable, has been added.
+
+  **3D objects for CNC**
+  - Z coordinate implemented for CNC machining
+  - Objects in 3D Mode have depth, and machining conditions are configured through Global CAM Properties, including Tool Travel Speed, Tool Revolutions, Tool Diameter, and Depth of Cut.
+  - You can also define individual properties for each object. Unchecking "Use global values" in the properties panel will apply the new values ​​to the selected object.
+
 ### 👁️ 3D Visualizer
-- **Real-time Rendering**: Instant visualization of G-code toolpaths
+- **Real-time 3D Rendering**: Instant visualization of G-code toolpaths
 - **Adaptive Grid System**:
   - Dynamic grid spacing (e.g., 10mm, 100mm) based on zoom level
   - Infinite grid coverage across the entire viewport
   - Grid size indicator in status bar
   - Horizontal and vertical scrollbars for navigation
 - **Dynamic Canvas Sizing**: Automatically adjusts to window resize events
-- **Interactive Controls**: Zoom, pan, and fit-to-view, Orbit and isometric cámera with mouse interaction
+- **Interactive Controls**: Zoom, pan, and fit-to-view, **Orbit and isometric cámera with mouse interaction**
 - **Color-Coded Paths**: Distinct colors for Rapid (G0) and Feed (G1/G2/G3) moves
 - **Performance**: Optimized rendering for large files
 - **Shared Viewport Engine**: A centralized `ViewportTransform` keeps zoom/pan math consistent across toolpaths, grids, and origin markers.
 - **Toolpath Cache**: Parsing + SVG generation flow through a single cache so repeated renders skip redundant work.
 - **Unified Path Segments**: A single `PathSegment` enum (with shared `MovementMeta`, streaming visitors, lazy arc iterators, and cached arc geometry) powers both line and arc moves so stats/iteration stay fast and feed rates stay consistent.
 - **Analytical Bounds**: Bounding boxes are computed from segment metadata (including arcs), so zoom-to-fit and layout decisions never need to re-discretize toolpaths.
-- Add Play/Pause/Stop to reproduce the movement of the tool at different playback speed levels
+- Add **Play/Pause/Stop** to reproduce the movement of the tool at different playback speed levels
+
 ### 💬 Smart Device Console
 - **Command History**: Scrollable record of all device communications
 - **Color-Coded Messages**:

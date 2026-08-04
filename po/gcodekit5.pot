@@ -8,15 +8,16 @@ msgid ""
 msgstr ""
 "Project-Id-Version: GCodeKit5 1.0.1-alpha.0\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-12 17:54+0700\n"
+"POT-Creation-Date: 2026-08-05 00:46+0200\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
-"Language: \n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Poedit 3.4.2\n"
 
+# crates/gcodekit5-ui/src/gtk_app.rs
 msgid "About"
 msgstr ""
 
@@ -53,8 +54,6 @@ msgstr ""
 msgid "File"
 msgstr ""
 
-#. Polling is now handled centrally by MachineControlView to avoid race conditions on serial read
-#. Add Editor to Stack
 msgid "GCode Toolkit for CNC/Laser Machines"
 msgstr ""
 
@@ -107,6 +106,12 @@ msgid "Save As..."
 msgstr ""
 
 msgid "Undo"
+msgstr ""
+
+msgid "New 2D"
+msgstr ""
+
+msgid "New 3D"
 msgstr ""
 
 # crates/gcodekit5-ui/src/ui/gtk/settings.rs
@@ -232,6 +237,12 @@ msgstr ""
 msgid "Export SVG"
 msgstr ""
 
+msgid "New 2D design created"
+msgstr ""
+
+msgid "New 3D design created"
+msgstr ""
+
 # crates/gcodekit5-settings/src/config.rs
 msgid "Machine Control"
 msgstr ""
@@ -307,7 +318,7 @@ msgstr ""
 msgid "Fast Shapes"
 msgstr ""
 
-msgid "Shape Gallery…"
+msgid "Shape Galleryâ¦"
 msgstr ""
 
 msgid "Machine Mode"
@@ -358,7 +369,7 @@ msgstr ""
 msgid "Depth per pass"
 msgstr ""
 
-msgid "Tool Settings…"
+msgid "Tool Settingsâ¦"
 msgstr ""
 
 msgid "Tool Parameters"
@@ -388,16 +399,10 @@ msgstr ""
 msgid "Safe height for rapid moves"
 msgstr ""
 
-msgid "Resolution"
-msgstr ""
-
-msgid "Simulation resolution (lower = more detail)"
-msgstr ""
-
 msgid "Show Stock Removal"
 msgstr ""
 
-msgid "Stock Settings…"
+msgid "Stock Settingsâ¦"
 msgstr ""
 
 msgid "Stock Settings"
@@ -456,7 +461,7 @@ msgid "Unlocking..."
 msgstr ""
 
 #: gcodekit5-ui/src/ui/gtk/machine_control/mod.rs.rs
-msgid "✅ Work completed in:"
+msgid "â Work completed in:"
 msgstr ""
 
 # crates/gcodekit5-ui/src/ui/gtk/designer.rs
@@ -616,7 +621,7 @@ msgstr ""
 msgid "Nothing to export"
 msgstr ""
 
-# crates/gcodekit5-ui/src/ui/gtk/visualizer.rs
+# crates/gcodekit5-ui/src/ui/gtk/visualizer/mod.rs
 msgid "Hide Sidebar"
 msgstr ""
 
@@ -659,8 +664,23 @@ msgstr ""
 msgid "Visualizer shortcuts"
 msgstr ""
 
+msgid "Speed"
+msgstr ""
+
+msgid "Preview playback speed"
+msgstr ""
+
+msgid "Play preview"
+msgstr ""
+
+msgid "Pause preview"
+msgstr ""
+
+msgid "Stop preview"
+msgstr ""
+
 # crates/gcodekit5-ui/src/ui/gtk/device_manager.rs
-msgid "Delete “{}”? This cannot be undone."
+msgid "Delete â{}â? This cannot be undone."
 msgstr ""
 
 # crates/gcodekit5-ui/src/ui/gtk/machine_control.rs
@@ -703,7 +723,7 @@ msgstr ""
 msgid "Resume streaming (~)"
 msgstr ""
 
-msgid "Stop aborts streaming; E‑Stop resets the controller."
+msgid "Stop aborts streaming; EâStop resets the controller."
 msgstr ""
 
 msgid "Job Control"
@@ -826,10 +846,10 @@ msgstr ""
 msgid "Error disconnecting"
 msgstr ""
 
-msgid "Connecting…"
+msgid "Connectingâ¦"
 msgstr ""
 
-msgid "State: Connecting…"
+msgid "State: Connectingâ¦"
 msgstr ""
 
 msgid "Connected to"
@@ -1018,7 +1038,7 @@ msgstr ""
 msgid "Enable Hatch:"
 msgstr ""
 
-msgid "Hatch Angle (°):"
+msgid "Hatch Angle (Â°):"
 msgstr ""
 
 msgid "Cross Hatch:"
@@ -1288,6 +1308,37 @@ msgstr ""
 msgid "Failed to generate puzzle"
 msgstr ""
 
+# gcodekit5/crates/gcodekit5-ui/src/ui/gtk/fast_shape_gallery.rs
+msgid "Spur Gear"
+msgstr ""
+
+msgid "Standard involute spur gear"
+msgstr ""
+
+msgid "Timing Pulley"
+msgstr ""
+
+msgid "XL timing belt pulley"
+msgstr ""
+
+msgid "Chain sprocket for #40 chain"
+msgstr ""
+
+msgid "Rectangular slot/cutout"
+msgstr ""
+
+msgid "L-Bracket"
+msgstr ""
+
+msgid "U-Bracket"
+msgstr ""
+
+msgid "L-shaped bracket with holes"
+msgstr ""
+
+msgid "U-shaped channel bracket"
+msgstr ""
+
 # gcodekit5/crates/gcodekit5-ui/src/ui/gtk/designer_properties/builders.rs
 msgid "Position"
 msgstr ""
@@ -1389,6 +1440,18 @@ msgid "Import STL"
 msgstr ""
 
 msgid "Import Image"
+msgstr ""
+
+msgid "Belt Width:"
+msgstr ""
+
+msgid "Hole Radius:"
+msgstr ""
+
+msgid "Radius:"
+msgstr ""
+
+msgid "Closed:"
 msgstr ""
 
 # gcodekit5/crates/gcodekit5-ui/src/ui/gtk/designer_properties/mod.rs

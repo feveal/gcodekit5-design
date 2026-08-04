@@ -83,7 +83,6 @@ pub struct DesignerState {
     // Stock removal simulation
     pub stock_material: Option<StockMaterial>,
     pub show_stock_removal: bool,
-    pub simulation_resolution: f32,
     pub simulation_result: Option<SimulationResult>,
     /// Number of axes on the active device (default 3).
     pub num_axes: u8,
@@ -123,7 +122,6 @@ impl DesignerState {
                 safe_z: StockMaterial::default_safe_z_for_thickness(10.0),
             }),
             show_stock_removal: false,
-            simulation_resolution: 0.1,
             simulation_result: None,
             num_axes: 3,
         }

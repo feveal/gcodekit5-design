@@ -603,16 +603,19 @@ impl DesignerToolbox {
 
         {
             let state_getter = state.clone();
-            let getter = Rc::new(move || state_getter.borrow().simulation_resolution);
+            let getter = Rc::new(move || {
+                let step_down = state_getter.borrow().tool_settings.step_down;
+                if step_down > 0.0 { step_down as f32 } else { 0.1 }
+            });
             let state_setter = state.clone();
             let setter = Rc::new(move |val: f32| {
-                state_setter.borrow_mut().simulation_resolution = val.clamp(0.01, 2.0);
+                state_setter.borrow_mut().set_step_down(val.max(0.1) as f64);
             });
             create_stock_setting(
-                t!("Resolution"),
+                t!("Step Down"),
                 getter,
                 setter,
-                t!("Simulation resolution (lower = more detail)"),
+                t!("Depth per pass"),
             );
         }
 
