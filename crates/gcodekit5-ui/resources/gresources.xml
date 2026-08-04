@@ -71,6 +71,8 @@
     <file compressed="true" alias="help_images/order_objects_1.png">help_images/order_objects_1.png</file>
     <file compressed="true" alias="help_images/order_objects_2.png">help_images/order_objects_2.png</file>
     <file compressed="true" alias="help_images/visualizer.png">help_images/visualizer.png</file>
+    <file compressed="true" alias="help_images/visualizer3d.png">help_images/visualizer3d.png</file>
+    <file compressed="true" alias="help_images/visualizer3d1.png">help_images/visualizer3d1.png</file>
     <file compressed="true" alias="help_images/warning_limits.png">help_images/warning_limits.png</file>
   </gresource>
 </gresources>

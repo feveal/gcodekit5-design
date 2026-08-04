@@ -22,15 +22,28 @@ pub struct StockMaterial {
 }
 
 impl StockMaterial {
+    /// Default clearance above stock top (mm) for safe Z moves.
+    pub const DEFAULT_SAFE_Z_ABOVE_STOCK_MM: f32 = 5.0;
+    /// Minimum clearance above stock top (mm) for safe Z moves.
+    pub const MIN_SAFE_Z_ABOVE_STOCK_MM: f32 = 1.0;
+
+    /// Returns the default safe Z for a given stock thickness.
+    pub fn default_safe_z_for_thickness(thickness: f32) -> f32 {
+        thickness.max(0.0) + Self::DEFAULT_SAFE_Z_ABOVE_STOCK_MM
+    }
+
     /// Create a new stock material definition
     pub fn new(width: f32, height: f32, thickness: f32, origin: (f32, f32, f32)) -> Self {
-        Self {
+        let default_safe_z = Self::default_safe_z_for_thickness(thickness);
+        let mut stock = Self {
             width,
             height,
             thickness,
             origin,
-            safe_z: 10.0,
-        }
+            safe_z: default_safe_z,
+        };
+        stock.normalize_safe_z();
+        stock
     }
 
     /// Create a new stock material definition with custom safe Z height
@@ -41,12 +54,28 @@ impl StockMaterial {
         origin: (f32, f32, f32),
         safe_z: f32,
     ) -> Self {
-        Self {
+        let mut stock = Self {
             width,
             height,
             thickness,
             origin,
             safe_z,
+        };
+        stock.normalize_safe_z();
+        stock
+    }
+
+    /// Returns the minimum safe Z required for a given stock thickness.
+    pub fn min_safe_z_for_thickness(thickness: f32) -> f32 {
+        thickness.max(0.0) + Self::MIN_SAFE_Z_ABOVE_STOCK_MM
+    }
+
+    /// Clamps stock thickness/safe-Z so safe-Z is always above stock top.
+    pub fn normalize_safe_z(&mut self) {
+        self.thickness = self.thickness.max(0.0);
+        let min_safe_z = Self::min_safe_z_for_thickness(self.thickness);
+        if self.safe_z < min_safe_z {
+            self.safe_z = min_safe_z;
         }
     }
 
@@ -640,6 +669,15 @@ mod tests {
         assert_eq!(stock.thickness, 10.0);
         assert_eq!(stock.center(), (50.0, 100.0, 5.0));
         assert_eq!(stock.top_z(), 10.0);
+        assert_eq!(stock.safe_z, 15.0);
+    }
+
+    #[test]
+    fn test_safe_z_is_clamped_to_one_mm_above_stock() {
+        let stock = StockMaterial::with_safe_z(100.0, 200.0, 10.0, (0.0, 0.0, 0.0), 10.5);
+
+        assert_eq!(StockMaterial::min_safe_z_for_thickness(10.0), 11.0);
+        assert_eq!(stock.safe_z, 11.0);
     }
 
     #[test]

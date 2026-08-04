@@ -178,6 +178,7 @@ impl Canvas {
                 operation_type: obj.operation_type,
                 use_custom_values: obj.use_custom_values,
                 pocket_depth: obj.pocket_depth,
+                z_offset: obj.z_offset,
                 start_depth: obj.start_depth,
                 step_down: obj.step_down,
                 step_in: obj.step_in,

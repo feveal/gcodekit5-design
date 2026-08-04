@@ -1,17 +1,38 @@
 //! File operations for DesignerView
 
 use super::*;
+use gcodekit5_designer::designer_state::MachineMode;
+use gcodekit5_designer::serialization::DesignMode;
 
 impl DesignerView {
     pub fn new_file(&self) {
+        self.new_file_2d();
+    }
+
+    pub fn new_file_2d(&self) {
         let mut state = self.canvas.state.borrow_mut();
         state.canvas.clear();
+        state.set_machine_mode(MachineMode::Laser2D);
         *self.current_file.borrow_mut() = None;
         drop(state);
 
+        self.toolbox.refresh_settings();
         self.layers.refresh(&self.canvas.state);
         self.canvas.widget.queue_draw();
-        self.set_status(&t!("New design created"));
+        self.set_status(&t!("New 2D design created"));
+    }
+
+    pub fn new_file_3d(&self) {
+        let mut state = self.canvas.state.borrow_mut();
+        state.canvas.clear();
+        state.set_machine_mode(MachineMode::Cnc3D);
+        *self.current_file.borrow_mut() = None;
+        drop(state);
+
+        self.toolbox.refresh_settings();
+        self.layers.refresh(&self.canvas.state);
+        self.canvas.widget.queue_draw();
+        self.set_status(&t!("New 3D design created"));
     }
 
     pub fn open_file(&self) {
@@ -70,6 +91,12 @@ impl DesignerView {
                                 let mut state = canvas.state.borrow_mut();
                                 state.canvas.clear();
 
+                                // Restore persisted document mode (defaults to 2D on old files).
+                                state.set_machine_mode(match design.design_mode {
+                                    DesignMode::TwoD => MachineMode::Laser2D,
+                                    DesignMode::ThreeD => MachineMode::Cnc3D,
+                                });
+
                                 let mut max_id = 0;
                                 let mut restored_shapes = 0;
                                 for shape_data in design.shapes {
@@ -98,6 +125,8 @@ impl DesignerView {
                                 design.toolpath_params.tool_diameter;
                                 state.tool_settings.cut_depth =                        design.toolpath_params.cut_depth;
                                 state.tool_settings.step_down =                         design.toolpath_params.step_down;
+                                state.tool_settings.continuous_z_between_passes =
+                                    design.toolpath_params.continuous_z_between_passes;
 
                                 state.stock_material = Some(StockMaterial {
                                     width: design.toolpath_params.stock_width,
@@ -472,9 +501,14 @@ impl DesignerView {
         // Set initial directory from settings
         if let Some(ref settings) = self.settings_persistence {
             if let Ok(settings_ref) = settings.try_borrow() {
-                let default_dir = &settings_ref.config().file_processing.output_directory;
-                if default_dir.exists() {
-                    let file = gtk4::gio::File::for_path(default_dir);
+                let last_path = &settings_ref.config().file_processing.output_directory;
+                if last_path.exists() {
+                    let folder_path = if last_path.is_file() {
+                        last_path.parent().unwrap_or(last_path).to_path_buf()
+                    } else {
+                        last_path.clone()
+                    };
+                    let file = gtk4::gio::File::for_path(folder_path);
                     let _ = dialog.set_current_folder(Some(&file));
                 }
             }
@@ -519,6 +553,11 @@ impl DesignerView {
                         let mut design =
                             DesignFile::new(path.file_stem().unwrap_or_default().to_string_lossy());
 
+                        design.design_mode = match state.machine_mode() {
+                            MachineMode::Laser2D => DesignMode::TwoD,
+                            MachineMode::Cnc3D => DesignMode::ThreeD,
+                        };
+
                         // Viewport
                         design.viewport.zoom = state.canvas.zoom();
                         design.viewport.pan_x = state.canvas.pan_x();
@@ -531,6 +570,8 @@ impl DesignerView {
                         design.toolpath_params.tool_diameter = state.tool_settings.tool_diameter;
                         design.toolpath_params.cut_depth = state.tool_settings.cut_depth;
                         design.toolpath_params.step_down = state.tool_settings.step_down;
+                        design.toolpath_params.continuous_z_between_passes =
+                            state.tool_settings.continuous_z_between_passes;
 
                         // Stock and toolpath parameters
                         if let Some(ref stock) = state.stock_material {
@@ -588,6 +629,11 @@ impl DesignerView {
         let state = self.canvas.state.borrow();
         let mut design = DesignFile::new(path.file_stem().unwrap_or_default().to_string_lossy());
 
+        design.design_mode = match state.machine_mode() {
+            MachineMode::Laser2D => DesignMode::TwoD,
+            MachineMode::Cnc3D => DesignMode::ThreeD,
+        };
+
         // Viewport
         design.viewport.zoom = state.canvas.zoom();
         design.viewport.pan_x = state.canvas.pan_x();
@@ -599,6 +645,8 @@ impl DesignerView {
         design.toolpath_params.tool_diameter = state.tool_settings.tool_diameter;
         design.toolpath_params.cut_depth = state.tool_settings.cut_depth;
         design.toolpath_params.step_down = state.tool_settings.step_down;
+        design.toolpath_params.continuous_z_between_passes =
+            state.tool_settings.continuous_z_between_passes;
 
         // Stock and toolpath parameters
         if let Some(ref stock) = state.stock_material {
@@ -700,22 +748,58 @@ impl DesignerView {
                         // Generate G-code
                         let mut state = canvas.state.borrow_mut();
 
+                        if let Some((safe_z, violating_count, max_start_z)) =
+                            state.safe_z_clearance_violation_summary()
+                        {
+                            drop(state);
+
+                            status_label
+                                .set_text(&t!("Export blocked: objects at/above Safe Z"));
+
+                            let parent = crate::ui::gtk::file_dialog::parent_window(&canvas.widget);
+                            crate::ui::gtk::common::dialog::show_warning(
+                                &t!("Invalid Z positioning"),
+                                &format!(
+                                    "{}\n\n{}\n{}\n{}",
+                                    t!("One or more objects are positioned at or above the Safe Z height."),
+                                    t!("Lower object Z positions before exporting G-code."),
+                                    format!("{}: {:.3} mm", t!("Safe Z"), safe_z),
+                                    format!(
+                                        "{}: {} ({}: {:.3} mm)",
+                                        t!("Objects in conflict"),
+                                        violating_count,
+                                        t!("highest start Z"),
+                                        max_start_z
+                                    )
+                                ),
+                                parent.as_ref(),
+                            );
+                            return;
+                        }
+
                         // Copy settings to avoid borrow issues
                         let feed_rate = state.tool_settings.feed_rate;
                         let spindle_speed = state.tool_settings.spindle_speed;
                         let tool_diameter = state.tool_settings.tool_diameter;
-                        let cut_depth = state.tool_settings.cut_depth;
                         let start_depth = state.tool_settings.start_depth;
 
                         // Update toolpath generator settings from state
                         state.toolpath_generator.set_feed_rate(feed_rate);
                         state.toolpath_generator.set_spindle_speed(spindle_speed);
                         state.toolpath_generator.set_tool_diameter(tool_diameter);
-                        state.toolpath_generator.set_cut_depth(cut_depth);
                         state.toolpath_generator.set_start_depth(start_depth);
                         state.toolpath_generator.set_step_in(tool_diameter * 0.4); // Default stepover
 
-                        let gcode = state.generate_gcode(None);
+                        let (gcode, has_out_of_limits_warning) = state.generate_gcode_with_warning_info(None);
+
+                        if has_out_of_limits_warning {
+                            let parent = crate::ui::gtk::file_dialog::parent_window(&canvas.widget);
+                            crate::ui::gtk::common::dialog::show_warning(
+                                &t!("Out of limits warning"),
+                                &t!("The generated G-code contains coordinates outside the machine working area. Review the path before sending it to the machine."),
+                                parent.as_ref(),
+                            );
+                        }
 
                         match std::fs::write(&path, gcode) {
                             Ok(_) => {
@@ -775,6 +859,21 @@ impl DesignerView {
         filter.set_name(Some("SVG Files"));
         filter.add_pattern("*.svg");
         dialog.add_filter(&filter);
+
+        if let Some(ref settings) = self.settings_persistence {
+            if let Ok(settings_ref) = settings.try_borrow() {
+                let last_path = &settings_ref.config().file_processing.output_directory;
+                if last_path.exists() {
+                    let folder_path = if last_path.is_file() {
+                        last_path.parent().unwrap_or(last_path).to_path_buf()
+                    } else {
+                        last_path.clone()
+                    };
+                    let file = gtk4::gio::File::for_path(folder_path);
+                    let _ = dialog.set_current_folder(Some(&file));
+                }
+            }
+        }
 
         let canvas = self.canvas.clone();
         let status_label = self.status_label.clone();
@@ -934,14 +1033,14 @@ impl DesignerView {
         // --- SUGGEST FILE NAME BASED ON CURRENT DESIGN ---
         let current_file_borrow = self.current_file.borrow();
         let default_name = if let Some(path) = current_file_borrow.as_ref() {
-            // We extract the name without the extension and add .nc to it.
+            // We extract the name without the extension and add .svg to it.
             path.file_stem()
                 .and_then(|s| s.to_str())
-                .map(|s| format!("{}.gckd", s))
-                .unwrap_or_else(|| "output.gckd".to_string())
+                .map(|s| format!("{}.svg", s))
+                .unwrap_or_else(|| "output.svg".to_string())
         } else {
             // If the design has never been saved before
-            "untitled_design.gckd".to_string()
+            "untitled_design.svg".to_string()
         };
 
         dialog.set_current_name(&default_name);

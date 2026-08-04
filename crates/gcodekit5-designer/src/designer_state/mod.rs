@@ -33,6 +33,7 @@ pub struct ToolSettings {
     pub cut_depth: f64,
     pub start_depth: f64,
     pub step_down: f64,
+    pub continuous_z_between_passes: bool,
     pub machine_mode: MachineMode,
 }
 
@@ -45,6 +46,7 @@ impl Default for ToolSettings {
             cut_depth: 0.0,
             start_depth: 0.0,
             step_down: 0.0,
+            continuous_z_between_passes: false,
             machine_mode: MachineMode::default(),
         }
     }
@@ -102,7 +104,7 @@ impl DesignerState {
             show_grid: true,
             grid_spacing_mm: 50.0,
             show_toolpaths: false,
-            snap_enabled: false,
+            snap_enabled: true,
             snap_threshold_mm: 0.5,
             clipboard: Vec::new(),
             default_properties_shape: crate::canvas::DrawingObject::new(
@@ -118,7 +120,7 @@ impl DesignerState {
                 height: 200.0,
                 thickness: 10.0,
                 origin: (0.0, 0.0, 0.0),
-                safe_z: 10.0,
+                safe_z: StockMaterial::default_safe_z_for_thickness(10.0),
             }),
             show_stock_removal: false,
             simulation_resolution: 0.1,
@@ -207,6 +209,12 @@ impl DesignerState {
             "step_down must be positive and finite, got {step}"
         );
         self.tool_settings.step_down = step;
+        self.gcode_generated = false;
+    }
+
+    /// Sets whether CNC should keep Z continuous between passes when possible.
+    pub fn set_continuous_z_between_passes(&mut self, enabled: bool) {
+        self.tool_settings.continuous_z_between_passes = enabled;
         self.gcode_generated = false;
     }
 

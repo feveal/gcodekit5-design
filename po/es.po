@@ -15,6 +15,7 @@ msgstr ""
 "X-Poedit-Basepath: ../crates/gcodekit5-ui/src/ui/gtk/cam_tools\n"
 "X-Poedit-SearchPath-0: vector_engraving.rs\n"
 
+# crates/gcodekit5-ui/src/gtk_app.rs
 msgid "About"
 msgstr "Acerca de"
 
@@ -51,8 +52,6 @@ msgstr "Exportar SVG..."
 msgid "File"
 msgstr "Archivo"
 
-#. Polling is now handled centrally by MachineControlView to avoid race conditions on serial read
-#. Add Editor to Stack
 msgid "GCode Toolkit for CNC/Laser Machines"
 msgstr "Kit de herramientas GCode para máquinas CNC/Láser"
 
@@ -106,6 +105,12 @@ msgstr "Guardar como..."
 
 msgid "Undo"
 msgstr "Deshacer"
+
+msgid "New 2D"
+msgstr "Nuevo 2D"
+
+msgid "New 3D"
+msgstr "Nuevo 3D"
 
 # crates/gcodekit5-ui/src/ui/gtk/settings.rs
 msgid "Controller"
@@ -229,6 +234,12 @@ msgstr "Guardado:"
 
 msgid "Export SVG"
 msgstr "Exportar SVG"
+
+msgid "New 2D design created"
+msgstr "Nuevo diseño 2D creado"
+
+msgid "New 3D design created"
+msgstr "Nuevo diseño 3D creado"
 
 # crates/gcodekit5-settings/src/config.rs
 msgid "Machine Control"
@@ -381,7 +392,7 @@ msgid "Stock material thickness"
 msgstr "Grosor del material en bruto"
 
 msgid "Safe Z Height"
-msgstr "Altura Z Seguridad"
+msgstr "Altura Z de Seguridad"
 
 msgid "Safe height for rapid moves"
 msgstr "Altura en Z para movimientos rápidos"
@@ -549,7 +560,7 @@ msgid "Grid spacing"
 msgstr "Espaciado de Rejilla"
 
 msgid "Snap"
-msgstr "Ajustar"
+msgstr "Forzar Cursor"
 
 msgid "Snap threshold"
 msgstr "Umbral de ajuste"
@@ -614,7 +625,7 @@ msgstr "Error exportando G-Code:"
 msgid "Nothing to export"
 msgstr "Nada que exportar"
 
-# crates/gcodekit5-ui/src/ui/gtk/visualizer.rs
+# crates/gcodekit5-ui/src/ui/gtk/visualizer/mod.rs
 msgid "Hide Sidebar"
 msgstr "Ocultar barra lateral"
 
@@ -656,6 +667,21 @@ msgstr "Abra un archivo para vista previa de las trayectorias."
 
 msgid "Visualizer shortcuts"
 msgstr "Atajos del visualizador"
+
+msgid "Speed"
+msgstr "Velocidad"
+
+msgid "Preview playback speed"
+msgstr "Previsualizar trayectoria"
+
+msgid "Play preview"
+msgstr "Reproducir previsalización"
+
+msgid "Pause preview"
+msgstr "Pausar previsalización"
+
+msgid "Stop preview"
+msgstr "Parar previsalización"
 
 # crates/gcodekit5-ui/src/ui/gtk/device_manager.rs
 msgid "Delete “{}”? This cannot be undone."
@@ -1286,6 +1312,37 @@ msgstr "Generación de Puzzle Fallida"
 msgid "Failed to generate puzzle"
 msgstr "Fallo al Generar el Puzzle"
 
+# gcodekit5/crates/gcodekit5-ui/src/ui/gtk/fast_shape_gallery.rs
+msgid "Spur Gear"
+msgstr "Engranaje recto"
+
+msgid "Standard involute spur gear"
+msgstr "Engranaje recto de perfil evolvente estándar"
+
+msgid "Timing Pulley"
+msgstr "Polea de distribución"
+
+msgid "XL timing belt pulley"
+msgstr "Correa dentada XL"
+
+msgid "Chain sprocket for #40 chain"
+msgstr "Piñón de cadena #40"
+
+msgid "Rectangular slot/cutout"
+msgstr "Ranura/recorte rectangular"
+
+msgid "L-Bracket"
+msgstr "Soporte en L"
+
+msgid "U-Bracket"
+msgstr "Soporte en U"
+
+msgid "L-shaped bracket with holes"
+msgstr "Soporte en L con agujeros"
+
+msgid "U-shaped channel bracket"
+msgstr "Soporte en U con agujeros"
+
 # gcodekit5/crates/gcodekit5-ui/src/ui/gtk/designer_properties/builders.rs
 msgid "Position"
 msgstr "Posición"
@@ -1388,6 +1445,18 @@ msgstr "Importar STL"
 
 msgid "Import Image"
 msgstr "Importar Imagen"
+
+msgid "Belt Width:"
+msgstr "Ancho Correa:"
+
+msgid "Hole Radius:"
+msgstr "Radio agujero:"
+
+msgid "Radius:"
+msgstr "Radio:"
+
+msgid "Closed:"
+msgstr "Cerrada:"
 
 # gcodekit5/crates/gcodekit5-ui/src/ui/gtk/designer_properties/mod.rs
 msgid "Select a shape to edit its properties"

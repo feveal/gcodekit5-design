@@ -12,9 +12,93 @@ use gcodekit5_core::Units;
 use crate::gcode_gen::MachineLimits;
 
 impl DesignerState {
+    fn shape_embedded_laser_use_global(shape: &DrawingObject) -> bool {
+        match &shape.shape {
+            crate::model::Shape::Rectangle(s) => s.laser_params.use_global,
+            crate::model::Shape::Circle(s) => s.laser_params.use_global,
+            crate::model::Shape::Line(s) => s.laser_params.use_global,
+            crate::model::Shape::Ellipse(s) => s.laser_params.use_global,
+            crate::model::Shape::Path(s) => s.laser_params.use_global,
+            crate::model::Shape::Text(s) => s.laser_params.use_global,
+            crate::model::Shape::Triangle(s) => s.laser_params.use_global,
+            crate::model::Shape::Polygon(s) => s.laser_params.use_global,
+            crate::model::Shape::Gear(s) => s.laser_params.use_global,
+            crate::model::Shape::Sprocket(s) => s.laser_params.use_global,
+            crate::model::Shape::RasterImage(_) => shape.laser_params.use_global,
+        }
+    }
+
+    fn apply_laser_params_to_shape(shape: &mut crate::model::Shape, params: LaserParams) {
+        match shape {
+            crate::model::Shape::Rectangle(s) => s.laser_params = params,
+            crate::model::Shape::Circle(s) => s.laser_params = params,
+            crate::model::Shape::Line(s) => s.laser_params = params,
+            crate::model::Shape::Ellipse(s) => s.laser_params = params,
+            crate::model::Shape::Path(s) => s.laser_params = params,
+            crate::model::Shape::Text(s) => s.laser_params = params,
+            crate::model::Shape::Triangle(s) => s.laser_params = params,
+            crate::model::Shape::Polygon(s) => s.laser_params = params,
+            crate::model::Shape::Gear(s) => s.laser_params = params,
+            crate::model::Shape::Sprocket(s) => s.laser_params = params,
+            crate::model::Shape::RasterImage(_) => {}
+        }
+    }
+
+    /// Computes effective start depth for CNC from UI Z.
+    ///
+    /// In CNC mode, UI Z is treated as depth from stock top.
+    /// Machine Z is absolute with table at 0 and stock top at stock_thickness,
+    /// therefore: machine_z = stock_thickness - ui_depth.
+    fn effective_cnc_start_depth_from_shape(&self, shape: &DrawingObject) -> f64 {
+        let stock_thickness = self
+            .stock_material
+            .as_ref()
+            .map(|s| s.thickness as f64)
+            .unwrap_or(10.0);
+        stock_thickness - (shape.start_depth + shape.z_offset)
+    }
+
+    /// Returns a safety violation summary when any object starts at/above safe Z in CNC mode.
+    ///
+    /// Tuple format: (safe_z, violating_count, max_object_start_z).
+    pub fn safe_z_clearance_violation_summary(&self) -> Option<(f64, usize, f64)> {
+        if self.machine_mode() != MachineMode::Cnc3D {
+            return None;
+        }
+
+        let safe_z = self
+            .stock_material
+            .as_ref()
+            .map(|s| s.safe_z as f64)
+            .unwrap_or(10.0);
+
+        let mut violating_count = 0usize;
+        let mut max_start_z = f64::NEG_INFINITY;
+
+        for shape in self.canvas.shape_store.iter() {
+            let start_z = self.effective_cnc_start_depth_from_shape(shape);
+            if start_z >= safe_z {
+                violating_count += 1;
+                if start_z > max_start_z {
+                    max_start_z = start_z;
+                }
+            }
+        }
+
+        if violating_count > 0 {
+            Some((safe_z, violating_count, max_start_z))
+        } else {
+            None
+        }
+    }
+
     /// Obtiene los parámetros láser efectivos para un objeto
     fn get_effective_laser_params(&self, shape: &DrawingObject) -> Option<LaserParams> {
-        if shape.use_global_laser {
+        let use_global = shape.use_global_laser
+            || shape.laser_params.use_global
+            || Self::shape_embedded_laser_use_global(shape);
+
+        if use_global {
             let passes = if self.machine_mode() == MachineMode::Laser2D {
                 // En modo láser: step_down ES el número de pasadas (1-10)
                 self.tool_settings.step_down.round().clamp(1.0, 10.0) as u32
@@ -36,9 +120,59 @@ impl DesignerState {
         }
     }
 
-    /// Generates G-code from the current design.
+    /// Normaliza parámetros efectivos para generación CNC 3D.
+    ///
+    /// En CNC, cuando el objeto no usa valores custom, se deben usar los
+    /// parámetros globales de herramienta para evitar inconsistencias entre UI y G-code.
+    fn build_effective_cnc_shape(&self, shape: &DrawingObject) -> DrawingObject {
+        let mut effective = shape.clone();
+        let cam_defaults = &self.default_properties_shape;
+
+        if !shape.use_custom_values {
+            effective.operation_type = cam_defaults.operation_type;
+            effective.pocket_depth = cam_defaults.pocket_depth;
+            effective.z_offset = cam_defaults.z_offset;
+            effective.step_in = cam_defaults.step_in;
+            effective.ramp_angle = cam_defaults.ramp_angle;
+            effective.pocket_strategy = cam_defaults.pocket_strategy;
+            effective.raster_fill_ratio = cam_defaults.raster_fill_ratio;
+
+            effective.step_down = if self.tool_settings.step_down > 0.0 {
+                self.tool_settings.step_down as f32
+            } else {
+                cam_defaults.step_down
+            };
+
+            effective.laser_params.use_global = true;
+            effective.laser_params.feed_rate = self.tool_settings.feed_rate;
+            effective.laser_params.power_percent = (self.tool_settings.spindle_speed as f64) / 10.0;
+        } else {
+            if effective.laser_params.use_global {
+                effective.laser_params.feed_rate = self.tool_settings.feed_rate;
+                effective.laser_params.power_percent =
+                    (self.tool_settings.spindle_speed as f64) / 10.0;
+            }
+        }
+
+        // CNC multipass must be driven by object CAM properties. Keep only a
+        // technical fallback for legacy objects with invalid/empty step-down.
+        if effective.step_down <= 0.0 {
+            effective.step_down = 0.1;
+        }
+        if effective.pocket_depth < 0.0 {
+            effective.pocket_depth = 0.0;
+        }
+
+        effective
+    }
+
+    /// Generates G-code from the current design and reports whether any toolpath
+    /// falls outside the machine limits.
     #[allow(clippy::collapsible_else_if)]
-   pub fn generate_gcode(&mut self, machine_limits: Option<MachineLimits>) -> String {
+    pub fn generate_gcode_with_warning_info(
+        &mut self,
+        machine_limits: Option<MachineLimits>,
+    ) -> (String, bool) {
         let mut gcode = String::new();
         // Get safe_z from stock_material, default to 10.0 if not set
         let safe_z = self
@@ -46,7 +180,8 @@ impl DesignerState {
             .as_ref()
             .map(|s| s.safe_z as f64)
             .unwrap_or(10.0);
-        let mut gcode_gen = ToolpathToGcode::new(Units::MM, safe_z);
+        let mut gcode_gen = ToolpathToGcode::new(Units::MM, safe_z)
+            .with_continuous_z_between_passes(self.tool_settings.continuous_z_between_passes);
 
 
     if let Some(limits) = machine_limits {
@@ -97,10 +232,16 @@ impl DesignerState {
                     continue; // Saltar si no está en la selección
                 }
             }
+
+            let effective_shape_obj = if self.machine_mode() == MachineMode::Cnc3D {
+                self.build_effective_cnc_shape(shape_obj)
+            } else {
+                shape_obj.clone()
+            };
             // ============================================================
             // 1. Obtener parámetros láser EFECTIVOS (respetando use_global_laser)
             // ============================================================
-            let effective_params = self.get_effective_laser_params(shape_obj);
+            let effective_params = self.get_effective_laser_params(&effective_shape_obj);
 
             // Aplicar override ANTES de generar toolpaths
             if gcode_gen.is_laser_2d {
@@ -120,59 +261,94 @@ impl DesignerState {
             // ============================================================
             // 2. Configurar otros parámetros
             // ============================================================
-            self.toolpath_generator
-                .set_pocket_strategy(shape_obj.pocket_strategy);
-            self.toolpath_generator
-                .set_start_depth(shape_obj.start_depth);
-            self.toolpath_generator
-                .set_cut_depth(shape_obj.pocket_depth);
-            self.toolpath_generator
-                .set_step_in(shape_obj.step_in as f64);
-            self.toolpath_generator
-                .set_ramp_angle(shape_obj.ramp_angle as f64);
-            self.toolpath_generator
-                .set_raster_fill_ratio(shape_obj.raster_fill_ratio);
+            let stock_top_z = self
+                .stock_material
+                .as_ref()
+                .map(|s| s.thickness as f64)
+                .unwrap_or(10.0);
 
-            let effective_shape = shape_obj.get_effective_shape();
+            let effective_start_depth = if self.machine_mode() == MachineMode::Cnc3D {
+                self.effective_cnc_start_depth_from_shape(&effective_shape_obj)
+            } else {
+                effective_shape_obj.start_depth
+            };
+
+            let (toolpath_start_depth, toolpath_cut_depth) =
+                if self.machine_mode() == MachineMode::Cnc3D {
+                    // CNC workflow: always start passes from stock top and descend to
+                    // final object Z (plus pocket depth if operation is Pocket).
+                    let final_object_z = if effective_shape_obj.operation_type == OperationType::Pocket {
+                        effective_start_depth - effective_shape_obj.pocket_depth.abs()
+                    } else {
+                        effective_start_depth
+                    };
+                    let cut_depth_from_stock = (stock_top_z - final_object_z).max(0.0);
+                    (stock_top_z, cut_depth_from_stock)
+                } else {
+                    (effective_start_depth, effective_shape_obj.pocket_depth)
+                };
+
+            self.toolpath_generator
+                .set_pocket_strategy(effective_shape_obj.pocket_strategy);
+            self.toolpath_generator
+                .set_start_depth(toolpath_start_depth);
+            self.toolpath_generator
+                .set_cut_depth(toolpath_cut_depth);
+            self.toolpath_generator
+                .set_step_in(effective_shape_obj.step_in as f64);
+            self.toolpath_generator
+                .set_ramp_angle(effective_shape_obj.ramp_angle as f64);
+            self.toolpath_generator
+                .set_raster_fill_ratio(effective_shape_obj.raster_fill_ratio);
+
+            let mut effective_shape = effective_shape_obj.get_effective_shape();
+
+            // Keep shape-embedded laser params in sync with the effective
+            // per-object/global choice so 2D toolpath generation cannot drift.
+            if gcode_gen.is_laser_2d {
+                if let Some(params) = effective_params {
+                    Self::apply_laser_params_to_shape(&mut effective_shape, params);
+                }
+            }
 
             // ============================================================
             // 3. Generar toolpaths
             // ============================================================
             let (toolpaths, pocket_fallback_to_profile) = match &effective_shape {
                 crate::model::Shape::Rectangle(rect) => {
-                    if shape_obj.operation_type == OperationType::Pocket {
+                    if effective_shape_obj.operation_type == OperationType::Pocket {
                         (
                             self.toolpath_generator.generate_rectangle_pocket(
                                 rect,
-                                shape_obj.pocket_depth,
-                                shape_obj.step_down as f64,
-                                shape_obj.step_in as f64,
+                                effective_shape_obj.pocket_depth,
+                                effective_shape_obj.step_down as f64,
+                                effective_shape_obj.step_in as f64,
                             ),
                             false,
                         )
                     } else {
                         (
                             self.toolpath_generator
-                                .generate_rectangle_contour(rect, shape_obj.step_down as f64),
+                                .generate_rectangle_contour(rect, effective_shape_obj.step_down as f64),
                             false,
                         )
                     }
                 }
                 crate::model::Shape::Circle(circle) => {
-                    if shape_obj.operation_type == OperationType::Pocket {
+                    if effective_shape_obj.operation_type == OperationType::Pocket {
                         (
                             self.toolpath_generator.generate_circle_pocket(
                                 circle,
-                                shape_obj.pocket_depth,
-                                shape_obj.step_down as f64,
-                                shape_obj.step_in as f64,
+                                effective_shape_obj.pocket_depth,
+                                effective_shape_obj.step_down as f64,
+                                effective_shape_obj.step_in as f64,
                             ),
                             false,
                         )
                     } else {
                         (
                             self.toolpath_generator
-                                .generate_circle_contour(circle, shape_obj.step_down as f64),
+                                .generate_circle_contour(circle, effective_shape_obj.step_down as f64),
                             false,
                         )
                     }
@@ -180,25 +356,25 @@ impl DesignerState {
 
                 crate::model::Shape::Line(line) => (
                     self.toolpath_generator
-                        .generate_line_contour(line, shape_obj.step_down as f64),
+                        .generate_line_contour(line, effective_shape_obj.step_down as f64),
                     false,
                 ),
 
                 crate::model::Shape::Ellipse(ellipse) => {
-                    if shape_obj.operation_type == OperationType::Pocket {
+                    if effective_shape_obj.operation_type == OperationType::Pocket {
                         (
                             self.toolpath_generator.generate_ellipse_pocket(
                                 ellipse,
-                                shape_obj.pocket_depth,
-                                shape_obj.step_down as f64,
-                                shape_obj.step_in as f64,
+                                effective_shape_obj.pocket_depth,
+                                effective_shape_obj.step_down as f64,
+                                effective_shape_obj.step_in as f64,
                             ),
                             false,
                         )
                     } else {
                         (
                             self.toolpath_generator
-                                .generate_ellipse_contour(ellipse, shape_obj.step_down as f64),
+                                .generate_ellipse_contour(ellipse, effective_shape_obj.step_down as f64),
                             false,
                         )
                     }
@@ -231,36 +407,36 @@ impl DesignerState {
                     }
 
                     // 3. We generate the G-code with the object already rotated
-                    if shape_obj.operation_type == OperationType::Pocket {
+                    if effective_shape_obj.operation_type == OperationType::Pocket {
                         (
                             self.toolpath_generator.generate_path_pocket(
                                 &rotated_path,
-                                shape_obj.pocket_depth,
-                                shape_obj.step_down as f64,
-                                shape_obj.step_in as f64,
+                                effective_shape_obj.pocket_depth,
+                                effective_shape_obj.step_down as f64,
+                                effective_shape_obj.step_in as f64,
                             ),
                             false,
                         )
                     } else {
                         (
                             self.toolpath_generator
-                                .generate_path_contour(&rotated_path, shape_obj.step_down as f64),
+                                .generate_path_contour(&rotated_path, effective_shape_obj.step_down as f64),
                             false,
                         )
                     }
                 }
 
                 crate::model::Shape::Text(text) => {
-                    if shape_obj.operation_type == OperationType::Pocket {
+                    if effective_shape_obj.operation_type == OperationType::Pocket {
                         let pocket = self
                             .toolpath_generator
-                            .generate_text_pocket_toolpath(text, shape_obj.step_down as f64);
+                            .generate_text_pocket_toolpath(text, effective_shape_obj.step_down as f64);
                         let pocket_len: f64 = pocket.iter().map(|tp| tp.total_length()).sum();
 
                         if pocket_len <= 1e-9 {
                             (
                                 self.toolpath_generator
-                                    .generate_text_toolpath(text, shape_obj.step_down as f64),
+                                    .generate_text_toolpath(text, effective_shape_obj.step_down as f64),
                                 true,
                             )
                         } else {
@@ -269,45 +445,45 @@ impl DesignerState {
                     } else {
                         (
                             self.toolpath_generator
-                                .generate_text_toolpath(text, shape_obj.step_down as f64),
+                                .generate_text_toolpath(text, effective_shape_obj.step_down as f64),
                             false,
                         )
                     }
                 }
                 crate::model::Shape::Triangle(triangle) => {
-                    if shape_obj.operation_type == OperationType::Pocket {
+                    if effective_shape_obj.operation_type == OperationType::Pocket {
                         (
                             self.toolpath_generator.generate_triangle_pocket(
                                 triangle,
-                                shape_obj.pocket_depth,
-                                shape_obj.step_down as f64,
-                                shape_obj.step_in as f64,
+                                effective_shape_obj.pocket_depth,
+                                effective_shape_obj.step_down as f64,
+                                effective_shape_obj.step_in as f64,
                             ),
                             false,
                         )
                     } else {
                         (
                             self.toolpath_generator
-                                .generate_triangle_contour(triangle, shape_obj.step_down as f64),
+                                .generate_triangle_contour(triangle, effective_shape_obj.step_down as f64),
                             false,
                         )
                     }
                 }
                 crate::model::Shape::Polygon(polygon) => {
-                    if shape_obj.operation_type == OperationType::Pocket {
+                    if effective_shape_obj.operation_type == OperationType::Pocket {
                         (
                             self.toolpath_generator.generate_polygon_pocket(
                                 polygon,
-                                shape_obj.pocket_depth,
-                                shape_obj.step_down as f64,
-                                shape_obj.step_in as f64,
+                                effective_shape_obj.pocket_depth,
+                                effective_shape_obj.step_down as f64,
+                                effective_shape_obj.step_in as f64,
                             ),
                             false,
                         )
                     } else {
                         (
                             self.toolpath_generator
-                                .generate_polygon_contour(polygon, shape_obj.step_down as f64),
+                                .generate_polygon_contour(polygon, effective_shape_obj.step_down as f64),
                             false,
                         )
                     }
@@ -320,16 +496,16 @@ impl DesignerState {
                 _ => {
                     let path = effective_shape.render();
                     let design_path = crate::model::DesignPath::from_lyon_path(&path);
-                    let toolpaths = if shape_obj.operation_type == OperationType::Pocket {
+                    let toolpaths = if effective_shape_obj.operation_type == OperationType::Pocket {
                         self.toolpath_generator.generate_path_pocket(
                             &design_path,
-                            shape_obj.pocket_depth,
-                            shape_obj.step_down as f64,
-                            shape_obj.step_in as f64,
+                            effective_shape_obj.pocket_depth,
+                            effective_shape_obj.step_down as f64,
+                            effective_shape_obj.step_in as f64,
                         )
                     } else {
                         self.toolpath_generator
-                            .generate_path_contour(&design_path, shape_obj.step_down as f64)
+                            .generate_path_contour(&design_path, effective_shape_obj.step_down as f64)
                     };
                     (toolpaths, false)
                 }
@@ -338,7 +514,7 @@ impl DesignerState {
             // ============================================================
             // 4. Guardar el resultado
             // ============================================================
-            shape_toolpaths.push((shape_obj.clone(), toolpaths, pocket_fallback_to_profile));
+            shape_toolpaths.push((effective_shape_obj, toolpaths, pocket_fallback_to_profile));
         }
 
         // Calculate total length from all toolpaths
@@ -535,12 +711,24 @@ impl DesignerState {
             } else {
                 if gcode_gen.is_laser_2d {
                 } else {
+                    let cnc_effective_depth = if self.machine_mode() == MachineMode::Cnc3D {
+                        let stock_top_z = self
+                            .stock_material
+                            .as_ref()
+                            .map(|s| s.thickness as f64)
+                            .unwrap_or(10.0);
+                        let object_final_z = self.effective_cnc_start_depth_from_shape(shape);
+                        (stock_top_z - object_final_z).max(0.0)
+                    } else {
+                        shape.pocket_depth
+                    };
                     gcode.push_str(&format!(
                         "; Cut depth: {:.3}mm, Step down: {:.3}mm\n",
-                        shape.pocket_depth, shape.step_down
+                        cnc_effective_depth, shape.step_down
                     ));
                 }
             }
+
             // Generate G-code for all toolpaths associated with this shape
             let mut current_z = gcode_gen.safe_z;
             // Init
@@ -553,18 +741,8 @@ impl DesignerState {
                     global_step_down.max(1.0) as usize
                 }
             } else {
-                // CNC MODE: use step_down
-                let total_depth = (shape.start_depth - shape.pocket_depth).abs();
-                if total_depth <= 0.001 {
-                    1
-                } else {
-                    let step = if shape.step_down <= 0.001 {
-                        total_depth
-                    } else {
-                        shape.step_down as f64
-                    };
-                    (total_depth / step).ceil() as usize
-                }
+                // CNC MODE: toolpaths already include multipass depth logic.
+                1
             };
 
             for pass in 0..num_passes {
@@ -610,8 +788,13 @@ impl DesignerState {
 
         self.generated_gcode = gcode.clone();
         self.gcode_generated = self.canvas.shape_count() > 0;
-        gcode
-    } // pub fn generate_gcode
+        (gcode, has_violation)
+    }
+
+    /// Generates G-code from the current design.
+    pub fn generate_gcode(&mut self, machine_limits: Option<MachineLimits>) -> String {
+        self.generate_gcode_with_warning_info(machine_limits).0
+    }
 
     /// Appends shape-specific metadata to G-code comments.
     fn append_shape_metadata(gcode: &mut String, shape: &DrawingObject) {

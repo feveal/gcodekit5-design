@@ -2,6 +2,7 @@
 
 use super::*;
 use gcodekit5_designer::designer_state::MachineMode;
+use gcodekit5_designer::model::ParametricPathSource;
 
 impl PropertiesPanel {
     pub(crate) fn set_entry_text_if_changed(
@@ -21,8 +22,8 @@ impl PropertiesPanel {
 
     /// Update the panel from the current selection.
     pub fn update_from_selection(&self) {
-
-        // Don't update if any widget has focus (user is editing)
+        // Do not rewrite entries while the user is typing; this preserves caret
+        // position and avoids forced formatting mid-edit.
         if *self.has_focus.borrow() {
             return;
         }
@@ -34,15 +35,16 @@ impl PropertiesPanel {
         // Update unit labels
         self.x_unit_label.set_text(unit_label);
         self.y_unit_label.set_text(unit_label);
+        self.z_unit_label.set_text(unit_label);
         self.width_unit_label.set_text(unit_label);
         self.height_unit_label.set_text(unit_label);
         self.radius_unit_label.set_text(unit_label);
         self.font_size_unit_label.set_text("pt");
         self.depth_unit_label.set_text(unit_label);
+        self.z_offset_unit_label.set_text(unit_label);
         self.step_down_unit_label.set_text(unit_label);
         self.step_in_unit_label.set_text(unit_label);
         self.offset_unit_label.set_text(unit_label);
-        self.fillet_unit_label.set_text(unit_label);
         self.chamfer_unit_label.set_text(unit_label);
 
         // Extract data first to avoid holding the borrow while updating widgets
@@ -79,8 +81,11 @@ impl PropertiesPanel {
                 Some((
                     vec![obj.id],
                     Some(obj.shape.clone()),
+                    obj.use_custom_values,
                     obj.operation_type,
                     obj.pocket_depth,
+                    obj.start_depth,
+                    obj.z_offset,
                     obj.step_down,
                     obj.step_in,
                     obj.ramp_angle,
@@ -99,8 +104,11 @@ impl PropertiesPanel {
                 Some((
                     selected.iter().map(|s| s.id).collect(),
                     None,
+                    obj.use_custom_values,
                     obj.operation_type,
                     obj.pocket_depth,
+                    obj.start_depth,
+                    obj.z_offset,
                     obj.step_down,
                     obj.step_in,
                     obj.ramp_angle,
@@ -120,8 +128,11 @@ impl PropertiesPanel {
         if let Some((
             ids,
             shape_opt,
+            use_custom_values,
             op_type,
             depth,
+            start_depth,
+            z_offset,
             step_down,
             step_in,
             ramp_angle,
@@ -262,14 +273,17 @@ impl PropertiesPanel {
             // Show/hide appropriate sections
             self.empty_label.set_visible(false);
 
-            let is_raster = matches!(shape_opt, Some(Shape::RasterImage(_)));
-            // CAM frame solo visible para shapes que no son imágenes
-            self.cam_frame.set_visible(!is_raster);
-            self.ops_frame.set_visible(!is_raster && any_not_text);
-
             // Obtener el modo de máquina
             let machine_mode = self.state.borrow().machine_mode();
             let is_laser = machine_mode == MachineMode::Laser2D;
+
+            let is_raster = matches!(shape_opt, Some(Shape::RasterImage(_)));
+            // CAM frame: only relevant for CNC 3D and non-raster shapes.
+            self.cam_frame.set_visible(!is_laser && !is_raster);
+            self.ops_frame.set_visible(!is_raster && any_not_text);
+
+            // Z position is only editable in CNC/3D mode.
+            self.pos_z_entry.set_sensitive(!is_laser);
 
             // El panel de propiedades láser solo se muestra en modo láser
             self.laser_override_frame
@@ -287,6 +301,11 @@ impl PropertiesPanel {
 
                 self.set_entry_text_if_changed(&self.pos_x_entry, center_x as f32, system);
                 self.set_entry_text_if_changed(&self.pos_y_entry, center_y as f32, system);
+                if is_laser {
+                    self.pos_z_entry.set_text("0");
+                } else {
+                    self.set_entry_text_if_changed(&self.pos_z_entry, start_depth as f32, system);
+                }
 
                 self.lock_aspect_ratio.set_active(lock_aspect);
 
@@ -298,6 +317,7 @@ impl PropertiesPanel {
                         self.polygon_frame.set_visible(false);
                         self.gear_frame.set_visible(false);
                         self.sprocket_frame.set_visible(false);
+                        self.timing_pulley_frame.set_visible(false);
                         self.ops_frame.set_visible(false);
                         self.cam_frame.set_visible(false);
                         self.image_engraving_frame.set_visible(true);
@@ -338,12 +358,14 @@ impl PropertiesPanel {
                         self.polygon_frame.set_visible(false);
                         self.gear_frame.set_visible(false);
                         self.sprocket_frame.set_visible(false);
+                        self.timing_pulley_frame.set_visible(false);
                         self.path_frame.set_visible(false);
                         self.set_entry_text_if_changed(
                             &self.corner_radius_entry,
                             r.corner_radius as f32,
                             system,
                         );
+                        self.is_slot_check.set_sensitive(true);
                         self.is_slot_check.set_active(r.is_slot);
                         self.rotation_entry.set_text(&format!("{:.1}", r.rotation));
                         self.rotation_entry.set_sensitive(true);
@@ -374,6 +396,7 @@ impl PropertiesPanel {
                         self.polygon_frame.set_visible(false);
                         self.gear_frame.set_visible(false);
                         self.sprocket_frame.set_visible(false);
+                        self.timing_pulley_frame.set_visible(false);
                         self.path_frame.set_visible(false);
                         self.rotation_entry.set_text("0.0");
                         self.rot_frame.set_visible(false);
@@ -423,6 +446,7 @@ impl PropertiesPanel {
                         self.polygon_frame.set_visible(false);
                         self.gear_frame.set_visible(false);
                         self.sprocket_frame.set_visible(false);
+                        self.timing_pulley_frame.set_visible(false);
 
                         // --- Laser Parameters
                         self.set_entry_text_if_changed(
@@ -448,6 +472,7 @@ impl PropertiesPanel {
                         self.polygon_frame.set_visible(false);
                         self.gear_frame.set_visible(false);
                         self.sprocket_frame.set_visible(false);
+                        self.timing_pulley_frame.set_visible(false);
                         self.path_frame.set_visible(false);
                         self.text_entry.set_text(&text_shape.text);
                         self.font_size_entry
@@ -504,6 +529,7 @@ impl PropertiesPanel {
                         self.polygon_frame.set_visible(true);
                         self.gear_frame.set_visible(false);
                         self.sprocket_frame.set_visible(false);
+                        self.timing_pulley_frame.set_visible(false);
                         self.path_frame.set_visible(false);
                         self.sides_entry.set_text(&p.sides.to_string());
                         self.rotation_entry.set_text(&format!("{:.1}", p.rotation));
@@ -533,6 +559,7 @@ impl PropertiesPanel {
                         self.polygon_frame.set_visible(false);
                         self.gear_frame.set_visible(true);
                         self.sprocket_frame.set_visible(false);
+                        self.timing_pulley_frame.set_visible(false);
                         self.path_frame.set_visible(false);
                         self.gear_module_entry.set_text(&format!("{:.2}", g.module));
                         self.gear_teeth_entry.set_text(&g.teeth.to_string());
@@ -565,6 +592,7 @@ impl PropertiesPanel {
                         self.polygon_frame.set_visible(false);
                         self.gear_frame.set_visible(false);
                         self.sprocket_frame.set_visible(true);
+                        self.timing_pulley_frame.set_visible(false);
                         self.path_frame.set_visible(false);
                         self.sprocket_pitch_entry
                             .set_text(&format!("{:.2}", s.pitch));
@@ -603,13 +631,40 @@ impl PropertiesPanel {
                             (y2 - y1) as f32,
                             system,
                         );
-                        self.corner_frame.set_visible(false);
+                        self.corner_frame.set_visible(true);
+                        self.set_entry_text_if_changed(
+                            &self.corner_radius_entry,
+                            fillet as f32,
+                            system,
+                        );
+                        self.is_slot_check.set_active(false);
+                        self.is_slot_check.set_sensitive(false);
                         self.text_frame.set_visible(false);
                         self.polygon_frame.set_visible(false);
                         self.gear_frame.set_visible(false);
                         self.sprocket_frame.set_visible(false);
+                        let timing_params = match &p.parametric_source {
+                            Some(ParametricPathSource::TimingPulley {
+                                pitch,
+                                teeth,
+                                belt_width,
+                                hole_radius,
+                            }) => Some((*pitch, *teeth, *belt_width, *hole_radius)),
+                            _ => None,
+                        };
+                        self.timing_pulley_frame.set_visible(timing_params.is_some());
                         self.path_frame.set_visible(true);
                         self.path_closed_check.set_active(p.closed);
+
+                        if let Some((pitch, teeth, belt_width, hole_radius)) = timing_params {
+                            self.timing_pulley_pitch_entry
+                                .set_text(&format!("{:.2}", pitch));
+                            self.timing_pulley_teeth_entry.set_text(&teeth.to_string());
+                            self.timing_pulley_belt_width_entry
+                                .set_text(&format!("{:.2}", belt_width));
+                            self.timing_pulley_hole_radius_entry
+                                .set_text(&format!("{:.2}", hole_radius));
+                        }
 
                         // No edit X Y
                         self.pos_x_entry.set_sensitive(true);
@@ -658,6 +713,7 @@ impl PropertiesPanel {
                         self.polygon_frame.set_visible(false);
                         self.gear_frame.set_visible(false);
                         self.sprocket_frame.set_visible(false);
+                        self.timing_pulley_frame.set_visible(false);
                         self.path_frame.set_visible(false);
                         self.set_entry_text_if_changed(&self.width_entry, tri.width as f32, system);
                         self.set_entry_text_if_changed(
@@ -691,6 +747,7 @@ impl PropertiesPanel {
                         self.polygon_frame.set_visible(false);
                         self.gear_frame.set_visible(false);
                         self.sprocket_frame.set_visible(false);
+                        self.timing_pulley_frame.set_visible(false);
                         self.path_frame.set_visible(false);
 
                         // Posición y rotación
@@ -737,6 +794,7 @@ impl PropertiesPanel {
                 self.polygon_frame.set_visible(false);
                 self.gear_frame.set_visible(false);
                 self.sprocket_frame.set_visible(false);
+                self.timing_pulley_frame.set_visible(false);
                 self.path_frame.set_visible(false);
                 self.image_engraving_frame.set_visible(false);
                 self.laser_override_frame.set_visible(false);
@@ -759,11 +817,28 @@ impl PropertiesPanel {
 
                 self.set_entry_text_if_changed(&self.pos_x_entry, min_x as f32, system);
                 self.set_entry_text_if_changed(&self.pos_y_entry, min_y as f32, system);
+                if is_laser {
+                    self.pos_z_entry.set_text("0");
+                } else {
+                    self.set_entry_text_if_changed(&self.pos_z_entry, start_depth as f32, system);
+                }
                 self.set_entry_text_if_changed(&self.width_entry, (max_x - min_x) as f32, system);
                 self.set_entry_text_if_changed(&self.height_entry, (max_y - min_y) as f32, system);
             }
 
             // Update CAM properties (common to all shapes)
+            let cam_enabled = !is_laser && !is_raster;
+            let use_global_cam = !use_custom_values;
+            self.cam_use_global_check.set_sensitive(cam_enabled);
+            self.cam_use_global_check.set_active(use_global_cam);
+
+            let cam_entries_enabled = cam_enabled && use_custom_values;
+            self.op_type_combo.set_sensitive(cam_entries_enabled);
+            self.depth_entry.set_sensitive(cam_entries_enabled);
+            self.z_offset_entry.set_sensitive(cam_entries_enabled);
+            self.step_down_entry.set_sensitive(cam_entries_enabled);
+            self.ramp_angle_entry.set_sensitive(cam_entries_enabled);
+
             self.op_type_combo
                 .set_selected(if op_type == OperationType::Pocket {
                     1
@@ -772,6 +847,7 @@ impl PropertiesPanel {
                 });
 
             self.set_entry_text_if_changed(&self.depth_entry, depth as f32, system);
+            self.set_entry_text_if_changed(&self.z_offset_entry, z_offset as f32, system);
             self.set_entry_text_if_changed(&self.step_down_entry, step_down, system);
             self.set_entry_text_if_changed(&self.step_in_entry, step_in, system);
             self.ramp_angle_entry
@@ -788,14 +864,16 @@ impl PropertiesPanel {
 
             // Update geometry ops values
             self.offset_entry.set_text(&format!("{:.2}", offset));
-            self.fillet_entry.set_text(&format!("{:.2}", fillet));
             self.chamfer_entry.set_text(&format!("{:.2}", chamfer));
 
             // Enable/disable pocket-specific controls
             let is_pocket = op_type == OperationType::Pocket;
-            self.strategy_combo.set_sensitive(is_pocket);
-            self.step_in_entry.set_sensitive(is_pocket);
-            self.raster_fill_entry.set_sensitive(is_pocket);
+            self.strategy_combo
+                .set_sensitive(cam_entries_enabled && is_pocket);
+            self.step_in_entry
+                .set_sensitive(cam_entries_enabled && is_pocket);
+            self.raster_fill_entry
+                .set_sensitive(cam_entries_enabled && is_pocket);
 
             *self.updating.borrow_mut() = false;
         } else {
@@ -809,6 +887,7 @@ impl PropertiesPanel {
             self.polygon_frame.set_visible(false);
             self.gear_frame.set_visible(false);
             self.sprocket_frame.set_visible(false);
+            self.timing_pulley_frame.set_visible(false);
             self.path_frame.set_visible(false);
             self.cam_frame.set_visible(false);
             self.ops_frame.set_visible(false);
@@ -820,18 +899,23 @@ impl PropertiesPanel {
             *self.updating.borrow_mut() = true;
             self.pos_x_entry.set_text("");
             self.pos_y_entry.set_text("");
+            self.pos_z_entry.set_text("");
             self.width_entry.set_text("");
             self.height_entry.set_text("");
             self.rotation_entry.set_text("");
             self.corner_radius_entry.set_text("");
             self.depth_entry.set_text("");
+            self.z_offset_entry.set_text("");
             self.step_down_entry.set_text("");
             self.step_in_entry.set_text("");
             self.ramp_angle_entry.set_text("");
 
             // Disable widgets when nothing selected
             self.op_type_combo.set_sensitive(false);
+            self.cam_use_global_check.set_sensitive(false);
+            self.cam_use_global_check.set_active(false);
             self.depth_entry.set_sensitive(false);
+            self.z_offset_entry.set_sensitive(false);
             self.step_down_entry.set_sensitive(false);
             self.step_in_entry.set_sensitive(false);
             self.ramp_angle_entry.set_sensitive(false);
@@ -849,12 +933,14 @@ impl PropertiesPanel {
         let entries = vec![
             &self.pos_x_entry,
             &self.pos_y_entry,
+            &self.pos_z_entry,
             &self.width_entry,
             &self.height_entry,
             &self.rotation_entry,
             &self.corner_radius_entry,
             &self.font_size_entry,
             &self.depth_entry,
+            &self.z_offset_entry,
             &self.step_down_entry,
             &self.step_in_entry,
             &self.ramp_angle_entry,
@@ -866,8 +952,11 @@ impl PropertiesPanel {
             &self.sprocket_pitch_entry,
             &self.sprocket_teeth_entry,
             &self.sprocket_roller_diameter_entry,
+            &self.timing_pulley_pitch_entry,
+            &self.timing_pulley_teeth_entry,
+            &self.timing_pulley_belt_width_entry,
+            &self.timing_pulley_hole_radius_entry,
             &self.offset_entry,
-            &self.fillet_entry,
             &self.chamfer_entry,
             &self.image_feed_rate_entry,
             &self.image_travel_rate_entry,

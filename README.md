@@ -168,22 +168,22 @@ The object positioning issue when opening "gckd" files.
   **Individual properties by object**
   - In addition to the general properties for laser engraving and cutting that apply to all objects in the Designer and are set in "Tool Settings", you can now define individual properties for each object by selecting, via a checkbox, whether you want to use global or specific properties for that object.
 
-### 👁️ 2D Visualizer
+### 👁️ 3D Visualizer
 - **Real-time Rendering**: Instant visualization of G-code toolpaths
 - **Adaptive Grid System**:
   - Dynamic grid spacing (e.g., 10mm, 100mm) based on zoom level
   - Infinite grid coverage across the entire viewport
   - Grid size indicator in status bar
-  - **NEW**: Horizontal and vertical scrollbars for navigation
+  - Horizontal and vertical scrollbars for navigation
 - **Dynamic Canvas Sizing**: Automatically adjusts to window resize events
-- **Interactive Controls**: Zoom, pan, and fit-to-view with mouse interaction
+- **Interactive Controls**: Zoom, pan, and fit-to-view, Orbit and isometric cámera with mouse interaction
 - **Color-Coded Paths**: Distinct colors for Rapid (G0) and Feed (G1/G2/G3) moves
 - **Performance**: Optimized rendering for large files
 - **Shared Viewport Engine**: A centralized `ViewportTransform` keeps zoom/pan math consistent across toolpaths, grids, and origin markers.
 - **Toolpath Cache**: Parsing + SVG generation flow through a single cache so repeated renders skip redundant work.
 - **Unified Path Segments**: A single `PathSegment` enum (with shared `MovementMeta`, streaming visitors, lazy arc iterators, and cached arc geometry) powers both line and arc moves so stats/iteration stay fast and feed rates stay consistent.
 - **Analytical Bounds**: Bounding boxes are computed from segment metadata (including arcs), so zoom-to-fit and layout decisions never need to re-discretize toolpaths.
-
+- Add Play/Pause/Stop to reproduce the movement of the tool at different playback speed levels
 ### 💬 Smart Device Console
 - **Command History**: Scrollable record of all device communications
 - **Color-Coded Messages**:
@@ -577,8 +577,18 @@ You may choose either license for your use of this software.
 **Status**: Active Development
 **Stability**: Alpha (breaking changes may occur)
 
-### Recent Updates (1.0.0-alpha.1) - Multiple modifications and adjustments
+### Recent Updates (1.1.0-beta.1) - Multiple modifications and adjustments
+- The grid adjustment checkbox now forces the cursor to move with a snapping point based on the adjustment parameter. Objects take values ​​in multiples of this adjustment value (Snap).
+- In 3D mode, the Z coordinate is implemented to generate 3D G-code with passes based on the machining parameters in the Global or specific properties of each object.
+- The 2D viewer is removed, and the 3D viewer is always used for all G-code, whether 2D or 3D. Camera positions are used for this purpose.
+- The safety height parameter is generated from the entered value and the material thickness.
+- A warning dialog box has been added for when G-code is generated outside the machine limits. The warning is also retained within the G-code itself.
+- When saving as, the last path is used.
+- Play/pause/stop buttons and playback speed values ​​have been added to the viewer for simulating the tool's path on screen.
+- The shapes in the Shape Gallery have been corrected, and parametric mode has been added to the timing belt pulley, which previously lacked it.
+- Some errors in creating chamfers and radii on shape objects have been fixed.
 
+### Recent Updates (1.0.0-alpha.1) - Multiple modifications and adjustments
 - Triangle generation in the designer has been corrected. Triangles can now be generated in all four positions and true symmetry can be applied. Previously, they could only be generated in one position.
 - The bounds of the triangles are now generated correctly and updated when the triangle is rotated.
 - The G-code and the Visualizer correctly reproduce the position of the triangles.

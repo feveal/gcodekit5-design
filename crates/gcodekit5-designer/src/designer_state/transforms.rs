@@ -391,6 +391,9 @@ impl DesignerState {
             if let Some(obj) = self.canvas.get_shape(id) {
                 let mut new_obj = obj.clone();
                 new_obj.fillet = radius;
+                if matches!(new_obj.shape, crate::model::Shape::Path(_)) {
+                    new_obj.chamfer = 0.0;
+                }
 
                 commands.push(DesignerCommand::ChangeProperty(ChangeProperty {
                     id,
@@ -425,6 +428,9 @@ impl DesignerState {
             if let Some(obj) = self.canvas.get_shape(id) {
                 let mut new_obj = obj.clone();
                 new_obj.chamfer = distance;
+                if matches!(new_obj.shape, crate::model::Shape::Path(_)) {
+                    new_obj.fillet = 0.0;
+                }
 
                 commands.push(DesignerCommand::ChangeProperty(ChangeProperty {
                     id,

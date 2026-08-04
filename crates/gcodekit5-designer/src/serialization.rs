@@ -19,12 +19,24 @@ use super::pocket_operations::PocketStrategy;
 use crate::model::*;
 
 /// Design file format version
-const FILE_FORMAT_VERSION: &str = "1.0";
+const FILE_FORMAT_VERSION: &str = "1.1";
+
+/// Document mode stored in design files.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum DesignMode {
+    #[default]
+    #[serde(rename = "2d")]
+    TwoD,
+    #[serde(rename = "3d")]
+    ThreeD,
+}
 
 /// Complete design file structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DesignFile {
     pub version: String,
+    #[serde(default)]
+    pub design_mode: DesignMode,
     pub metadata: DesignMetadata,
     pub viewport: ViewportState,
     pub shapes: Vec<ShapeData>,
@@ -76,6 +88,8 @@ pub struct ShapeData {
     pub operation_type: String,
     #[serde(default)]
     pub pocket_depth: f64,
+    #[serde(default)]
+    pub z: f64,
     #[serde(default)]
     pub start_depth: f64,
     #[serde(default)]
@@ -233,6 +247,8 @@ pub struct ToolpathParameters {
     pub cut_depth: f64,
     #[serde(default = "default_step_down")]
     pub step_down: f64,
+    #[serde(default = "default_continuous_z_between_passes")]
+    pub continuous_z_between_passes: bool,
     #[serde(default = "default_stock_width")]
     pub stock_width: f32,
     #[serde(default = "default_stock_height")]
@@ -258,6 +274,9 @@ fn default_cut_depth() -> f64 {
 fn default_step_down() -> f64 {
     1.0
 }
+fn default_continuous_z_between_passes() -> bool {
+    false
+}
 fn default_stock_width() -> f32 {
     200.0
 }
@@ -268,7 +287,7 @@ fn default_stock_thickness() -> f32 {
     10.0
 }
 fn default_safe_z_height() -> f32 {
-    10.0
+    default_stock_thickness() + 5.0
 }
 
 impl Default for ToolpathParameters {
@@ -279,6 +298,7 @@ impl Default for ToolpathParameters {
             tool_diameter: default_tool_diameter(),
             cut_depth: default_cut_depth(),
             step_down: default_step_down(),
+            continuous_z_between_passes: default_continuous_z_between_passes(),
             stock_width: default_stock_width(),
             stock_height: default_stock_height(),
             stock_thickness: default_stock_thickness(),
@@ -318,6 +338,12 @@ impl ToolpathParameters {
         self
     }
 
+    /// Builder method to enable/disable continuous Z between passes.
+    pub fn with_continuous_z_between_passes(mut self, enabled: bool) -> Self {
+        self.continuous_z_between_passes = enabled;
+        self
+    }
+
     /// Builder method to set stock width in mm.
     pub fn with_stock_width(mut self, width: f32) -> Self {
         self.stock_width = width;
@@ -349,6 +375,7 @@ impl DesignFile {
         let now = Utc::now();
         Self {
             version: FILE_FORMAT_VERSION.to_string(),
+            design_mode: DesignMode::default(),
             metadata: DesignMetadata {
                 name: name.into(),
                 created: now,
@@ -538,6 +565,7 @@ impl DesignFile {
                 OperationType::Pocket => "pocket".to_string(),
             },
             pocket_depth: obj.pocket_depth,
+            z: obj.z_offset,
             start_depth: obj.start_depth,
             step_down: obj.step_down,
             step_in: obj.step_in,
@@ -798,6 +826,7 @@ impl DesignFile {
             operation_type,
             use_custom_values: data.use_custom_values,
             pocket_depth: data.pocket_depth,
+            z_offset: data.z,
             start_depth: data.start_depth,
             step_down: data.step_down,
             step_in: data.step_in,

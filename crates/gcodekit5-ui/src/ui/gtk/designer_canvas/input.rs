@@ -5,7 +5,7 @@ use gcodekit5_designer::font_manager;
 use gcodekit5_designer::model::{
     DesignCircle as Circle, DesignEllipse as Ellipse, DesignLine as Line, DesignPath as PathShape,
     DesignPolygon as Polygon, DesignRectangle as Rectangle, DesignText as TextShape,
-    DesignTriangle as Triangle, Point, Shape,
+    DesignTriangle as Triangle, DesignerShape, Point, Shape,
 };
 use gtk4::prelude::*;
 use gtk4::{
@@ -493,18 +493,14 @@ impl DesignerCanvas {
         if !state.snap_enabled {
             return (x, y);
         }
-        let spacing = state.grid_spacing_mm;
-        if spacing <= 0.0 {
+        let step = state.snap_threshold_mm.max(0.0);
+        if step <= f64::EPSILON {
             return (x, y);
         }
-        let threshold = state.snap_threshold_mm.max(0.0);
 
-        let sx = (x / spacing).round() * spacing;
-        let sy = (y / spacing).round() * spacing;
-
-        let out_x = if (sx - x).abs() <= threshold { sx } else { x };
-        let out_y = if (sy - y).abs() <= threshold { sy } else { y };
-        (out_x, out_y)
+        let sx = (x / step).round() * step;
+        let sy = (y / step).round() * step;
+        (sx, sy)
     }
 
     fn open_text_tool_dialog(&self, canvas_x: f64, canvas_y: f64) {
@@ -719,6 +715,32 @@ impl DesignerCanvas {
         } else {
             (snapped_x, snapped_y)
         };
+
+        // Fast Shape placement: consume pending shape on next click and place at cursor point.
+        if let Some(mut pending_shape) = self.pending_fast_shape.borrow_mut().take() {
+            let (x1, y1, x2, y2) = pending_shape.bounds();
+            let center_x = (x1 + x2) * 0.5;
+            let center_y = (y1 + y2) * 0.5;
+            pending_shape.translate(canvas_x - center_x, canvas_y - center_y);
+
+            let mut state = self.state.borrow_mut();
+            state.add_shape_with_undo(pending_shape);
+            drop(state);
+
+            self.widget.set_cursor(None);
+
+            self.widget.queue_draw();
+
+            if let Some(ref props) = *self.properties.borrow() {
+                props.update_from_selection();
+            }
+
+            if let Some(ref layers) = *self.layers.borrow() {
+                layers.refresh(&self.state);
+            }
+
+            return;
+        }
 
         match tool {
             DesignerTool::Select => {
@@ -1030,6 +1052,15 @@ impl DesignerCanvas {
                         *self.resize_original_bounds.borrow_mut() =
                             Some((min_x, min_y, max_x - min_x, max_y - min_y));
 
+                        // Anchor drag start to the exact handle position to avoid introducing
+                        // an initial offset from where inside the handle box the user clicked.
+                        let handle_start = match handle {
+                            ResizeHandle::TopLeft => (min_x, max_y),
+                            ResizeHandle::TopRight => (max_x, max_y),
+                            ResizeHandle::BottomLeft => (min_x, min_y),
+                            ResizeHandle::BottomRight => (max_x, min_y),
+                        };
+
                         // Snapshot original shapes so resizing doesn't compound on each drag update.
                         // This matters for group resize and for path/text scaling.
                         let originals: Vec<(u64, Shape)> = {
@@ -1043,7 +1074,7 @@ impl DesignerCanvas {
                         };
                         *self.resize_original_shapes.borrow_mut() = Some(originals);
 
-                        *self.creation_start.borrow_mut() = Some((canvas_x, canvas_y));
+                        *self.creation_start.borrow_mut() = Some(handle_start);
                         if is_group_resize {
                             // For group resize, we keep moving behavior the same but scale on drag updates.
                         }
@@ -1266,8 +1297,16 @@ impl DesignerCanvas {
             let canvas_offset_x = offset_x / zoom;
             let canvas_offset_y = offset_y / zoom;
 
-            let end_x = start.0 + canvas_offset_x;
-            let end_y = start.1 - canvas_offset_y; // Flip Y offset
+            let raw_end_x = start.0 + canvas_offset_x;
+            let raw_end_y = start.1 - canvas_offset_y; // Flip Y offset
+            let (snapped_end_x, snapped_end_y) = self.snap_canvas_point(raw_end_x, raw_end_y);
+
+            // Selection logic should keep raw coordinates; drawing tools use snapped coordinates.
+            let (end_x, end_y) = if tool == DesignerTool::Select {
+                (raw_end_x, raw_end_y)
+            } else {
+                (snapped_end_x, snapped_end_y)
+            };
 
             match tool {
                 DesignerTool::Select => {
@@ -1423,6 +1462,10 @@ impl DesignerCanvas {
     }
 
     fn create_shape(&self, tool: DesignerTool, start: (f64, f64), end: (f64, f64)) {
+        // Defensive quantization so created geometry always starts from snapped points.
+        let start = self.snap_canvas_point(start.0, start.1);
+        let end = self.snap_canvas_point(end.0, end.1);
+
         // Scope the borrow to release it before queue_draw
         {
             let mut state = self.state.borrow_mut();

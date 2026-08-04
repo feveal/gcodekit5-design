@@ -5,6 +5,7 @@
 
 use crate::ui::gtk::status_bar::StatusBar;
 use gcodekit5_core::{shared_none, SharedOption};
+use gcodekit5_settings::controller::SettingsController;
 use glib;
 use gtk4::prelude::*;
 use gtk4::{
@@ -32,10 +33,11 @@ pub struct GcodeEditor {
     _search_context: SearchContext,
     _search_settings: SearchSettings,
     _status_bar: Option<StatusBar>,
+    settings_controller: Option<Rc<SettingsController>>,
 }
 
 impl GcodeEditor {
-    pub fn new(status_bar: Option<StatusBar>) -> Self {
+    pub fn new(status_bar: Option<StatusBar>, settings_controller: Option<Rc<SettingsController>>) -> Self {
         let buffer = Buffer::new(None);
         let view = View::with_buffer(&buffer);
 
@@ -520,6 +522,7 @@ impl GcodeEditor {
             _search_context: search_context,
             _search_settings: search_settings,
             _status_bar: status_bar,
+            settings_controller: settings_controller.clone(),
         };
 
         // Update line counter when cursor moves
@@ -691,6 +694,7 @@ impl GcodeEditor {
     pub fn save_as_file(&self) {
         let parent = super::file_dialog::parent_window(&self.widget);
         let dialog = super::file_dialog::save_dialog(&t!("Save G-Code File"), parent.as_ref());
+        super::file_dialog::set_last_working_directory(&dialog, self.settings_controller.as_deref());
 
         let filter = gtk4::FileFilter::new();
         filter.set_name(Some("G-Code Files"));

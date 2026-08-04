@@ -26,7 +26,7 @@ impl PropertiesPanel {
     }
 
 
-    pub(crate) fn build_position_section() -> (Frame, Entry, Entry, Label, Label) {
+    pub(crate) fn build_position_section() -> (Frame, Entry, Entry, Entry, Label, Label, Label) {
         let frame = Self::create_section(&t!("Position"));
         let grid = gtk4::Grid::builder()
             .row_spacing(8)
@@ -55,15 +55,27 @@ impl PropertiesPanel {
         y_unit_label.set_halign(gtk4::Align::End);
         y_unit_label.set_xalign(1.0);
 
+        let z_label = Label::new(Some(&t!("Z:")));
+        z_label.set_halign(gtk4::Align::Start);
+        let pos_z_entry = Entry::new();
+        pos_z_entry.set_hexpand(true);
+        let z_unit_label = Label::new(Some("mm"));
+        z_unit_label.set_width_chars(4);
+        z_unit_label.set_halign(gtk4::Align::End);
+        z_unit_label.set_xalign(1.0);
+
         grid.attach(&x_label, 0, 0, 1, 1);
         grid.attach(&pos_x_entry, 1, 0, 1, 1);
         grid.attach(&x_unit_label, 2, 0, 1, 1);
         grid.attach(&y_label, 0, 1, 1, 1);
         grid.attach(&pos_y_entry, 1, 1, 1, 1);
         grid.attach(&y_unit_label, 2, 1, 1, 1);
+        grid.attach(&z_label, 0, 2, 1, 1);
+        grid.attach(&pos_z_entry, 1, 2, 1, 1);
+        grid.attach(&z_unit_label, 2, 2, 1, 1);
 
         frame.set_child(Some(&grid));
-        (frame, pos_x_entry, pos_y_entry, x_unit_label, y_unit_label)
+        (frame, pos_x_entry, pos_y_entry, pos_z_entry, x_unit_label, y_unit_label, z_unit_label)
     }
 
     pub(crate) fn build_size_section() -> (Frame, Entry, Entry, CheckButton, Label, Label) {
@@ -372,8 +384,53 @@ impl PropertiesPanel {
         )
     }
 
-    pub(crate) fn build_geometry_ops_section() -> (Frame, Entry, Entry, Entry, Label, Label, Label)
-    {
+    pub(crate) fn build_timing_pulley_section() -> (Frame, Entry, Entry, Entry, Entry) {
+        let frame = Self::create_section(&t!("Timing Pulley"));
+        let grid = gtk4::Grid::builder()
+            .row_spacing(8)
+            .column_spacing(8)
+            .margin_start(8)
+            .margin_end(8)
+            .margin_top(8)
+            .margin_bottom(8)
+            .build();
+
+        let pitch_label = Label::new(Some(&t!("Pitch:")));
+        pitch_label.set_halign(gtk4::Align::Start);
+        let timing_pulley_pitch_entry = Entry::new();
+
+        let teeth_label = Label::new(Some(&t!("Teeth:")));
+        teeth_label.set_halign(gtk4::Align::Start);
+        let timing_pulley_teeth_entry = Entry::new();
+
+        let width_label = Label::new(Some(&t!("Belt Width:")));
+        width_label.set_halign(gtk4::Align::Start);
+        let timing_pulley_belt_width_entry = Entry::new();
+
+        let hole_label = Label::new(Some(&t!("Hole Radius:")));
+        hole_label.set_halign(gtk4::Align::Start);
+        let timing_pulley_hole_radius_entry = Entry::new();
+
+        grid.attach(&pitch_label, 0, 0, 1, 1);
+        grid.attach(&timing_pulley_pitch_entry, 1, 0, 1, 1);
+        grid.attach(&teeth_label, 0, 1, 1, 1);
+        grid.attach(&timing_pulley_teeth_entry, 1, 1, 1, 1);
+        grid.attach(&width_label, 0, 2, 1, 1);
+        grid.attach(&timing_pulley_belt_width_entry, 1, 2, 1, 1);
+        grid.attach(&hole_label, 0, 3, 1, 1);
+        grid.attach(&timing_pulley_hole_radius_entry, 1, 3, 1, 1);
+
+        frame.set_child(Some(&grid));
+        (
+            frame,
+            timing_pulley_pitch_entry,
+            timing_pulley_teeth_entry,
+            timing_pulley_belt_width_entry,
+            timing_pulley_hole_radius_entry,
+        )
+    }
+
+    pub(crate) fn build_geometry_ops_section() -> (Frame, Entry, Entry, Label, Label) {
         let frame = Self::create_section(&t!("Geometry Operations"));
         let grid = gtk4::Grid::builder()
             .row_spacing(8)
@@ -390,12 +447,6 @@ impl PropertiesPanel {
         offset_entry.set_text("1.0");
         let offset_unit_label = Label::new(Some("mm"));
 
-        let fillet_label = Label::new(Some(&t!("Fillet:")));
-        fillet_label.set_halign(gtk4::Align::Start);
-        let fillet_entry = Entry::new();
-        fillet_entry.set_text("2.0");
-        let fillet_unit_label = Label::new(Some("mm"));
-
         let chamfer_label = Label::new(Some(&t!("Chamfer:")));
         chamfer_label.set_halign(gtk4::Align::Start);
         let chamfer_entry = Entry::new();
@@ -405,36 +456,28 @@ impl PropertiesPanel {
         grid.attach(&offset_label, 0, 0, 1, 1);
         grid.attach(&offset_entry, 1, 0, 1, 1);
         grid.attach(&offset_unit_label, 2, 0, 1, 1);
-        grid.attach(&fillet_label, 0, 1, 1, 1);
-        grid.attach(&fillet_entry, 1, 1, 1, 1);
-        grid.attach(&fillet_unit_label, 2, 1, 1, 1);
-        grid.attach(&chamfer_label, 0, 2, 1, 1);
-        grid.attach(&chamfer_entry, 1, 2, 1, 1);
-        grid.attach(&chamfer_unit_label, 2, 2, 1, 1);
+        grid.attach(&chamfer_label, 0, 1, 1, 1);
+        grid.attach(&chamfer_entry, 1, 1, 1, 1);
+        grid.attach(&chamfer_unit_label, 2, 1, 1, 1);
 
         frame.set_child(Some(&grid));
-        (
-            frame,
-            offset_entry,
-            fillet_entry,
-            chamfer_entry,
-            offset_unit_label,
-            fillet_unit_label,
-            chamfer_unit_label,
-        )
+        (frame, offset_entry, chamfer_entry, offset_unit_label, chamfer_unit_label)
     }
 
     // GTK callback closure type inherently complex.
     #[allow(clippy::type_complexity)]
     pub(crate) fn build_cam_section() -> (
         Frame,
+        CheckButton,
         DropDown,
         Entry,
         Entry,
         Entry,
         Entry,
+        Entry,
         DropDown,
         Entry,
+        Label,
         Label,
         Label,
         Label,
@@ -457,6 +500,9 @@ impl PropertiesPanel {
         op_model.append(&t!("Pocket"));
         let op_type_combo = DropDown::new(Some(op_model), None::<Expression>);
 
+        let cam_use_global_check = CheckButton::with_label(&t!("Use global values"));
+        cam_use_global_check.set_active(false);
+
         // Pocket Depth
         let depth_label = Label::new(Some(&t!("Depth:")));
         depth_label.set_halign(gtk4::Align::Start);
@@ -465,6 +511,15 @@ impl PropertiesPanel {
         depth_unit_label.set_width_chars(4);
         depth_unit_label.set_halign(gtk4::Align::End);
         depth_unit_label.set_xalign(1.0);
+
+        // Z Offset
+        let z_offset_label = Label::new(Some(&t!("Z Offset:")));
+        z_offset_label.set_halign(gtk4::Align::Start);
+        let z_offset_entry = Entry::new();
+        let z_offset_unit_label = Label::new(Some("mm"));
+        z_offset_unit_label.set_width_chars(4);
+        z_offset_unit_label.set_halign(gtk4::Align::End);
+        z_offset_unit_label.set_xalign(1.0);
 
         // Step Down
         let step_down_label = Label::new(Some(&t!("Step Down:")));
@@ -512,35 +567,42 @@ impl PropertiesPanel {
 
         grid.attach(&op_label, 0, 0, 1, 1);
         grid.attach(&op_type_combo, 1, 0, 1, 1);
-        grid.attach(&depth_label, 0, 1, 1, 1);
-        grid.attach(&depth_entry, 1, 1, 1, 1);
-        grid.attach(&depth_unit_label, 2, 1, 1, 1);
-        grid.attach(&step_down_label, 0, 2, 1, 1);
-        grid.attach(&step_down_entry, 1, 2, 1, 1);
-        grid.attach(&step_down_unit_label, 2, 2, 1, 1);
-        grid.attach(&step_in_label, 0, 3, 1, 1);
-        grid.attach(&step_in_entry, 1, 3, 1, 1);
-        grid.attach(&step_in_unit_label, 2, 3, 1, 1);
-        grid.attach(&ramp_angle_label, 0, 4, 1, 1);
-        grid.attach(&ramp_angle_entry, 1, 4, 1, 1);
-        grid.attach(&ramp_angle_unit_label, 2, 4, 1, 1);
-        grid.attach(&strategy_label, 0, 5, 1, 1);
-        grid.attach(&strategy_combo, 1, 5, 1, 1);
-        grid.attach(&raster_fill_label, 0, 6, 1, 1);
-        grid.attach(&raster_fill_entry, 1, 6, 1, 1);
-        grid.attach(&raster_fill_hint, 0, 7, 3, 1);
+        grid.attach(&cam_use_global_check, 0, 1, 3, 1);
+        grid.attach(&depth_label, 0, 2, 1, 1);
+        grid.attach(&depth_entry, 1, 2, 1, 1);
+        grid.attach(&depth_unit_label, 2, 2, 1, 1);
+        grid.attach(&z_offset_label, 0, 3, 1, 1);
+        grid.attach(&z_offset_entry, 1, 3, 1, 1);
+        grid.attach(&z_offset_unit_label, 2, 3, 1, 1);
+        grid.attach(&step_down_label, 0, 4, 1, 1);
+        grid.attach(&step_down_entry, 1, 4, 1, 1);
+        grid.attach(&step_down_unit_label, 2, 4, 1, 1);
+        grid.attach(&step_in_label, 0, 5, 1, 1);
+        grid.attach(&step_in_entry, 1, 5, 1, 1);
+        grid.attach(&step_in_unit_label, 2, 5, 1, 1);
+        grid.attach(&ramp_angle_label, 0, 6, 1, 1);
+        grid.attach(&ramp_angle_entry, 1, 6, 1, 1);
+        grid.attach(&ramp_angle_unit_label, 2, 6, 1, 1);
+        grid.attach(&strategy_label, 0, 7, 1, 1);
+        grid.attach(&strategy_combo, 1, 7, 1, 1);
+        grid.attach(&raster_fill_label, 0, 8, 1, 1);
+        grid.attach(&raster_fill_entry, 1, 8, 1, 1);
+        grid.attach(&raster_fill_hint, 0, 9, 3, 1);
 
         frame.set_child(Some(&grid));
         (
             frame,
+            cam_use_global_check,
             op_type_combo,
             depth_entry,
+            z_offset_entry,
             step_down_entry,
             step_in_entry,
             ramp_angle_entry,
             strategy_combo,
             raster_fill_entry,
             depth_unit_label,
+            z_offset_unit_label,
             step_down_unit_label,
             step_in_unit_label,
         )

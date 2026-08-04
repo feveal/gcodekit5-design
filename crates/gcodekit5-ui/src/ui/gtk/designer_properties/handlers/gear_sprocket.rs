@@ -2,7 +2,7 @@
 
 use gcodekit5_core::{Shared, SharedOption};
 use gcodekit5_designer::designer_state::DesignerState;
-use gcodekit5_designer::model::{DesignSprocket, Shape};
+use gcodekit5_designer::model::{DesignSprocket, ParametricPathSource, Shape};
 use gtk4::prelude::*;
 use gtk4::Entry;
 use std::rc::Rc;
@@ -319,6 +319,214 @@ pub fn setup_sprocket_roller_diameter_handler(
                     .unwrap_or(15);
 
                 designer_state.set_selected_sprocket_properties(pitch, teeth, val);
+                drop(designer_state);
+                if let Some(ref cb) = *redraw_callback.borrow() {
+                    cb();
+                }
+            } else {
+                entry.add_css_class("entry-invalid");
+            }
+        } else {
+            entry.add_css_class("entry-invalid");
+        }
+    });
+}
+
+/// Setup timing pulley pitch entry handler
+#[allow(clippy::type_complexity)]
+pub fn setup_timing_pulley_pitch_handler(
+    timing_pulley_pitch_entry: &Entry,
+    state: Shared<DesignerState>,
+    redraw_callback: SharedOption<Rc<dyn Fn()>>,
+    updating: Shared<bool>,
+) {
+    timing_pulley_pitch_entry.connect_changed(move |entry| {
+        if *updating.borrow() {
+            return;
+        }
+        if let Ok(pitch) = entry.text().parse::<f64>() {
+            if pitch > 0.0 {
+                entry.remove_css_class("entry-invalid");
+                let mut designer_state = state.borrow_mut();
+
+                let (teeth, belt_width, hole_radius) = designer_state
+                    .canvas
+                    .shapes()
+                    .find(|s| s.selected)
+                    .and_then(|s| {
+                        if let Shape::Path(path) = &s.shape {
+                            if let Some(ParametricPathSource::TimingPulley {
+                                teeth,
+                                belt_width,
+                                hole_radius,
+                                ..
+                            }) = path.parametric_source.clone()
+                            {
+                                return Some((teeth, belt_width, hole_radius));
+                            }
+                        }
+                        None
+                    })
+                    .unwrap_or((20, 9.4, 5.0));
+
+                designer_state
+                    .set_selected_timing_pulley_properties(pitch, teeth, belt_width, hole_radius);
+                drop(designer_state);
+                if let Some(ref cb) = *redraw_callback.borrow() {
+                    cb();
+                }
+            } else {
+                entry.add_css_class("entry-invalid");
+            }
+        } else {
+            entry.add_css_class("entry-invalid");
+        }
+    });
+}
+
+/// Setup timing pulley teeth entry handler
+#[allow(clippy::type_complexity)]
+pub fn setup_timing_pulley_teeth_handler(
+    timing_pulley_teeth_entry: &Entry,
+    state: Shared<DesignerState>,
+    redraw_callback: SharedOption<Rc<dyn Fn()>>,
+    updating: Shared<bool>,
+) {
+    timing_pulley_teeth_entry.connect_changed(move |entry| {
+        if *updating.borrow() {
+            return;
+        }
+        if let Ok(teeth) = entry.text().parse::<usize>() {
+            if teeth >= 6 {
+                entry.remove_css_class("entry-invalid");
+                let mut designer_state = state.borrow_mut();
+
+                let (pitch, belt_width, hole_radius) = designer_state
+                    .canvas
+                    .shapes()
+                    .find(|s| s.selected)
+                    .and_then(|s| {
+                        if let Shape::Path(path) = &s.shape {
+                            if let Some(ParametricPathSource::TimingPulley {
+                                pitch,
+                                belt_width,
+                                hole_radius,
+                                ..
+                            }) = path.parametric_source.clone()
+                            {
+                                return Some((pitch, belt_width, hole_radius));
+                            }
+                        }
+                        None
+                    })
+                    .unwrap_or((5.08, 9.4, 5.0));
+
+                designer_state
+                    .set_selected_timing_pulley_properties(pitch, teeth, belt_width, hole_radius);
+                drop(designer_state);
+                if let Some(ref cb) = *redraw_callback.borrow() {
+                    cb();
+                }
+            } else {
+                entry.add_css_class("entry-invalid");
+            }
+        } else {
+            entry.add_css_class("entry-invalid");
+        }
+    });
+}
+
+/// Setup timing pulley belt width entry handler
+#[allow(clippy::type_complexity)]
+pub fn setup_timing_pulley_belt_width_handler(
+    timing_pulley_belt_width_entry: &Entry,
+    state: Shared<DesignerState>,
+    redraw_callback: SharedOption<Rc<dyn Fn()>>,
+    updating: Shared<bool>,
+) {
+    timing_pulley_belt_width_entry.connect_changed(move |entry| {
+        if *updating.borrow() {
+            return;
+        }
+        if let Ok(belt_width) = entry.text().parse::<f64>() {
+            if belt_width > 0.0 {
+                entry.remove_css_class("entry-invalid");
+                let mut designer_state = state.borrow_mut();
+
+                let (pitch, teeth, hole_radius) = designer_state
+                    .canvas
+                    .shapes()
+                    .find(|s| s.selected)
+                    .and_then(|s| {
+                        if let Shape::Path(path) = &s.shape {
+                            if let Some(ParametricPathSource::TimingPulley {
+                                pitch,
+                                teeth,
+                                hole_radius,
+                                ..
+                            }) = path.parametric_source.clone()
+                            {
+                                return Some((pitch, teeth, hole_radius));
+                            }
+                        }
+                        None
+                    })
+                    .unwrap_or((5.08, 20, 5.0));
+
+                designer_state
+                    .set_selected_timing_pulley_properties(pitch, teeth, belt_width, hole_radius);
+                drop(designer_state);
+                if let Some(ref cb) = *redraw_callback.borrow() {
+                    cb();
+                }
+            } else {
+                entry.add_css_class("entry-invalid");
+            }
+        } else {
+            entry.add_css_class("entry-invalid");
+        }
+    });
+}
+
+/// Setup timing pulley hole radius entry handler
+#[allow(clippy::type_complexity)]
+pub fn setup_timing_pulley_hole_radius_handler(
+    timing_pulley_hole_radius_entry: &Entry,
+    state: Shared<DesignerState>,
+    redraw_callback: SharedOption<Rc<dyn Fn()>>,
+    updating: Shared<bool>,
+) {
+    timing_pulley_hole_radius_entry.connect_changed(move |entry| {
+        if *updating.borrow() {
+            return;
+        }
+        if let Ok(hole_radius) = entry.text().parse::<f64>() {
+            if hole_radius >= 0.0 {
+                entry.remove_css_class("entry-invalid");
+                let mut designer_state = state.borrow_mut();
+
+                let (pitch, teeth, belt_width) = designer_state
+                    .canvas
+                    .shapes()
+                    .find(|s| s.selected)
+                    .and_then(|s| {
+                        if let Shape::Path(path) = &s.shape {
+                            if let Some(ParametricPathSource::TimingPulley {
+                                pitch,
+                                teeth,
+                                belt_width,
+                                ..
+                            }) = path.parametric_source.clone()
+                            {
+                                return Some((pitch, teeth, belt_width));
+                            }
+                        }
+                        None
+                    })
+                    .unwrap_or((5.08, 20, 9.4));
+
+                designer_state
+                    .set_selected_timing_pulley_properties(pitch, teeth, belt_width, hole_radius);
                 drop(designer_state);
                 if let Some(ref cb) = *redraw_callback.borrow() {
                     cb();

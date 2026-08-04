@@ -18,7 +18,7 @@ use crate::ui::gtk::designer_properties::PropertiesPanel;
 use crate::ui::gtk::designer_toolbox::{DesignerTool, DesignerToolbox};
 use gcodekit5_core::constants as core_constants;
 use gcodekit5_core::{shared, shared_none, Shared, SharedOption, SharedVec};
-use gcodekit5_designer::designer_state::DesignerState;
+use gcodekit5_designer::designer_state::{DesignerState, MachineMode};
 use gcodekit5_designer::model::{DesignPath as PathShape, Point, Shape};
 use gcodekit5_designer::toolpath::Toolpath;
 use gcodekit5_devicedb::DeviceManager;
@@ -118,6 +118,7 @@ pub struct DesignerCanvas {
     pub(crate) polyline_points: SharedVec<Point>,
     // Preview shapes (e.g. for offset/fillet)
     pub preview_shapes: SharedVec<Shape>,
+    pub(crate) pending_fast_shape: SharedOption<Shape>,
     // Toolpath preview
     pub(crate) preview_toolpaths: SharedVec<Toolpath>,
     pub preview_generating: Rc<std::cell::Cell<bool>>,
@@ -147,6 +148,7 @@ impl DesignerCanvas {
             .vexpand(true)
             .css_classes(vec!["designer-canvas"])
             .build();
+        widget.set_focusable(true);
 
         let mouse_pos = shared((0.0, 0.0));
         let creation_start = shared_none();
@@ -155,6 +157,7 @@ impl DesignerCanvas {
         let did_drag = shared(false);
         let polyline_points = shared(Vec::new());
         let preview_shapes = shared(Vec::new());
+        let pending_fast_shape = shared_none();
         let preview_toolpaths = shared(Vec::new());
 
         let state_clone = state.clone();
@@ -163,6 +166,7 @@ impl DesignerCanvas {
         let creation_current_clone = creation_current.clone();
         let polyline_points_clone = polyline_points.clone();
         let preview_shapes_clone = preview_shapes.clone();
+        let pending_fast_shape_clone = pending_fast_shape.clone();
         let preview_toolpaths_clone = preview_toolpaths.clone();
         let device_manager_draw = device_manager.clone();
         let settings_draw = settings_controller.clone();
@@ -181,6 +185,7 @@ impl DesignerCanvas {
             let poly_points = polyline_points_clone.borrow();
             let preview_shapes = preview_shapes_clone.borrow();
             let toolpaths = preview_toolpaths_clone.borrow();
+            let pending_fast_shape = pending_fast_shape_clone.borrow().clone();
             let bounds = compute_device_bbox(&device_manager_draw);
 
             // Get grid line widths from settings (defaults if not available)
@@ -207,6 +212,7 @@ impl DesignerCanvas {
                 &poly_points,
                 &preview_shapes,
                 &toolpaths,
+                pending_fast_shape,
                 bounds,
                 &style_context,
                 grid_major_width,
@@ -234,6 +240,7 @@ impl DesignerCanvas {
             ctrl_pressed: shared(false),
             polyline_points: polyline_points.clone(),
             preview_shapes: preview_shapes.clone(),
+            pending_fast_shape: pending_fast_shape.clone(),
             preview_toolpaths: preview_toolpaths.clone(),
             preview_generating: Rc::new(std::cell::Cell::new(false)),
             preview_pending: Rc::new(std::cell::Cell::new(false)),
@@ -264,14 +271,24 @@ impl DesignerCanvas {
             let zoom = state.canvas.zoom();
             let pan_x = state.canvas.pan_x();
             let pan_y = state.canvas.pan_y();
+            let snap_enabled = state.snap_enabled;
+            let snap_step = state.snap_threshold_mm.max(0.0);
             drop(state);
 
             // Screen (x, y) -> Canvas (cx, cy)
             let y_flipped = height - y;
             let canvas_x = (x - pan_x) / zoom;
             let canvas_y = (y_flipped - pan_y) / zoom;
+            let (cursor_x, cursor_y) = if snap_enabled && snap_step > f64::EPSILON {
+                (
+                    (canvas_x / snap_step).round() * snap_step,
+                    (canvas_y / snap_step).round() * snap_step,
+                )
+            } else {
+                (canvas_x, canvas_y)
+            };
 
-            *mouse_pos_motion.borrow_mut() = (canvas_x, canvas_y);
+            *mouse_pos_motion.borrow_mut() = (cursor_x, cursor_y);
 
             // Update cursor based on tool
             let tool = canvas_motion
@@ -279,6 +296,12 @@ impl DesignerCanvas {
                 .as_ref()
                 .map(|t| t.current_tool())
                 .unwrap_or(DesignerTool::Select);
+
+            if canvas_motion.pending_fast_shape.borrow().is_some() {
+                widget_motion.set_cursor_from_name(Some("crosshair"));
+                widget_motion.queue_draw();
+                return;
+            }
 
             match tool {
                 DesignerTool::Select => widget_motion.set_cursor(None), // default arrow
@@ -486,6 +509,7 @@ impl DesignerCanvas {
         let shift_pressed_key = canvas.shift_pressed.clone();
         let ctrl_pressed_key = canvas.ctrl_pressed.clone();
         let polyline_points_key = canvas.polyline_points.clone();
+        let pending_fast_shape_key = canvas.pending_fast_shape.clone();
         let layers_key = canvas.layers.clone();
 
         key_controller.connect_key_pressed(move |_controller, keyval, _keycode, _modifier| {
@@ -521,6 +545,13 @@ impl DesignerCanvas {
                         return glib::Propagation::Stop;
                     }
                 gtk4::gdk::Key::Escape => {
+                    if pending_fast_shape_key.borrow().is_some() {
+                        *pending_fast_shape_key.borrow_mut() = None;
+                        drop(designer_state);
+                        widget_key.queue_draw();
+                        return glib::Propagation::Stop;
+                    }
+
                     // Cancel polyline creation
                     let mut points = polyline_points_key.borrow_mut();
                     if !points.is_empty() {
@@ -609,6 +640,14 @@ impl DesignerCanvas {
         *self.layers.borrow_mut() = Some(panel);
     }
 
+    pub fn set_pending_fast_shape(&self, shape: Shape) {
+        *self.pending_fast_shape.borrow_mut() = Some(shape);
+        // Ensure keyboard handlers (Escape) are received by the canvas.
+        self.widget.grab_focus();
+        self.widget.set_cursor_from_name(Some("crosshair"));
+        self.widget.queue_draw();
+    }
+
     pub fn set_adjustments(&self, hadj: gtk4::Adjustment, vadj: gtk4::Adjustment) {
         *self.hadjustment.borrow_mut() = Some(hadj);
         *self.vadjustment.borrow_mut() = Some(vadj);
@@ -616,6 +655,14 @@ impl DesignerCanvas {
 
     /// Import a raster image (JPG, PNG, etc.) and convert it to toolpath
     pub fn import_raster_image(&self) {
+        if self.state.borrow().machine_mode() == MachineMode::Cnc3D {
+            if let Some(status_bar) = &self.status_bar {
+                status_bar.set_state(&t!("Raster image import is only available in 2D mode"));
+            }
+            tracing::warn!("Raster image import blocked in 3D/CNC mode");
+            return;
+        }
+
         use gtk4::FileChooserAction;
         use gtk4::FileChooserDialog;
         use gtk4::ResponseType;

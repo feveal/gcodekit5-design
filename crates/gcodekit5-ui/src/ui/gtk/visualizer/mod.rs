@@ -28,6 +28,13 @@ use glam::Vec3;
 #[derive(Clone)]
 pub(crate) struct StockRemovalVisualization;
 
+pub enum RunPreviewResult {
+    Started,
+    EmptyInput,
+    NoMotion,
+    NoTrajectory,
+}
+
 use crate::ui::gtk::nav_cube::NavCube;
 use crate::ui::gtk::renderer_3d::{
     generate_axis_data, generate_bounds_data, generate_grid_data, generate_tool_marker_data,
@@ -127,6 +134,12 @@ pub struct GcodeVisualizer {
     pub(crate) status_bar: Option<StatusBar>,
     pub(crate) current_pos: Shared<(f32, f32, f32)>,
     pub(crate) fit_btn_3d: Button,
+    run_preview_points: Shared<Vec<(f32, f32, f32)>>,
+    run_preview_index: Shared<usize>,
+    run_preview_token: Shared<u64>,
+    run_preview_running: Shared<bool>,
+    run_preview_paused: Shared<bool>,
+    run_preview_speed: Shared<usize>,
 }
 
 impl GcodeVisualizer {
@@ -142,6 +155,151 @@ impl GcodeVisualizer {
             self.drawing_area.queue_draw();
             self.gl_area.queue_render();
         }
+    }
+
+    fn build_run_preview_points(
+        commands: &[gcodekit5_visualizer::visualizer::GCodeCommand],
+    ) -> Vec<(f32, f32, f32)> {
+        let mut preview_points: Vec<(f32, f32, f32)> = Vec::new();
+
+        for cmd in commands {
+            match cmd {
+                gcodekit5_visualizer::visualizer::GCodeCommand::Move { from, to, .. }
+                | gcodekit5_visualizer::visualizer::GCodeCommand::Arc { from, to, .. } => {
+                    let dx = to.x - from.x;
+                    let dy = to.y - from.y;
+                    let dz = to.z - from.z;
+                    let distance = (dx * dx + dy * dy + dz * dz).sqrt();
+
+                    let steps = ((distance / 3.0).ceil() as usize).clamp(2, 24);
+                    for s in 1..=steps {
+                        let t = s as f32 / steps as f32;
+                        preview_points.push((from.x + dx * t, from.y + dy * t, from.z + dz * t));
+                    }
+                }
+                gcodekit5_visualizer::visualizer::GCodeCommand::Dwell { pos, duration } => {
+                    let hold_steps = ((*duration).max(0.0) * 8.0).round() as usize;
+                    for _ in 0..hold_steps.clamp(1, 24) {
+                        preview_points.push((pos.x, pos.y, pos.z));
+                    }
+                }
+            }
+
+            if preview_points.len() >= 40_000 {
+                break;
+            }
+        }
+
+        preview_points
+    }
+
+    pub fn run_preview_from_gcode(&self, gcode: &str) -> RunPreviewResult {
+        if gcode.trim().is_empty() {
+            return RunPreviewResult::EmptyInput;
+        }
+
+        self.set_gcode(gcode);
+        self.show_laser.set_active(true);
+
+        let commands = {
+            let vis = self.visualizer.borrow();
+            vis.commands().to_vec()
+        };
+
+        if commands.is_empty() {
+            return RunPreviewResult::NoMotion;
+        }
+
+        let preview_points = Self::build_run_preview_points(&commands);
+        if preview_points.is_empty() {
+            return RunPreviewResult::NoTrajectory;
+        }
+
+        self.stop_run_preview();
+        *self.run_preview_points.borrow_mut() = preview_points;
+        *self.run_preview_index.borrow_mut() = 0;
+        *self.run_preview_running.borrow_mut() = true;
+        *self.run_preview_paused.borrow_mut() = false;
+
+        let token = {
+            let mut tk = self.run_preview_token.borrow_mut();
+            *tk = tk.wrapping_add(1);
+            *tk
+        };
+
+        let token_ref = self.run_preview_token.clone();
+        let points_ref = self.run_preview_points.clone();
+        let index_ref = self.run_preview_index.clone();
+        let running_ref = self.run_preview_running.clone();
+        let paused_ref = self.run_preview_paused.clone();
+        let speed_ref = self.run_preview_speed.clone();
+        let current_pos_ref = self.current_pos.clone();
+        let show_laser_ref = self.show_laser.clone();
+        let drawing_area_ref = self.drawing_area.clone();
+        let gl_area_ref = self.gl_area.clone();
+
+        gtk4::glib::timeout_add_local(std::time::Duration::from_millis(33), move || {
+            if *token_ref.borrow() != token {
+                return gtk4::glib::ControlFlow::Break;
+            }
+
+            if !*running_ref.borrow() {
+                return gtk4::glib::ControlFlow::Break;
+            }
+
+            if *paused_ref.borrow() {
+                return gtk4::glib::ControlFlow::Continue;
+            }
+
+            let i = *index_ref.borrow();
+            let points = points_ref.borrow();
+            if i >= points.len() {
+                *running_ref.borrow_mut() = false;
+                return gtk4::glib::ControlFlow::Break;
+            }
+
+            let (x, y, z) = points[i];
+            drop(points);
+            *current_pos_ref.borrow_mut() = (x, y, z);
+            if show_laser_ref.is_active() {
+                drawing_area_ref.queue_draw();
+                gl_area_ref.queue_render();
+            }
+
+            let step = (*speed_ref.borrow()).max(1);
+            *index_ref.borrow_mut() = i.saturating_add(step);
+            gtk4::glib::ControlFlow::Continue
+        });
+
+        RunPreviewResult::Started
+    }
+
+    pub fn pause_run_preview(&self) {
+        if *self.run_preview_running.borrow() {
+            *self.run_preview_paused.borrow_mut() = true;
+        }
+    }
+
+    pub fn resume_run_preview(&self) {
+        if *self.run_preview_running.borrow() {
+            *self.run_preview_paused.borrow_mut() = false;
+        }
+    }
+
+    pub fn stop_run_preview(&self) {
+        *self.run_preview_running.borrow_mut() = false;
+        *self.run_preview_paused.borrow_mut() = false;
+        *self.run_preview_index.borrow_mut() = 0;
+        let mut tk = self.run_preview_token.borrow_mut();
+        *tk = tk.wrapping_add(1);
+    }
+
+    pub fn is_run_preview_running(&self) -> bool {
+        *self.run_preview_running.borrow()
+    }
+
+    pub fn is_run_preview_paused(&self) -> bool {
+        *self.run_preview_paused.borrow()
     }
 
     pub fn apply_fit_to_device(
@@ -677,6 +835,12 @@ impl GcodeVisualizer {
         // Initialize Visualizer logic
         let visualizer = shared(Visualizer::new());
         let current_pos = shared((0.0f32, 0.0f32, 0.0f32));
+        let run_preview_points = shared(Vec::<(f32, f32, f32)>::new());
+        let run_preview_index = shared(0usize);
+        let run_preview_token = shared(0u64);
+        let run_preview_running = shared(false);
+        let run_preview_paused = shared(false);
+        let run_preview_speed = shared(1usize);
         let camera = shared(Camera3D::default());
         let renderer_state = shared_none();
         let is_updating_3d = shared(false);
@@ -801,6 +965,48 @@ impl GcodeVisualizer {
         status_box.append(&status_label);
         status_box.append(&units_badge);
 
+        // Run preview controls (Bottom Left)
+        let run_controls_box = Box::new(Orientation::Horizontal, 6);
+        run_controls_box.add_css_class("visualizer-osd");
+        run_controls_box.set_halign(gtk4::Align::Start);
+        run_controls_box.set_valign(gtk4::Align::End);
+        run_controls_box.set_margin_start(20);
+        run_controls_box.set_margin_bottom(24);
+
+        let run_speed_label = Label::new(Some(&t!("Speed")));
+        let run_speed_combo = ComboBoxText::new();
+        run_speed_combo.append(Some("slow"), &t!("Slow"));
+        run_speed_combo.append(Some("normal"), &t!("Normal"));
+        run_speed_combo.append(Some("fast"), &t!("Fast"));
+        run_speed_combo.append(Some("turbo"), &t!("Turbo"));
+        run_speed_combo.set_active_id(Some("normal"));
+        run_speed_combo.set_tooltip_text(Some(&t!("Preview playback speed")));
+
+        let run_play_btn = Button::builder()
+            .icon_name("media-playback-start-symbolic")
+            .tooltip_text(t!("Play preview"))
+            .build();
+        run_play_btn.update_property(&[AccessibleProperty::Label(&t!("Play preview"))]);
+
+        let run_pause_btn = Button::builder()
+            .icon_name("media-playback-pause-symbolic")
+            .tooltip_text(t!("Pause preview"))
+            .build();
+        run_pause_btn.update_property(&[AccessibleProperty::Label(&t!("Pause preview"))]);
+
+        let run_stop_btn = Button::builder()
+            .icon_name("media-playback-stop-symbolic")
+            .tooltip_text(t!("Stop preview"))
+            .build();
+        run_stop_btn.update_property(&[AccessibleProperty::Label(&t!("Stop preview"))]);
+
+        for b in [&run_play_btn, &run_pause_btn, &run_stop_btn] {
+            b.set_size_request(32, 32);
+            run_controls_box.append(b);
+        }
+        run_controls_box.append(&run_speed_label);
+        run_controls_box.append(&run_speed_combo);
+
         // Sidebar show panel (floating) — matches Device Console UX
         let sidebar_show_btn = Button::builder().tooltip_text(t!("Show Sidebar")).build();
         sidebar_show_btn.update_property(&[AccessibleProperty::Label(&t!("Show Sidebar"))]);
@@ -867,6 +1073,7 @@ impl GcodeVisualizer {
 
         overlay.add_overlay(&floating_box);
         overlay.add_overlay(&status_box);
+        overlay.add_overlay(&run_controls_box);
         overlay.add_overlay(&sidebar_show_panel);
         overlay.add_overlay(&sim_panel);
 
@@ -1268,6 +1475,136 @@ impl GcodeVisualizer {
             }
         };
 
+        // Connect local Run preview controls (visualization only)
+        let run_points_play = run_preview_points.clone();
+        let run_index_play = run_preview_index.clone();
+        let run_running_play = run_preview_running.clone();
+        let run_paused_play = run_preview_paused.clone();
+        let run_token_play = run_preview_token.clone();
+        let run_speed_play = run_preview_speed.clone();
+        let current_pos_play = current_pos.clone();
+        let show_laser_play = show_laser.clone();
+        let drawing_area_play = drawing_area.clone();
+        let gl_area_play = gl_area.clone();
+        let visualizer_play = visualizer.clone();
+
+        run_play_btn.connect_clicked(move |_| {
+            if *run_running_play.borrow() {
+                *run_paused_play.borrow_mut() = false;
+                return;
+            }
+
+            if run_points_play.borrow().is_empty() {
+                let commands = {
+                    let vis = visualizer_play.borrow();
+                    vis.commands().to_vec()
+                };
+
+                if commands.is_empty() {
+                    return;
+                }
+
+                let preview_points = Self::build_run_preview_points(&commands);
+                if preview_points.is_empty() {
+                    return;
+                }
+
+                *run_points_play.borrow_mut() = preview_points;
+                *run_index_play.borrow_mut() = 0;
+                show_laser_play.set_active(true);
+            }
+
+            *run_index_play.borrow_mut() = 0;
+            *run_running_play.borrow_mut() = true;
+            *run_paused_play.borrow_mut() = false;
+
+            let token = {
+                let mut tk = run_token_play.borrow_mut();
+                *tk = tk.wrapping_add(1);
+                *tk
+            };
+
+            let token_ref = run_token_play.clone();
+            let points_ref = run_points_play.clone();
+            let index_ref = run_index_play.clone();
+            let running_ref = run_running_play.clone();
+            let paused_ref = run_paused_play.clone();
+            let speed_ref = run_speed_play.clone();
+            let current_pos_ref = current_pos_play.clone();
+            let show_laser_ref = show_laser_play.clone();
+            let drawing_area_ref = drawing_area_play.clone();
+            let gl_area_ref = gl_area_play.clone();
+
+            gtk4::glib::timeout_add_local(std::time::Duration::from_millis(33), move || {
+                if *token_ref.borrow() != token {
+                    return gtk4::glib::ControlFlow::Break;
+                }
+
+                if !*running_ref.borrow() {
+                    return gtk4::glib::ControlFlow::Break;
+                }
+
+                if *paused_ref.borrow() {
+                    return gtk4::glib::ControlFlow::Continue;
+                }
+
+                let i = *index_ref.borrow();
+                let points = points_ref.borrow();
+                if i >= points.len() {
+                    *running_ref.borrow_mut() = false;
+                    return gtk4::glib::ControlFlow::Break;
+                }
+
+                let (x, y, z) = points[i];
+                drop(points);
+
+                *current_pos_ref.borrow_mut() = (x, y, z);
+                if show_laser_ref.is_active() {
+                    drawing_area_ref.queue_draw();
+                    gl_area_ref.queue_render();
+                }
+
+                let step = (*speed_ref.borrow()).max(1);
+                *index_ref.borrow_mut() = i.saturating_add(step);
+                gtk4::glib::ControlFlow::Continue
+            });
+        });
+
+        let run_speed_state = run_preview_speed.clone();
+        run_speed_combo.connect_changed(move |cb| {
+            let speed = match cb.active_id().as_deref() {
+                Some("slow") => 1,
+                Some("normal") => 2,
+                Some("fast") => 5,
+                Some("turbo") => 20,
+                _ => 2,
+            };
+            *run_speed_state.borrow_mut() = speed;
+        });
+
+        // Ensure default speed stays in Normal even before first user interaction.
+        *run_preview_speed.borrow_mut() = 2;
+
+        let run_paused_pause = run_preview_paused.clone();
+        let run_running_pause = run_preview_running.clone();
+        run_pause_btn.connect_clicked(move |_| {
+            if *run_running_pause.borrow() {
+                *run_paused_pause.borrow_mut() = true;
+            }
+        });
+
+        let run_index_stop = run_preview_index.clone();
+        let run_running_stop = run_preview_running.clone();
+        let run_paused_stop = run_preview_paused.clone();
+        let run_token_stop = run_preview_token.clone();
+        run_stop_btn.connect_clicked(move |_| {
+            *run_running_stop.borrow_mut() = false;
+            *run_paused_stop.borrow_mut() = false;
+            *run_index_stop.borrow_mut() = 0;
+            let mut tk = run_token_stop.borrow_mut();
+            *tk = tk.wrapping_add(1);
+        });
+
         let update_ui = {
             let u1 = update_status_fn.clone();
             let u2 = update_scrollbars_fn.clone();
@@ -1632,10 +1969,8 @@ impl GcodeVisualizer {
                     use gcodekit5_visualizer::{ToolpathSegment, ToolpathSegmentType};
                     let mut toolpath_segments_3d = Vec::new();
 
-                    // G-code Z is typically negative when cutting (Z=-5 means 5mm below surface)
-                    // Voxel grid expects Z from 0 (bottom) to thickness (top)
-                    // So we convert: voxel_z = stock_thickness + gcode_z
-                    let stock_thickness = stock_clone.thickness;
+                    // G-code Z is interpreted as stock-referenced height
+                    // where 0=table/bottom and thickness=stock top.
 
                     for cmd in vis.commands() {
                         match cmd {
@@ -1647,9 +1982,8 @@ impl GcodeVisualizer {
                                 } else {
                                     ToolpathSegmentType::LinearMove
                                 };
-                                // Convert G-code Z (negative) to voxel Z (positive from bottom)
-                                let start_z = stock_thickness + from.z;
-                                let end_z = stock_thickness + to.z;
+                                let start_z = from.z;
+                                let end_z = to.z;
                                 toolpath_segments_3d.push(ToolpathSegment {
                                     segment_type: seg_type,
                                     start: (from.x, from.y, start_z),
@@ -1671,9 +2005,8 @@ impl GcodeVisualizer {
                                 } else {
                                     ToolpathSegmentType::ArcCCW
                                 };
-                                // Convert G-code Z (negative) to voxel Z (positive from bottom)
-                                let start_z = stock_thickness + from.z;
-                                let end_z = stock_thickness + to.z;
+                                let start_z = from.z;
+                                let end_z = to.z;
                                 toolpath_segments_3d.push(ToolpathSegment {
                                     segment_type: seg_type,
                                     start: (from.x, from.y, start_z),
@@ -2083,36 +2416,6 @@ impl GcodeVisualizer {
                     state.cut_buffers.draw();
                 }
 
-                // Draw Tool Marker
-                if show_laser_3d.is_active() {
-                    let pos = *current_pos_3d.borrow();
-                    let model = glam::Mat4::from_translation(glam::Vec3::new(pos.0, pos.1, pos.2));
-                    let mvp_tool = proj * view * model;
-
-                    if let Some(loc) = state.shader.get_uniform_location("uModelViewProjection") {
-                        // SAFETY: GL context is current; uploading uniform to valid location.
-                        unsafe {
-                            gl.uniform_matrix_4_f32_slice(
-                                Some(&loc),
-                                false,
-                                &mvp_tool.to_cols_array(),
-                            );
-                        }
-                    }
-
-                    // SAFETY: GL context is current; enabling alpha blending for
-                    // transparent tool marker rendering.
-                    unsafe {
-                        gl.enable(glow::BLEND);
-                        gl.blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
-                    }
-                    state.tool_buffers.draw();
-                    // SAFETY: GL context is current; restoring blend state.
-                    unsafe {
-                        gl.disable(glow::BLEND);
-                    }
-                }
-
                 state.shader.unbind();
 
                 // Draw 3D Stock Removal
@@ -2196,6 +2499,41 @@ impl GcodeVisualizer {
                     } else {
                         debug!("No stock simulator available for rendering");
                     }
+                }
+
+                // Draw Tool Marker last so it stays visible above the stock preview.
+                if show_laser_3d.is_active() {
+                    let pos = *current_pos_3d.borrow();
+                    let model = glam::Mat4::from_translation(glam::Vec3::new(pos.0, pos.1, pos.2));
+                    let mvp_tool = proj * view * model;
+
+                    state.shader.bind();
+
+                    if let Some(loc) = state.shader.get_uniform_location("uModelViewProjection") {
+                        // SAFETY: GL context is current; uploading uniform to valid location.
+                        unsafe {
+                            gl.uniform_matrix_4_f32_slice(
+                                Some(&loc),
+                                false,
+                                &mvp_tool.to_cols_array(),
+                            );
+                        }
+                    }
+
+                    // SAFETY: GL context is current; drawing marker over stock preview.
+                    unsafe {
+                        gl.disable(glow::DEPTH_TEST);
+                        gl.enable(glow::BLEND);
+                        gl.blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
+                    }
+                    state.tool_buffers.draw();
+                    // SAFETY: GL context is current; restoring GL state after overlay draw.
+                    unsafe {
+                        gl.disable(glow::BLEND);
+                        gl.enable(glow::DEPTH_TEST);
+                    }
+
+                    state.shader.unbind();
                 }
             }
 
@@ -2388,10 +2726,20 @@ impl GcodeVisualizer {
             status_bar,
             current_pos,
             fit_btn_3d,
+            run_preview_points,
+            run_preview_index,
+            run_preview_token,
+            run_preview_running,
+            run_preview_paused,
+            run_preview_speed,
         }
     }
 
     pub fn set_gcode(&self, gcode: &str) {
+        // Any G-code reload invalidates prior preview trajectory.
+        self.stop_run_preview();
+        self.run_preview_points.borrow_mut().clear();
+
         let mut vis = self.visualizer.borrow_mut();
         vis.parse_gcode(gcode);
 

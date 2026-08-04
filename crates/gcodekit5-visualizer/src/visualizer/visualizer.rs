@@ -30,7 +30,11 @@ const _GRID_MINOR_STEP_MM: f32 = 1.0;
 const _GRID_MAJOR_VISIBILITY_SCALE: f32 = 0.3;
 const _GRID_MINOR_VISIBILITY_SCALE: f32 = 1.5;
 
-/// Colors according to power
+/// Colors according to power.
+///
+/// Uses detected min/max S range and quantizes the gray ramp to a fixed
+/// number of levels to keep rendering stable for dense raster engravings.
+
 fn intensity_to_color(intensity: f32, max_intensity: f32) -> (f32, f32, f32) {
     if max_intensity <= 0.0 {
         return (0.5, 0.5, 0.5);
@@ -43,7 +47,30 @@ fn intensity_to_color(intensity: f32, max_intensity: f32) -> (f32, f32, f32) {
         engraving_color / 2.0,
     )
 }
+/* 
+fn intensity_to_color(intensity: f32, min_intensity: f32, max_intensity: f32) -> (f32, f32, f32) {
+    if max_intensity <= min_intensity {
+        return (0.5, 0.5, 0.5);
+    }
 
+    // Normalize intensity to the observed S range.
+    let normalized = ((intensity - min_intensity) / (max_intensity - min_intensity)).clamp(0.0, 1.0);
+
+    // Reduce shades to avoid excessive per-segment color churn in large raster files.
+    const GRAY_LEVELS: f32 = 24.0;
+    let quantized = (normalized * (GRAY_LEVELS - 1.0)).round() / (GRAY_LEVELS - 1.0);
+
+    // Inverted: low power = light, high power = dark, but keep a visible floor
+    // so strokes remain readable on the dark preview background.
+    let engraving_color = 0.40 + (1.0 - quantized) * 0.55;
+
+    (
+        engraving_color / 2.0,
+        engraving_color,
+        engraving_color / 2.0,
+    )
+}
+*/
 /// New Gcode
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum MotionMode {
@@ -883,7 +910,7 @@ fn extract_gcode_num(line: &str) -> Option<u32> {
         self.toolpath_sender.clone()
     }
 
-    /// Obtain the color for a given intensity.
+     /// Obtain the color for a given intensity.
     pub fn get_color_for_intensity(&self, intensity: f32) -> (f32, f32, f32) {
         if !self.use_intensity_colors {
             return (1.0, 1.0, 0.0);
@@ -894,8 +921,21 @@ fn extract_gcode_num(line: &str) -> Option<u32> {
         }
 
         intensity_to_color(intensity, self.max_intensity)
-    }
+    }   
+/*
+    /// Obtain the color for a given intensity.
+    pub fn get_color_for_intensity(&self, intensity: f32) -> (f32, f32, f32) {
+        if !self.use_intensity_colors {
+            return (1.0, 1.0, 0.0);
+        }
 
+        if self.max_intensity <= self.min_intensity {
+            return (1.0, 1.0, 0.0);
+        }
+
+        intensity_to_color(intensity, self.min_intensity, self.max_intensity)
+    }
+*/
     /// Activate/deactivate colors by intensity
     pub fn toggle_intensity_colors(&mut self) {
         self.use_intensity_colors = !self.use_intensity_colors;

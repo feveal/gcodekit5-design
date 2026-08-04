@@ -124,7 +124,8 @@ pub fn main() {
         let menu_bar_model = gio::Menu::new();
 
         let file_menu = gio::Menu::new();
-        file_menu.append(Some(&t!("New")), Some("app.file_new"));
+        file_menu.append(Some(&t!("New 2D")), Some("app.file_new_2d"));
+        file_menu.append(Some(&t!("New 3D")), Some("app.file_new_3d"));
         file_menu.append(Some(&t!("Open")), Some("app.file_open"));
         file_menu.append(Some(&t!("Save")), Some("app.file_save"));
         file_menu.append(Some(&t!("Save As...")), Some("app.file_save_as"));
@@ -202,7 +203,10 @@ pub fn main() {
         ));
 
         // G-Code Editor (Moved up to be available for MachineControl)
-        let editor = Rc::new(GcodeEditor::new(Some(status_bar.clone())));
+        let editor = Rc::new(GcodeEditor::new(
+            Some(status_bar.clone()),
+            Some(settings_controller.clone()),
+        ));
 
         // Apply initial theme
         let current_theme = settings_persistence.borrow().config().ui.theme;
@@ -237,6 +241,33 @@ pub fn main() {
             settings_controller.clone(),
             Some(status_bar.clone()),
         );
+
+        // Keep window title synced with active document context.
+        {
+            let window_for_title = window.clone();
+            let stack_for_title = stack.clone();
+            let designer_for_title = designer.clone();
+            let mut last_title = String::new();
+
+            glib::timeout_add_local(std::time::Duration::from_millis(250), move || {
+                let title = if let Some(name) = stack_for_title.visible_child_name() {
+                    if name.as_str() == "designer" {
+                        format!("{} - {}", t!("GCodeKit5"), designer_for_title.window_title_suffix())
+                    } else {
+                        t!("GCodeKit5")
+                    }
+                } else {
+                    t!("GCodeKit5")
+                };
+
+                if title != last_title {
+                    window_for_title.set_title(Some(&title));
+                    last_title = title;
+                }
+
+                glib::ControlFlow::Continue
+            });
+        }
 
         // Forzar ajuste al área de trabajo del dispositivo después
         // de que la ventana esté cargada
@@ -540,14 +571,38 @@ pub fn main() {
 
         // File Run Action
         let run_action = gio::SimpleAction::new("file_run", None);
-//        let machine_control_clone = machine_control.clone();
+        let editor_run = editor.clone();
+        let visualizer_run = visualizer.clone();
         let stack_clone = stack.clone();
+        let window_run = window.clone();
         run_action.connect_activate(move |_, _| {
-            // Switch to visualizer
-//            stack_clone.set_visible_child_name("machine");
+            let gcode = editor_run.get_text();
             stack_clone.set_visible_child_name("visualizer");
-            // Trigger send button
-//            machine_control_clone.send_btn.emit_clicked();
+
+            match visualizer_run.run_preview_from_gcode(&gcode) {
+                crate::ui::gtk::visualizer::RunPreviewResult::Started => {}
+                crate::ui::gtk::visualizer::RunPreviewResult::EmptyInput => {
+                    crate::ui::gtk::common::dialog::show_warning(
+                        &t!("No G-code to run"),
+                        &t!("Generate or open G-code before using Run."),
+                        Some(window_run.upcast_ref::<gtk4::Window>()),
+                    );
+                }
+                crate::ui::gtk::visualizer::RunPreviewResult::NoMotion => {
+                    crate::ui::gtk::common::dialog::show_warning(
+                        &t!("No motion commands found"),
+                        &t!("The loaded G-code has no G0/G1/G2/G3 movement to preview."),
+                        Some(window_run.upcast_ref::<gtk4::Window>()),
+                    );
+                }
+                crate::ui::gtk::visualizer::RunPreviewResult::NoTrajectory => {
+                    crate::ui::gtk::common::dialog::show_warning(
+                        &t!("No preview trajectory generated"),
+                        &t!("Run could not build a visible preview path from the current G-code."),
+                        Some(window_run.upcast_ref::<gtk4::Window>()),
+                    );
+                }
+            }
         });
         app.add_action(&run_action);
 
@@ -588,6 +643,38 @@ pub fn main() {
             }
         });
         app.add_action(&new_action);
+
+        let stack_clone = stack.clone();
+        let designer_clone = designer.clone();
+        let editor_clone = editor.clone();
+        let new_2d_action = gio::SimpleAction::new("file_new_2d", None);
+        new_2d_action.connect_activate(move |_, _| {
+            if let Some(name) = stack_clone.visible_child_name() {
+                match name.as_str() {
+                    "designer" => designer_clone.new_file_2d(),
+                    "editor" => editor_clone.new_file(),
+                    "machine" => editor_clone.new_file(),
+                    _ => {}
+                }
+            }
+        });
+        app.add_action(&new_2d_action);
+
+        let stack_clone = stack.clone();
+        let designer_clone = designer.clone();
+        let editor_clone = editor.clone();
+        let new_3d_action = gio::SimpleAction::new("file_new_3d", None);
+        new_3d_action.connect_activate(move |_, _| {
+            if let Some(name) = stack_clone.visible_child_name() {
+                match name.as_str() {
+                    "designer" => designer_clone.new_file_3d(),
+                    "editor" => editor_clone.new_file(),
+                    "machine" => editor_clone.new_file(),
+                    _ => {}
+                }
+            }
+        });
+        app.add_action(&new_3d_action);
 
         let stack_clone = stack.clone();
         let designer_clone = designer.clone();
@@ -692,7 +779,7 @@ pub fn main() {
                 .comments(t!("GCode Toolkit for CNC/Laser Machines"))
                 .website("https://github.com/feveal/gcodekit5-design")
                 .license_type(gtk4::License::MitX11)
-                .authors(vec![t!("Tim Hawkins and GCodeKit Contributors")])
+                .authors(vec![t!("Tim Hawkins and GCodeKit Contributors: \n (feveal)")])
                 .build();
 
             about_dialog.set_logo_icon_name(None);
@@ -861,6 +948,7 @@ pub fn main() {
                 let is_designer = name_str == "designer";
                 let is_editor = name_str == "editor";
                 let is_machine = name_str == "machine";
+                let is_visualizer = name_str == "visualizer";
 
                 // Las acciones del editor también deben habilitarse en "machine"
                 let enable_editor_actions = is_designer || is_editor || is_machine;
@@ -882,9 +970,12 @@ pub fn main() {
 
                 // File actions - ahora también en machine
                 set_enabled("file_new", enable_editor_actions);
+                set_enabled("file_new_2d", enable_editor_actions);
+                set_enabled("file_new_3d", enable_editor_actions);
                 set_enabled("file_open", enable_editor_actions);
                 set_enabled("file_save", enable_editor_actions);
                 set_enabled("file_save_as", enable_editor_actions);
+                set_enabled("file_run", is_editor || is_machine || is_visualizer);
 
                 // Acciones exclusivas del diseñador
                 set_enabled("file_import", is_designer);
@@ -898,7 +989,7 @@ pub fn main() {
         // Using centralized constants from common::accelerators module
         use crate::ui::gtk::common::accelerators::StandardShortcuts;
 
-        app.set_accels_for_action("app.file_new", &[StandardShortcuts::FILE_NEW]);
+        app.set_accels_for_action("app.file_new_2d", &[StandardShortcuts::FILE_NEW]);
         app.set_accels_for_action("app.file_open", &[StandardShortcuts::FILE_OPEN]);
         app.set_accels_for_action("app.file_save", &[StandardShortcuts::FILE_SAVE]);
         app.set_accels_for_action("app.file_save_as", &[StandardShortcuts::FILE_SAVE_AS]);
@@ -962,7 +1053,7 @@ pub fn main() {
                     .comments(t!("GCode Toolkit for CNC/Laser Machines"))
                     .website("https://github.com/feveal/gcodekit5-design")
                     .license_type(gtk4::License::MitX11)
-                    .authors(vec![t!("Tim Hawkins and GCodeKit Contributors")])
+                    .authors(vec![t!("Tim Hawkins and GCodeKit Contributors: \n (feveal)")])
                     .build();
 
                 about_dialog.set_logo_icon_name(None);

@@ -33,6 +33,7 @@ pub use ellipse::DesignEllipse;
 pub use gear::DesignGear;
 pub use line::DesignLine;
 pub use path::DesignPath;
+pub use path::ParametricPathSource;
 pub use polygon::DesignPolygon;
 pub use rectangle::DesignRectangle;
 pub use sprocket::DesignSprocket;
@@ -523,6 +524,7 @@ impl Shape {
             closed: false,
             original_path: None,
             lock_aspect_ratio: true,
+            parametric_source: None,
             laser_params: LaserParams::default(),
         }
     }

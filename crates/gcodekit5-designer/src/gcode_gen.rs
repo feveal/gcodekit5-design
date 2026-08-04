@@ -29,6 +29,8 @@ pub struct ToolpathToGcode {
     pub curve_simplification_tolerance: f64,
     /// Machine Limits
     pub machine_limits: Option<MachineLimits>,
+    /// Keep Z continuous between passes when possible (same XY rapid).
+    pub continuous_z_between_passes: bool,
 }
 
 impl ToolpathToGcode {
@@ -43,6 +45,7 @@ impl ToolpathToGcode {
             min_point_distance: 0.1,
             curve_simplification_tolerance: 0.05,
             machine_limits: None,
+            continuous_z_between_passes: false,
         }
     }
 
@@ -57,6 +60,7 @@ impl ToolpathToGcode {
             min_point_distance: 0.1,
             curve_simplification_tolerance: 0.05,
             machine_limits: None,
+            continuous_z_between_passes: false,
         }
     }
 
@@ -76,6 +80,12 @@ impl ToolpathToGcode {
     /// Recommended values: 0.05 (minimal), 0.10 (light), 0.15 (medium), 0.25 (aggressive)
     pub fn with_curve_tolerance(mut self, tolerance: f64) -> Self {
         self.curve_simplification_tolerance = tolerance;
+        self
+    }
+
+    /// Enable/disable continuous Z between passes in CNC mode.
+    pub fn with_continuous_z_between_passes(mut self, enabled: bool) -> Self {
+        self.continuous_z_between_passes = enabled;
         self
     }
 
@@ -192,12 +202,30 @@ impl ToolpathToGcode {
     ) -> String {
         let mut gcode = String::new();
 
-        gcode.push_str("; Generated G-code from Designer tool\n");
-        gcode.push_str(&format!("; Tool diameter: {:.2}mm\n", tool_diameter));
-        gcode.push_str(&format!("; Cut depth: {:.2}mm\n", depth));
-        gcode.push_str(&format!("; Feed rate: {:.0} mm/min\n", feed_rate));
-        gcode.push_str(&format!("; Spindle speed: {} RPM / Power\n", spindle_speed));
+        if self.is_laser_2d {
+            gcode.push_str("; Generated Laser G-code from Designer tool\n");
+            gcode.push_str(&format!("; Feed rate: {:.0} mm/min\n", feed_rate));
+            gcode.push_str(&format!("; Laser power (S): {}\n", spindle_speed));
+        } else {
+            gcode.push_str("; Generated G-code from Designer tool\n");
+            gcode.push_str(&format!("; Tool diameter: {:.2}mm\n", tool_diameter));
+            gcode.push_str(&format!("; Cut depth: {:.2}mm\n", depth));
+            gcode.push_str(&format!("; Feed rate: {:.0} mm/min\n", feed_rate));
+            gcode.push_str(&format!("; Spindle speed: {} RPM / Power\n", spindle_speed));
+        }
         gcode.push_str(&format!("; Total path length: {:.2}mm\n", total_length));
+
+        let estimated_minutes = if feed_rate > 0.0 {
+            total_length / feed_rate
+        } else {
+            0.0
+        };
+        let hours = (estimated_minutes / 60.0).floor() as u32;
+        let minutes = (estimated_minutes.rem_euclid(60.0)).round() as u32;
+        gcode.push_str(&format!(
+            "; Estimated time: {}h {}m\n",
+            hours, minutes
+        ));
         gcode.push('\n');
 
         // Setup
@@ -251,6 +279,8 @@ impl ToolpathToGcode {
         let mut last_feed_rate: Option<f64> = None;
         let mut last_point: Option<(f64, f64)> = None;
         let mut line_g01 = true;
+        let mut initial_safe_z_emitted = false;
+        let mut current_xy: Option<(f64, f64)> = None;
 
         let has_z = self.num_axes >= 3 && !self.is_laser_2d;
 
@@ -265,6 +295,29 @@ impl ToolpathToGcode {
                         line_number += 10;
                     }
 
+                    let same_xy = current_xy.is_some_and(|(x, y)| {
+                        (x - segment.end.x).abs() <= 0.001 && (y - segment.end.y).abs() <= 0.001
+                    });
+
+                    // In CNC mode emit safe-Z before first XY rapid. For next rapids,
+                    // keep Z continuous only when explicitly enabled and XY does not change.
+                    let should_retract = has_z
+                        && (!initial_safe_z_emitted
+                            || (!self.continuous_z_between_passes || !same_xy)
+                                && (current_z - self.safe_z).abs() > 0.01);
+
+                    if should_retract {
+                        let line_prefix = self.get_line_prefix(line_number);
+                        gcode.push_str(&format!(
+                            "{}G00 Z{}   ; Retract to safe Z\n",
+                            line_prefix,
+                            self.fmt_coord(self.safe_z)
+                        ));
+                        current_z = self.safe_z;
+                        initial_safe_z_emitted = true;
+                        line_number += 10;
+                    }
+
                     let line_prefix = self.get_line_prefix(line_number);
                     gcode.push_str(&format!(
                         "{}G00 X{} Y{}   ; Rapid move\n",
@@ -275,7 +328,7 @@ impl ToolpathToGcode {
 
                     line_g01 = true;
                     last_point = None;
-                    current_z = self.safe_z;
+                    current_xy = Some((segment.end.x, segment.end.y));
                     line_number += 10;
                 }
 
@@ -386,6 +439,8 @@ impl ToolpathToGcode {
                         coords,
                         feed_rate_cmd
                     ));
+
+                    current_xy = Some((segment.end.x, segment.end.y));
 
                     line_number += 10;
                 }
@@ -532,6 +587,7 @@ impl ToolpathToGcode {
                     }
 
                     line_number += 10;
+                    current_xy = Some((segment.end.x, segment.end.y));
                 }
             }
         }
@@ -555,7 +611,7 @@ impl ToolpathToGcode {
             gcode.push_str("M5          ; Laser OFF (safety)\n");
         }
 
-        if self.num_axes >= 3 && !self.is_laser_2d {
+        if !self.is_laser_2d {
             gcode.push_str(&format!(
                 "G00 Z{:.2}   ; Raise tool to safe height\n",
                 self.safe_z
@@ -603,5 +659,19 @@ impl ToolpathToGcode {
 impl Default for ToolpathToGcode {
     fn default() -> Self {
         Self::new(Units::MM, 10.0)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn generate_header_includes_estimated_time() {
+        let generator = ToolpathToGcode::new(Units::MM, 10.0);
+        let header = generator.generate_header(3000, 1000.0, 3.175, -5.0, 5000.0);
+
+        assert!(header.contains("; Total path length: 5000.00mm"));
+        assert!(header.contains("; Estimated time: 0h 5m"));
     }
 }
