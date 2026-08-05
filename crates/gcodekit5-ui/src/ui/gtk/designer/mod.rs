@@ -675,7 +675,7 @@ impl DesignerView {
                     let parent = crate::ui::gtk::file_dialog::parent_window(&canvas_gen.widget);
                     crate::ui::gtk::common::dialog::show_warning(
                         &t!("Out of limits warning"),
-                        &t!("The generated G-code contains coordinates outside the machine working area. Review the path before sending it to the machine."),
+                        &t!("The generated G-code contains coordinates outside the machine working area (Negative values). Review the path before sending it to the machine."),
                         parent.as_ref(),
                     );
                 }

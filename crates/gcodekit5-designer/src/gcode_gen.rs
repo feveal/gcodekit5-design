@@ -628,6 +628,12 @@ impl ToolpathToGcode {
             return false;
         };
 
+        if toolpath.depth < 0.0 {
+            return true;
+        }
+
+        let violates_z = |value: Option<f64>| value.is_some_and(|depth| depth < 0.0);
+
         for segment in &toolpath.segments {
             // Verificar punto inicial
             if segment.start.x < limits.x_min || segment.start.x > limits.x_max ||
@@ -637,6 +643,9 @@ impl ToolpathToGcode {
             // Verificar punto final
             if segment.end.x < limits.x_min || segment.end.x > limits.x_max ||
                segment.end.y < limits.y_min || segment.end.y > limits.y_max {
+                return true;
+            }
+            if violates_z(segment.start_z) || violates_z(segment.z_depth) {
                 return true;
             }
             // Verificar centro de arco
@@ -673,5 +682,56 @@ mod tests {
 
         assert!(header.contains("; Total path length: 5000.00mm"));
         assert!(header.contains("; Estimated time: 0h 5m"));
+    }
+
+    #[test]
+    fn has_boundary_violation_checks_z_axis() {
+        let generator = ToolpathToGcode {
+            machine_limits: Some(MachineLimits {
+                x_min: 0.0,
+                x_max: 100.0,
+                y_min: 0.0,
+                y_max: 100.0,
+            }),
+            ..ToolpathToGcode::new(Units::MM, 10.0)
+        };
+
+        let mut toolpath = Toolpath::new(6.0, 1.0);
+        let mut segment = ToolpathSegment::new(
+            ToolpathSegmentType::LinearMove,
+            Point::new(10.0, 10.0),
+            Point::new(20.0, 20.0),
+            1000.0,
+            12000,
+        );
+        segment.start_z = Some(-1.0);
+        segment.z_depth = Some(-1.0);
+        toolpath.add_segment(segment);
+
+        assert!(generator.has_boundary_violation(&toolpath));
+    }
+
+    #[test]
+    fn has_boundary_violation_checks_negative_toolpath_depth() {
+        let generator = ToolpathToGcode {
+            machine_limits: Some(MachineLimits {
+                x_min: 0.0,
+                x_max: 100.0,
+                y_min: 0.0,
+                y_max: 100.0,
+            }),
+            ..ToolpathToGcode::new(Units::MM, 10.0)
+        };
+
+        let mut toolpath = Toolpath::new(6.0, -7.0);
+        toolpath.add_segment(ToolpathSegment::new(
+            ToolpathSegmentType::LinearMove,
+            Point::new(10.0, 10.0),
+            Point::new(20.0, 20.0),
+            1000.0,
+            12000,
+        ));
+
+        assert!(generator.has_boundary_violation(&toolpath));
     }
 }

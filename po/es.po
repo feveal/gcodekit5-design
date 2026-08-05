@@ -241,6 +241,12 @@ msgstr "Nuevo diseño 2D creado"
 msgid "New 3D design created"
 msgstr "Nuevo diseño 3D creado"
 
+msgid "Out of limits warning"
+msgstr "Advertencia Fuera de Límites"
+
+msgid "The generated G-code contains coordinates outside the machine working area (Negative values). Review the path before sending it to the machine."
+msgstr "El G-code generado contiene coordenadas fuera del área de trabajo de la máquina (Valores Negativos). Revise las trayectorias antes de enviarlo a la máquina."
+
 # crates/gcodekit5-settings/src/config.rs
 msgid "Machine Control"
 msgstr "Control de máquina"

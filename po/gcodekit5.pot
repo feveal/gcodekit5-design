@@ -243,6 +243,12 @@ msgstr ""
 msgid "New 3D design created"
 msgstr ""
 
+msgid "Out of limits warning"
+msgstr ""
+
+msgid "The generated G-code contains coordinates outside the machine working area (Negative values). Review the path before sending it to the machine."
+msgstr ""
+
 # crates/gcodekit5-settings/src/config.rs
 msgid "Machine Control"
 msgstr ""
