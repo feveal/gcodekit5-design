@@ -777,6 +777,10 @@ impl DesignerView {
         self.status_label.set_text(message);
     }
 
+    pub fn current_tool_diameter_mm(&self) -> f64 {
+        self.canvas.state.borrow().tool_settings.tool_diameter
+    }
+
     pub fn set_on_gcode_generated<F: Fn(String) + 'static>(&self, f: F) {
         *self.on_gcode_generated.borrow_mut() = Some(std::boxed::Box::new(f));
     }

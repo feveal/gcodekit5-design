@@ -226,13 +226,6 @@ pub fn main() {
             }
         });
 
-        // Visualizer (Created early for MachineControl dependency)
-        let visualizer = Rc::new(GcodeVisualizer::new(
-            Some(device_manager.clone()),
-            settings_controller.clone(),
-            Some(status_bar.clone()),
-        ));
-
         // ==========================================
         // DESIGNER
         // ==========================================
@@ -241,6 +234,14 @@ pub fn main() {
             settings_controller.clone(),
             Some(status_bar.clone()),
         );
+
+        // Visualizer (Created early for MachineControl dependency)
+        let visualizer = Rc::new(GcodeVisualizer::new(
+            Some(device_manager.clone()),
+            settings_controller.clone(),
+            Some(status_bar.clone()),
+            Some(designer.get_state()),
+        ));
 
         // Keep window title synced with active document context.
         {
@@ -942,6 +943,8 @@ pub fn main() {
 
         // Enable/Disable actions based on active tab
         let app_clone = app.clone();
+        let designer_for_visualizer_sync = designer.clone();
+        let visualizer_for_tool_sync = visualizer.clone();
         stack.connect_visible_child_name_notify(move |stack| {
             if let Some(name) = stack.visible_child_name() {
                 let name_str = name.as_str();
@@ -949,6 +952,11 @@ pub fn main() {
                 let is_editor = name_str == "editor";
                 let is_machine = name_str == "machine";
                 let is_visualizer = name_str == "visualizer";
+
+                if is_visualizer {
+                    let tool_diameter_mm = designer_for_visualizer_sync.current_tool_diameter_mm();
+                    visualizer_for_tool_sync.set_stock_tool_diameter_mm(tool_diameter_mm);
+                }
 
                 // Las acciones del editor también deben habilitarse en "machine"
                 let enable_editor_actions = is_designer || is_editor || is_machine;

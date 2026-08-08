@@ -113,26 +113,7 @@ impl DesignerView {
         snap_threshold_row.append(&Label::new(Some(&t!("Snap threshold"))));
         snap_threshold_row.append(&snap_threshold);
         view_controls_box.append(&snap_threshold_row);
-/*
-        // Toolpath toggle
-        let toolpath_toggle = gtk4::CheckButton::with_label(&t!("Show Toolpaths"));
-        toolpath_toggle.set_active(false);
-        {
-            let state_toolpath = state.clone();
-            let canvas_toolpath = canvas.clone();
-            toolpath_toggle.connect_toggled(move |btn| {
-                let active = btn.is_active();
-                state_toolpath.borrow_mut().show_toolpaths = active;
-                if active {
-                    canvas_toolpath.generate_preview_toolpaths();
-                } else {
-                    canvas_toolpath.widget.queue_draw();
-                }
-            });
-        }
 
-        view_controls_box.append(&toolpath_toggle);
-*/
         // Preview generation progress + cancel
         let preview_spinner = gtk4::Spinner::new();
         preview_spinner.set_visible(false);
@@ -586,5 +567,9 @@ impl DesignerView {
 
             gtk4::glib::ControlFlow::Continue
         });
+    }
+
+    pub fn get_state(&self) -> Shared<DesignerState> {
+        self.canvas.state.clone()
     }
 }

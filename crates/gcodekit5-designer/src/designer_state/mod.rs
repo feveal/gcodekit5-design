@@ -89,6 +89,9 @@ pub struct DesignerState {
 }
 
 impl DesignerState {
+    const LASER_DEFAULT_TOOL_DIAMETER_MM: f64 = 0.1;
+    const CNC_DEFAULT_TOOL_DIAMETER_MM: f64 = 5.0;
+
     /// Creates a new designer state.
     pub fn new() -> Self {
         Self {
@@ -223,8 +226,17 @@ impl DesignerState {
 
     /// Sets the machine mode
     pub fn set_machine_mode(&mut self, mode: MachineMode) {
+        if self.tool_settings.machine_mode == mode {
+            return;
+        }
+
         self.tool_settings.machine_mode = mode;
-        self.gcode_generated = false;
+
+        let default_tool_diameter = match mode {
+            MachineMode::Laser2D => Self::LASER_DEFAULT_TOOL_DIAMETER_MM,
+            MachineMode::Cnc3D => Self::CNC_DEFAULT_TOOL_DIAMETER_MM,
+        };
+        self.set_tool_diameter(default_tool_diameter);
     }
 }
 
