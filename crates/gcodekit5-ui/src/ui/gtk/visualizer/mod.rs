@@ -537,14 +537,17 @@ impl GcodeVisualizer {
         let show_stock_removal = CheckButton::builder()
             .label(t!("Show Stock Removal"))
             .active(false)
-            .tooltip_text(&format!(
-                "The simulation has a resolution of {:.2}mm\n\
-                Cuts smaller than {:.2}mm will not be visually displayed,\n\
-                but the G-code will execute correctly.",
-                STOCK_REMOVAL_RESOLUTION,  STOCK_REMOVAL_RESOLUTION + 0.01
-    ))
-    .build();
-    show_stock_removal.set_visible(enable_stock_removal_3d);
+            .tooltip_text(format!(
+                "{}{:.2}{}{:.2}{}",
+                t!("The simulation has a resolution of "),
+                STOCK_REMOVAL_RESOLUTION,
+                t!("mm. Cuts smaller than "),
+                STOCK_REMOVAL_RESOLUTION + 0.01,
+                t!("mm will not be visually displayed, but the G-code will execute correctly.")
+            ))
+
+        .build();
+        show_stock_removal.set_visible(enable_stock_removal_3d);
 
         // Stock configuration
         let stock_width_entry = gtk4::Entry::builder()

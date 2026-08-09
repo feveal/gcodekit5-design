@@ -683,6 +683,15 @@ msgstr "Pausar previsalización"
 msgid "Stop preview"
 msgstr "Parar previsalización"
 
+msgid "The simulation has a resolution of "
+msgstr "La simulación tiene una resolución de "
+
+msgid "mm. Cuts smaller than "
+msgstr "mm. Un corte menor de "
+
+msgid "mm will not be visually displayed, but the G-code will execute correctly."
+msgstr "mm. no se visualizará, pero el Gcode se ejecutará correctamente."
+
 # crates/gcodekit5-ui/src/ui/gtk/device_manager.rs
 msgid "Delete “{}”? This cannot be undone."
 msgstr "Borrar \"{}\"? No se puede deshacer."

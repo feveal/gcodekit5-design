@@ -685,6 +685,16 @@ msgstr ""
 msgid "Stop preview"
 msgstr ""
 
+msgid "The simulation has a resolution of "
+msgstr ""
+
+msgid "mm. Cuts smaller than "
+msgstr ""
+
+msgid "mm will not be visually displayed, but the G-code will execute correctly."
+msgstr ""
+
+
 # crates/gcodekit5-ui/src/ui/gtk/device_manager.rs
 msgid "Delete â{}â? This cannot be undone."
 msgstr ""
