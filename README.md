@@ -10,6 +10,8 @@ A modern, cross-platform G-Code sender for Laser and CNC machine controller writ
 
 GCodeKit5 is a Rust-based CNC machine controller providing a modern alternative to Universal G-Code Sender. It supports multiple controller firmware types including GRBL, grblHAL, TinyG, g2core, Smoothieware, and FluidNC through a unified, intuitive interface built with the GTK4 UI framework.
 
+<img src="crates/gcodekit5-ui/resources/help_images/designer.png" alt="Designer" width="800">
+
 ## New version tested on Linux (Kubuntu 24.04) with improvements to the Designer module
 - Now you can: correctly import DXF and SVG files
 - Import raster images with the ability to create compositions from multiple images and vector objects, whether created or imported; order canvas objects using the Objects panel, which is used for G-code workflow; and configure G-code generation independently for each image, allowing you to change speed, power, inversion, etc., according to the image's characteristics.
@@ -179,7 +181,8 @@ The object positioning issue when opening "gckd" files.
   - You can also define individual properties for each object. Unchecking "Use global values" in the properties panel will apply the new values ​​to the selected object.
 
 ### 👁️ 3D Visualizer
-- **Real-time 3D Rendering**: Instant visualization of G-code toolpaths
+- **Real-time 3D Rendering**: Instant visualization of G-code toolpaths for CNC machining. Rendered representation of G-code toolpaths, depths according to the configured tool diameter. This preview is only available with CNC machine selection
+- Add **Play/Pause/Stop** to reproduce the movement of the tool at different playback speed levels. It is available for both 2D and 3D models
 - **Adaptive Grid System**:
   - Dynamic grid spacing (e.g., 10mm, 100mm) based on zoom level
   - Infinite grid coverage across the entire viewport
@@ -193,7 +196,6 @@ The object positioning issue when opening "gckd" files.
 - **Toolpath Cache**: Parsing + SVG generation flow through a single cache so repeated renders skip redundant work.
 - **Unified Path Segments**: A single `PathSegment` enum (with shared `MovementMeta`, streaming visitors, lazy arc iterators, and cached arc geometry) powers both line and arc moves so stats/iteration stay fast and feed rates stay consistent.
 - **Analytical Bounds**: Bounding boxes are computed from segment metadata (including arcs), so zoom-to-fit and layout decisions never need to re-discretize toolpaths.
-- Add **Play/Pause/Stop** to reproduce the movement of the tool at different playback speed levels
 
 ### 💬 Smart Device Console
 - **Command History**: Scrollable record of all device communications
