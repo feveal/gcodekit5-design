@@ -151,64 +151,47 @@ impl VoxelGrid {
     }
 }
 
+// ---
 pub fn generate_surface_mesh(grid: &VoxelGrid) -> Vec<f32> {
     let mut vertices = Vec::new();
 
-    // Color for the stock (steel gray)
+    // Color para el stock (gris acero) - sin transparencia
     let color = [0.44, 0.50, 0.56, 1.0];
 
-    let mut add_quad = |v1: Vec3, v2: Vec3, v3: Vec3, v4: Vec3, normal: Vec3| {
+    // Color para caras internas (más oscuro para dar profundidad)
+    let color_inner = [0.35, 0.40, 0.45, 1.0];
+
+    let mut add_quad = |v1: Vec3, v2: Vec3, v3: Vec3, v4: Vec3, normal: Vec3, is_outer: bool| {
+        let c = if is_outer { color } else { color_inner };
+
         // Triangle 1: v1, v2, v3
-        vertices.push(v1.x);
-        vertices.push(v1.y);
-        vertices.push(v1.z);
-        vertices.push(normal.x);
-        vertices.push(normal.y);
-        vertices.push(normal.z);
-        vertices.extend_from_slice(&color);
+        vertices.push(v1.x); vertices.push(v1.y); vertices.push(v1.z);
+        vertices.push(normal.x); vertices.push(normal.y); vertices.push(normal.z);
+        vertices.extend_from_slice(&c);
 
-        vertices.push(v2.x);
-        vertices.push(v2.y);
-        vertices.push(v2.z);
-        vertices.push(normal.x);
-        vertices.push(normal.y);
-        vertices.push(normal.z);
-        vertices.extend_from_slice(&color);
+        vertices.push(v2.x); vertices.push(v2.y); vertices.push(v2.z);
+        vertices.push(normal.x); vertices.push(normal.y); vertices.push(normal.z);
+        vertices.extend_from_slice(&c);
 
-        vertices.push(v3.x);
-        vertices.push(v3.y);
-        vertices.push(v3.z);
-        vertices.push(normal.x);
-        vertices.push(normal.y);
-        vertices.push(normal.z);
-        vertices.extend_from_slice(&color);
+        vertices.push(v3.x); vertices.push(v3.y); vertices.push(v3.z);
+        vertices.push(normal.x); vertices.push(normal.y); vertices.push(normal.z);
+        vertices.extend_from_slice(&c);
 
         // Triangle 2: v1, v3, v4
-        vertices.push(v1.x);
-        vertices.push(v1.y);
-        vertices.push(v1.z);
-        vertices.push(normal.x);
-        vertices.push(normal.y);
-        vertices.push(normal.z);
-        vertices.extend_from_slice(&color);
+        vertices.push(v1.x); vertices.push(v1.y); vertices.push(v1.z);
+        vertices.push(normal.x); vertices.push(normal.y); vertices.push(normal.z);
+        vertices.extend_from_slice(&c);
 
-        vertices.push(v3.x);
-        vertices.push(v3.y);
-        vertices.push(v3.z);
-        vertices.push(normal.x);
-        vertices.push(normal.y);
-        vertices.push(normal.z);
-        vertices.extend_from_slice(&color);
+        vertices.push(v3.x); vertices.push(v3.y); vertices.push(v3.z);
+        vertices.push(normal.x); vertices.push(normal.y); vertices.push(normal.z);
+        vertices.extend_from_slice(&c);
 
-        vertices.push(v4.x);
-        vertices.push(v4.y);
-        vertices.push(v4.z);
-        vertices.push(normal.x);
-        vertices.push(normal.y);
-        vertices.push(normal.z);
-        vertices.extend_from_slice(&color);
+        vertices.push(v4.x); vertices.push(v4.y); vertices.push(v4.z);
+        vertices.push(normal.x); vertices.push(normal.y); vertices.push(normal.z);
+        vertices.extend_from_slice(&c);
     };
 
+    // Recorremos todas las celdas del grid
     for z in 0..grid.depth {
         for y in 0..grid.height {
             for x in 0..grid.width {
@@ -221,6 +204,8 @@ pub fn generate_surface_mesh(grid: &VoxelGrid) -> Vec<f32> {
                 let pz = z as f32 * grid.resolution;
                 let s = grid.resolution;
 
+                // Verificar si la cara es visible (borde del material)
+                // Cara -X
                 if x == 0 || grid.get_at_position(x - 1, y, z) == 0 {
                     add_quad(
                         Vec3::new(px, py, pz),
@@ -228,8 +213,10 @@ pub fn generate_surface_mesh(grid: &VoxelGrid) -> Vec<f32> {
                         Vec3::new(px, py + s, pz + s),
                         Vec3::new(px, py + s, pz),
                         Vec3::new(-1.0, 0.0, 0.0),
+                        true,
                     );
                 }
+                // Cara +X
                 if x == grid.width - 1 || grid.get_at_position(x + 1, y, z) == 0 {
                     add_quad(
                         Vec3::new(px + s, py, pz + s),
@@ -237,8 +224,10 @@ pub fn generate_surface_mesh(grid: &VoxelGrid) -> Vec<f32> {
                         Vec3::new(px + s, py + s, pz),
                         Vec3::new(px + s, py + s, pz + s),
                         Vec3::new(1.0, 0.0, 0.0),
+                        true,
                     );
                 }
+                // Cara -Y
                 if y == 0 || grid.get_at_position(x, y - 1, z) == 0 {
                     add_quad(
                         Vec3::new(px, py, pz),
@@ -246,8 +235,10 @@ pub fn generate_surface_mesh(grid: &VoxelGrid) -> Vec<f32> {
                         Vec3::new(px + s, py, pz + s),
                         Vec3::new(px, py, pz + s),
                         Vec3::new(0.0, -1.0, 0.0),
+                        true,
                     );
                 }
+                // Cara +Y
                 if y == grid.height - 1 || grid.get_at_position(x, y + 1, z) == 0 {
                     add_quad(
                         Vec3::new(px, py + s, pz + s),
@@ -255,8 +246,10 @@ pub fn generate_surface_mesh(grid: &VoxelGrid) -> Vec<f32> {
                         Vec3::new(px + s, py + s, pz),
                         Vec3::new(px, py + s, pz),
                         Vec3::new(0.0, 1.0, 0.0),
+                        true,
                     );
                 }
+                // Cara -Z (inferior)
                 if z == 0 || grid.get_at_position(x, y, z - 1) == 0 {
                     add_quad(
                         Vec3::new(px + s, py, pz),
@@ -264,8 +257,10 @@ pub fn generate_surface_mesh(grid: &VoxelGrid) -> Vec<f32> {
                         Vec3::new(px, py + s, pz),
                         Vec3::new(px + s, py + s, pz),
                         Vec3::new(0.0, 0.0, -1.0),
+                        true,
                     );
                 }
+                // Cara +Z (superior)
                 if z == grid.depth - 1 || grid.get_at_position(x, y, z + 1) == 0 {
                     add_quad(
                         Vec3::new(px, py, pz + s),
@@ -273,6 +268,7 @@ pub fn generate_surface_mesh(grid: &VoxelGrid) -> Vec<f32> {
                         Vec3::new(px + s, py + s, pz + s),
                         Vec3::new(px, py + s, pz + s),
                         Vec3::new(0.0, 0.0, 1.0),
+                        true,
                     );
                 }
             }
@@ -280,6 +276,7 @@ pub fn generate_surface_mesh(grid: &VoxelGrid) -> Vec<f32> {
     }
     vertices
 }
+// ---
 
 pub struct StockSimulator3D {
     grid: VoxelGrid,

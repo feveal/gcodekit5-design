@@ -813,25 +813,34 @@ impl GcodeVisualizer {
         stack.set_hexpand(true);
         stack.set_vexpand(true);
 
-        // 3D Page
-        let gl_area = GLArea::builder().hexpand(true).vexpand(true).build();
+        // ---
+        // 3D Page - CONFIGURACIÓN CORRECTA
+        let gl_area = GLArea::builder()
+            .hexpand(true)
+            .vexpand(true)
+            .has_depth_buffer(true)      // Habilitar depth buffer
+            .has_stencil_buffer(false)
+            .auto_render(true)           // Para que renderice automáticamente
+            .build();
         gl_area.set_required_version(3, 3);
 
-        {
-            let drawing_area = drawing_area.clone();
-            let gl_area = gl_area.clone();
-            let grid_spacing_mm = grid_spacing_mm.clone();
+        // ⭐ CONFIGURAR EL CONTEXTO ANTES DE USARLO
+        gl_area.set_has_depth_buffer(true);
+        gl_area.set_auto_render(true);
 
-            grid_spacing_combo.connect_changed(move |cb| {
-                if let Some(id) = cb.active_id() {
-                    if let Ok(mm) = id.parse::<f64>() {
-                        grid_spacing_mm.set(mm);
-                    }
-                }
-                drawing_area.queue_draw();
-                gl_area.queue_draw();
-            });
-        }
+        // ⭐ CONECTAR REALIZE - NECESARIO PARA INICIALIZAR
+        gl_area.connect_realize(|area| {
+            // El contexto GL se activa automáticamente en realize
+            // Hacer que el área sea focuseable para recibir eventos
+            area.set_can_focus(true);
+            area.grab_focus();
+        });
+
+        // ⭐ CONECTAR UNMAP - Limpiar recursos cuando se oculta
+        gl_area.connect_unmap(|_area| {
+            // El contexto se libera automáticamente
+        });
+        // ---
 
         // 3D Scrollbars
         let extent = core_constants::WORLD_EXTENT_MM;
@@ -2466,17 +2475,14 @@ show_stock_removal.connect_toggled(move |checkbox| {
                     state.bounds_buffers.draw();
                 }
 
-                // Draw Toolpath
-                if show_rapid_3d.is_active() {
-                    state.rapid_buffers.draw();
-                }
                 if show_cut_3d.is_active() {
                     state.cut_buffers.draw();
                 }
 
                 state.shader.unbind();
 
-                // Draw 3D Stock Removal
+                // ---
+                // Draw 3D Stock Removal - CON BACK-FACE CULLING CORRECTO
                 if show_stock_removal_3d.is_active() {
                     if let Some(simulator) = stock_simulator_3d_render.borrow().as_ref() {
                         // Initialize stock removal shader if needed
@@ -2507,10 +2513,25 @@ show_stock_removal.connect_toggled(move |checkbox| {
                         if let (Some(shader), Some(buffers)) =
                             (&state.stock_removal_shader, &state.stock_removal_buffers)
                         {
+                            // Configurar estado de renderizado para sólido opaco
+                            unsafe {
+                                // Deshabilitar blending para evitar transparencias
+                                gl.disable(glow::BLEND);
+                                // Habilitar depth test para correcta profundidad
+                                gl.enable(glow::DEPTH_TEST);
+                                // Configurar depth function para que funcione correctamente
+                                gl.depth_func(glow::LESS);
+                                // Habilitar back-face culling para eliminar caras internas
+                                gl.enable(glow::CULL_FACE);
+                                gl.cull_face(glow::BACK);
+                                // Orientación de caras: CCW (counter-clockwise)
+                                gl.front_face(glow::CCW);
+                            }
+
                             shader.bind();
 
+                            // Configurar matriz MVP
                             if let Some(loc) = shader.get_uniform_location("uModelViewProjection") {
-                                // SAFETY: GL context is current; uploading uniform to valid location.
                                 unsafe {
                                     gl.uniform_matrix_4_f32_slice(
                                         Some(&loc),
@@ -2521,9 +2542,7 @@ show_stock_removal.connect_toggled(move |checkbox| {
                             }
 
                             if let Some(loc) = shader.get_uniform_location("uNormalMatrix") {
-                                let normal_matrix =
-                                    glam::Mat3::from_mat4(view).inverse().transpose();
-                                // SAFETY: GL context is current; uploading uniform to valid location.
+                                let normal_matrix = glam::Mat3::from_mat4(view).inverse().transpose();
                                 unsafe {
                                     gl.uniform_matrix_3_f32_slice(
                                         Some(&loc),
@@ -2534,22 +2553,18 @@ show_stock_removal.connect_toggled(move |checkbox| {
                             }
 
                             if let Some(loc) = shader.get_uniform_location("uLightDir") {
-                                // SAFETY: GL context is current; uploading uniform to valid location.
                                 unsafe {
                                     gl.uniform_3_f32(Some(&loc), 0.35, 0.35, 1.0);
                                 }
                             }
 
-                            // SAFETY: GL context is current; enabling face culling
-                            // for correct solid mesh rendering.
-                            unsafe {
-                                gl.enable(glow::CULL_FACE);
-                                gl.cull_face(glow::BACK);
-                            }
+                            // Dibujar el mesh
                             buffers.draw();
-                            // SAFETY: GL context is current; restoring cull state.
+
+                            // Restaurar estado
                             unsafe {
                                 gl.disable(glow::CULL_FACE);
+                                // NO deshabilitar depth test porque el toolpath lo necesita
                             }
 
                             shader.unbind();
@@ -2558,6 +2573,42 @@ show_stock_removal.connect_toggled(move |checkbox| {
                         debug!("No stock simulator available for rendering");
                     }
                 }
+
+                // Después de dibujar el stock removal, dibujar el toolpath
+                // Draw Toolpath (asegurar que se dibuja encima del stock)
+                if show_rapid_3d.is_active() || show_cut_3d.is_active() {
+                    state.shader.bind();
+
+                    if let Some(loc) = state.shader.get_uniform_location("uModelViewProjection") {
+                        unsafe {
+                            gl.uniform_matrix_4_f32_slice(
+                                Some(&loc),
+                                false,
+                                &mvp.to_cols_array(),
+                            );
+                        }
+                    }
+
+                    // Dibujar con depth test activo pero con offset para evitar z-fighting
+                    unsafe {
+                        gl.enable(glow::POLYGON_OFFSET_FILL);
+                        gl.polygon_offset(-1.0, -1.0);
+                    }
+
+                    if show_rapid_3d.is_active() {
+                        state.rapid_buffers.draw();
+                    }
+                    if show_cut_3d.is_active() {
+                        state.cut_buffers.draw();
+                    }
+
+                    unsafe {
+                        gl.disable(glow::POLYGON_OFFSET_FILL);
+                    }
+
+                    state.shader.unbind();
+                }
+                // ---
 
                 // Draw Tool Marker last so it stays visible above the stock preview.
                 if show_laser_3d.is_active() {

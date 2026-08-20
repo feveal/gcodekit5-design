@@ -1,8 +1,8 @@
-//! 2D G-Code Visualizer
+//! G-Code Visualizer
 //! Parses G-Code toolpaths for canvas-based visualization
 
 use super::toolpath_cache::ToolpathCache;
-use super::viewport::{Bounds, ViewportTransform};
+use super::viewport::{Bounds};
 use gcodekit5_core::constants as core_constants;
 use gcodekit5_designer::toolpath::Toolpath;
 use std::collections::hash_map::DefaultHasher;
@@ -47,30 +47,7 @@ fn intensity_to_color(intensity: f32, max_intensity: f32) -> (f32, f32, f32) {
         engraving_color / 2.0,
     )
 }
-/* 
-fn intensity_to_color(intensity: f32, min_intensity: f32, max_intensity: f32) -> (f32, f32, f32) {
-    if max_intensity <= min_intensity {
-        return (0.5, 0.5, 0.5);
-    }
 
-    // Normalize intensity to the observed S range.
-    let normalized = ((intensity - min_intensity) / (max_intensity - min_intensity)).clamp(0.0, 1.0);
-
-    // Reduce shades to avoid excessive per-segment color churn in large raster files.
-    const GRAY_LEVELS: f32 = 24.0;
-    let quantized = (normalized * (GRAY_LEVELS - 1.0)).round() / (GRAY_LEVELS - 1.0);
-
-    // Inverted: low power = light, high power = dark, but keep a visible floor
-    // so strokes remain readable on the dark preview background.
-    let engraving_color = 0.40 + (1.0 - quantized) * 0.55;
-
-    (
-        engraving_color / 2.0,
-        engraving_color,
-        engraving_color / 2.0,
-    )
-}
-*/
 /// New Gcode
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum MotionMode {
@@ -220,7 +197,6 @@ pub struct Visualizer {
     /// Scale factor: pixels per mm (default 1.0 = 1px:1mm)
     pub scale_factor: f32,
     toolpath_cache: ToolpathCache,
-    viewport: ViewportTransform,
     /// Dirty flag — set when vertex data needs regeneration
     dirty: bool,
 
@@ -255,7 +231,6 @@ impl Visualizer {
             show_grid: true,
             scale_factor: DEFAULT_SCALE_FACTOR,
             toolpath_cache: ToolpathCache::new(),
-            viewport: ViewportTransform::new(CANVAS_PADDING),
             dirty: true,
 
             toolpath_receiver: Arc::new(receiver),
@@ -279,23 +254,6 @@ impl Visualizer {
         self.dirty = false;
     }
 
-    /// Calculate and set offsets to position origin (0,0) at bottom-left of canvas
-    pub fn set_default_view(&mut self, _canvas_width: f32, canvas_height: f32) {
-        let (x_offset, y_offset) = self.viewport.offsets_to_place_world_point(
-            self.min_x,
-            self.min_y,
-            self.zoom_scale,
-            self.scale_factor,
-            canvas_height,
-            0.0,
-            0.0,
-            5.0,
-            canvas_height - 5.0,
-        );
-        self.x_offset = x_offset;
-        self.y_offset = y_offset;
-    }
-
     /// Toggle grid visibility
     pub fn toggle_grid(&mut self) {
         self.show_grid = !self.show_grid;
@@ -314,20 +272,6 @@ impl Visualizer {
     /// Get scale factor
     pub fn get_scale_factor(&self) -> f32 {
         self.scale_factor
-    }
-
-    /// Calculate viewbox for the current view state
-    pub fn get_viewbox(&self, width: f32, height: f32) -> (f32, f32, f32, f32) {
-        self.viewport.viewbox(
-            self.min_x,
-            self.min_y,
-            self.zoom_scale,
-            self.scale_factor,
-            self.x_offset,
-            self.y_offset,
-            width,
-            height,
-        )
     }
 
     /// Extract multiple parameters from G-Code line
@@ -702,30 +646,6 @@ fn extract_gcode_num(line: &str) -> Option<u32> {
         (self.min_x, self.max_x, self.min_y, self.max_y)
     }
 
-    pub fn toolpath_svg(&self) -> &str {
-        self.toolpath_cache.toolpath_svg()
-    }
-
-    pub fn rapid_svg(&self) -> &str {
-        self.toolpath_cache.rapid_svg()
-    }
-
-    pub fn g1_svg(&self) -> &str {
-        self.toolpath_cache.g1_svg()
-    }
-
-    pub fn g2_svg(&self) -> &str {
-        self.toolpath_cache.g2_svg()
-    }
-
-    pub fn g3_svg(&self) -> &str {
-        self.toolpath_cache.g3_svg()
-    }
-
-    pub fn g4_svg(&self) -> &str {
-        self.toolpath_cache.g4_svg()
-    }
-
     pub fn commands(&self) -> &[GCodeCommand] {
         self.toolpath_cache.commands()
     }
@@ -922,20 +842,7 @@ fn extract_gcode_num(line: &str) -> Option<u32> {
 
         intensity_to_color(intensity, self.max_intensity)
     }   
-/*
-    /// Obtain the color for a given intensity.
-    pub fn get_color_for_intensity(&self, intensity: f32) -> (f32, f32, f32) {
-        if !self.use_intensity_colors {
-            return (1.0, 1.0, 0.0);
-        }
 
-        if self.max_intensity <= self.min_intensity {
-            return (1.0, 1.0, 0.0);
-        }
-
-        intensity_to_color(intensity, self.min_intensity, self.max_intensity)
-    }
-*/
     /// Activate/deactivate colors by intensity
     pub fn toggle_intensity_colors(&mut self) {
         self.use_intensity_colors = !self.use_intensity_colors;
