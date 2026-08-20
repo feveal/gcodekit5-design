@@ -21,7 +21,7 @@ mod transforms;
 mod viewport;
 
 use crate::commands::DesignerCommand;
-use crate::stock_removal::{SimulationResult, StockMaterial};
+use crate::stock_removal::{StockMaterial};
 use crate::{Canvas, ToolpathGenerator};
 
 /// Tool settings for the designer
@@ -83,7 +83,6 @@ pub struct DesignerState {
     // Stock removal simulation
     pub stock_material: Option<StockMaterial>,
     pub show_stock_removal: bool,
-    pub simulation_result: Option<SimulationResult>,
     /// Number of axes on the active device (default 3).
     pub num_axes: u8,
 }
@@ -125,7 +124,6 @@ impl DesignerState {
                 safe_z: StockMaterial::default_safe_z_for_thickness(10.0),
             }),
             show_stock_removal: false,
-            simulation_result: None,
             num_axes: 3,
         }
     }

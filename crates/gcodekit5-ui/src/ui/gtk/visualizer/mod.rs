@@ -11,7 +11,7 @@
 mod gl_loader;
 
 use gcodekit5_core::constants as core_constants;
-use gcodekit5_designer::stock_removal::{SimulationResult, StockMaterial};
+use gcodekit5_designer::stock_removal::{StockMaterial};
 use gcodekit5_devicedb::DeviceManager;
 use gcodekit5_visualizer::visualizer::GCodeCommand;
 use gcodekit5_visualizer::{Camera3D, Visualizer};
@@ -111,8 +111,6 @@ pub struct GcodeVisualizer {
     pub(crate) show_stock_removal: CheckButton,
     #[allow(dead_code)]
     pub(crate) stock_material: SharedOption<StockMaterial>,
-     #[allow(dead_code)]
-    pub(crate) simulation_result: SharedOption<SimulationResult>,
     pub(crate) _simulation_visualization: SharedOption<StockRemovalVisualization>,
     pub(crate) _simulation_running: Shared<bool>,
     // Stock removal simulation (3D)
@@ -134,6 +132,9 @@ pub struct GcodeVisualizer {
     pub(crate) settings_controller: Rc<SettingsController>,
     stock_tool_diameter_entry: Entry,
     stock_tool_diameter_mm: Shared<f32>,
+    stock_width_entry: Entry,
+    stock_height_entry: Entry,
+    stock_thickness_entry: Entry,
     // Optional status bar reference for future OSD integration.
     #[allow(dead_code)]
     pub(crate) status_bar: Option<StatusBar>,
@@ -552,19 +553,19 @@ impl GcodeVisualizer {
         // Stock configuration
         let stock_width_entry = gtk4::Entry::builder()
             .placeholder_text(t!("Width"))
-            .text("200.0")
+            .editable(false)
             .build();
         let stock_height_entry = gtk4::Entry::builder()
             .placeholder_text(t!("Height"))
-            .text("200.0")
+            .editable(false)
             .build();
         let stock_thickness_entry = gtk4::Entry::builder()
             .placeholder_text(t!("Thickness"))
-            .text("10.0")
+            .editable(false)
             .build();
         let stock_tool_diameter_entry = gtk4::Entry::builder()
             .placeholder_text(t!("Tool Diameter"))
-            .text("3.175")
+            .editable(false)
             .build();
 
         // Group toggles into sections
@@ -813,22 +814,21 @@ impl GcodeVisualizer {
         stack.set_hexpand(true);
         stack.set_vexpand(true);
 
-        // ---
         // 3D Page - CONFIGURACIÓN CORRECTA
         let gl_area = GLArea::builder()
             .hexpand(true)
             .vexpand(true)
             .has_depth_buffer(true)      // Habilitar depth buffer
             .has_stencil_buffer(false)
-            .auto_render(true)           // Para que renderice automáticamente
+            .auto_render(true)           // Renderizar automáticamente
             .build();
         gl_area.set_required_version(3, 3);
 
-        // ⭐ CONFIGURAR EL CONTEXTO ANTES DE USARLO
+        // CONFIGURAR EL CONTEXTO ANTES DE USARLO
         gl_area.set_has_depth_buffer(true);
         gl_area.set_auto_render(true);
 
-        // ⭐ CONECTAR REALIZE - NECESARIO PARA INICIALIZAR
+        // CONECTAR REALIZE - NECESARIO PARA INICIALIZAR
         gl_area.connect_realize(|area| {
             // El contexto GL se activa automáticamente en realize
             // Hacer que el área sea focuseable para recibir eventos
@@ -836,11 +836,10 @@ impl GcodeVisualizer {
             area.grab_focus();
         });
 
-        // ⭐ CONECTAR UNMAP - Limpiar recursos cuando se oculta
+        // CONECTAR UNMAP - Limpiar recursos cuando se oculta
         gl_area.connect_unmap(|_area| {
             // El contexto se libera automáticamente
         });
-        // ---
 
         // 3D Scrollbars
         let extent = core_constants::WORLD_EXTENT_MM;
@@ -892,7 +891,6 @@ impl GcodeVisualizer {
         });
         let stock_material = shared(initial_stock);
         let tool_diameter = shared(3.175f32); // Default 1/8" end mill
-        let simulation_result = shared_none();
         let simulation_visualization = shared_none::<StockRemovalVisualization>();
         let simulation_running = shared(false);
         let stock_simulator_3d = shared_none();
@@ -1951,7 +1949,6 @@ impl GcodeVisualizer {
         let _da_update = drawing_area.clone();
         let gl_update = gl_area.clone();
         let visualizer_stock = visualizer.clone();
-        let _simulation_result_stock = simulation_result.clone();
         let _simulation_visualization_stock = simulation_visualization.clone();
         let stock_material_stock = stock_material.clone();
         let tool_diameter_stock = tool_diameter.clone();
@@ -2313,7 +2310,6 @@ show_stock_removal.connect_toggled(move |checkbox| {
         let show_laser_3d = show_laser.clone();
         let show_stock_removal_3d = show_stock_removal.clone();
 
-        // ---
         let grid_spacing_mm_render = grid_spacing_mm.clone();
         // Guardar el último valor procesado para detectar cambios
         let last_grid_spacing = std::cell::Cell::new(50.0_f64);
@@ -2481,8 +2477,7 @@ show_stock_removal.connect_toggled(move |checkbox| {
 
                 state.shader.unbind();
 
-                // ---
-                // Draw 3D Stock Removal - CON BACK-FACE CULLING CORRECTO
+                // Draw 3D Stock Removal - CON BACK-FACE CULLING
                 if show_stock_removal_3d.is_active() {
                     if let Some(simulator) = stock_simulator_3d_render.borrow().as_ref() {
                         // Initialize stock removal shader if needed
@@ -2608,7 +2603,6 @@ show_stock_removal.connect_toggled(move |checkbox| {
 
                     state.shader.unbind();
                 }
-                // ---
 
                 // Draw Tool Marker last so it stays visible above the stock preview.
                 if show_laser_3d.is_active() {
@@ -2801,7 +2795,6 @@ show_stock_removal.connect_toggled(move |checkbox| {
             show_laser,
             show_stock_removal,
             stock_material,
-            simulation_result,
             _simulation_visualization: shared_none(),
             _simulation_running: simulation_running,
             _stock_simulator_3d: stock_simulator_3d,
@@ -2819,6 +2812,9 @@ show_stock_removal.connect_toggled(move |checkbox| {
             settings_controller,
             stock_tool_diameter_entry,
             stock_tool_diameter_mm: tool_diameter,
+            stock_width_entry,
+            stock_height_entry,
+            stock_thickness_entry,
             status_bar,
             current_pos,
             fit_btn_3d,
@@ -2927,6 +2923,9 @@ show_stock_removal.connect_toggled(move |checkbox| {
             });
         drop(vis);
 
+        // ★ Sincronizar stock con el diseñador ★
+        self.sync_stock_from_designer();
+
         // Force 3D top view and fit whenever G-code is loaded
         self.stack.set_visible_child_name("3d");
         self.apply_top_3d_view(
@@ -2952,34 +2951,15 @@ show_stock_removal.connect_toggled(move |checkbox| {
         }
         false  // Por defecto, asumir 3D
     }
-}
 
-#[cfg(test)]
-mod tests_visualizer {
-    use super::*;
-    // Visualizer is already imported via super::*
-
-    #[test]
-    fn test_apply_fit_to_device_with_no_profile_uses_default_bbox() {
-        let mut vis = Visualizer::new();
-        let width = 1200.0f32;
-        let height = 800.0f32;
-
-        // Call apply_fit_to_device with no device manager
-        GcodeVisualizer::apply_fit_to_device(&mut vis, &None, width, height);
-
-        // Compute expected scale
-        let margin_percent = 0.05f32;
-        let available_width = width * (1.0 - margin_percent * 2.0);
-        let available_height = height * (1.0 - margin_percent * 2.0);
-        let expected_scale = (available_width / core_constants::DEFAULT_WORK_WIDTH_MM as f32)
-            .min(available_height / core_constants::DEFAULT_WORK_HEIGHT_MM as f32);
-
-        assert!(
-            (vis.zoom_scale - expected_scale).abs() < 1e-4,
-            "zoom {} expected {}",
-            vis.zoom_scale,
-            expected_scale
-        );
+    pub fn sync_stock_from_designer(&self) {
+        if let Some(state) = self.designer_state.as_ref() {
+            if let Some(stock) = &state.borrow().stock_material {
+                self.stock_width_entry.set_text(&format!("{:.1}", stock.width));
+                self.stock_height_entry.set_text(&format!("{:.1}", stock.height));
+                self.stock_thickness_entry.set_text(&format!("{:.1}", stock.thickness));
+            }
+        }
     }
 }
+

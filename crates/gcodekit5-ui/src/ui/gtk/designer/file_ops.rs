@@ -379,7 +379,7 @@ impl DesignerView {
                                         let importer =
                                         gcodekit5_designer::import::StlImporter::new()
                                         .with_scale(1.0)
-                                        .with_centering(true);
+                                        .with_centering(false);
 
                                         // Import STL and create shadow projection
                                         let result = importer.import_file(path.to_str().unwrap_or(""));
