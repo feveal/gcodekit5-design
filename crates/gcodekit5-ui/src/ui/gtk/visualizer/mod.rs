@@ -2458,9 +2458,15 @@ show_stock_removal.connect_toggled(move |checkbox| {
                     }
                 }
 
-                // Draw Grid
+                // Draw Grid (sin depth test)
                 if show_grid_3d.is_active() {
+                    unsafe {
+                        gl.disable(glow::DEPTH_TEST);  // ← Desactivar depth test
+                    }
                     state.grid_buffers.draw();
+                    unsafe {
+                        gl.enable(glow::DEPTH_TEST);   // ← Reactivar
+                    }
                 }
 
                 // Draw Axes

@@ -5,11 +5,6 @@ use gcodekit5_designer::model::RasterImage;
 
 // UI Section builders
 impl PropertiesPanel {
-/*
-    pub(crate) fn create_section(title: &str) -> Frame {
-        Frame::new(Some(title))
-    }
-*/
 
     pub(crate) fn create_section(title: &str) -> Frame {
         let frame = Frame::new(None);
@@ -464,8 +459,6 @@ impl PropertiesPanel {
         (frame, offset_entry, chamfer_entry, offset_unit_label, chamfer_unit_label)
     }
 
-    // GTK callback closure type inherently complex.
-    #[allow(clippy::type_complexity)]
     pub(crate) fn build_cam_section() -> (
         Frame,
         CheckButton,
@@ -477,10 +470,12 @@ impl PropertiesPanel {
         Entry,
         DropDown,
         Entry,
-        Label,
-        Label,
-        Label,
-        Label,
+        Label,  // depth_unit_label
+        Label,  // z_offset_unit_label
+        Label,  // step_down_unit_label
+        Label,  // step_in_unit_label
+        Label,  // step_in_label
+        Label,  // depth_label
     ) {
         let frame = Self::create_section(&t!("CAM Properties"));
         let grid = gtk4::Grid::builder()
@@ -512,6 +507,11 @@ impl PropertiesPanel {
         depth_unit_label.set_halign(gtk4::Align::End);
         depth_unit_label.set_xalign(1.0);
 
+        // Desactivar depth_entry por defecto (Profile es el default)
+        depth_entry.set_sensitive(false);
+        depth_label.set_sensitive(false);
+        depth_unit_label.set_sensitive(false);
+
         // Z Offset
         let z_offset_label = Label::new(Some(&t!("Z Offset:")));
         z_offset_label.set_halign(gtk4::Align::Start);
@@ -539,6 +539,11 @@ impl PropertiesPanel {
         step_in_unit_label.set_halign(gtk4::Align::End);
         step_in_unit_label.set_xalign(1.0);
 
+        // Desactivar Step In por defecto (Profile es el default)
+        step_in_entry.set_sensitive(false);
+        step_in_label.set_sensitive(false);
+        step_in_unit_label.set_sensitive(false);
+
         // Ramp Angle
         let ramp_angle_label = Label::new(Some(&t!("Ramp Angle:")));
         ramp_angle_label.set_halign(gtk4::Align::Start);
@@ -548,7 +553,7 @@ impl PropertiesPanel {
         ramp_angle_unit_label.set_halign(gtk4::Align::End);
         ramp_angle_unit_label.set_xalign(1.0);
 
-        // Pocket Strategy
+        // Pocket Strategy - Solo para Pocket
         let strategy_label = Label::new(Some(&t!("Strategy:")));
         strategy_label.set_halign(gtk4::Align::Start);
         let strategy_model = StringList::new(&[]);
@@ -557,7 +562,11 @@ impl PropertiesPanel {
         strategy_model.append(&t!("Adaptive"));
         let strategy_combo = DropDown::new(Some(strategy_model), None::<Expression>);
 
-        // Raster Fill (inverse inset)
+        // Desactivar Strategy por defecto (Profile es el default)
+        strategy_combo.set_sensitive(false);
+        strategy_label.set_sensitive(false);
+
+        // Raster Fill
         let raster_fill_label = Label::new(Some(&t!("Raster Fill (%):")));
         raster_fill_label.set_halign(gtk4::Align::Start);
         let raster_fill_entry = Entry::new();
@@ -565,6 +574,12 @@ impl PropertiesPanel {
         raster_fill_hint.add_css_class("dim-label");
         raster_fill_hint.set_halign(gtk4::Align::Start);
 
+        // Desactivar Raster Fill por defecto
+        raster_fill_entry.set_sensitive(false);
+        raster_fill_label.set_sensitive(false);
+        raster_fill_hint.set_sensitive(false);
+
+        // Layout
         grid.attach(&op_label, 0, 0, 1, 1);
         grid.attach(&op_type_combo, 1, 0, 1, 1);
         grid.attach(&cam_use_global_check, 0, 1, 3, 1);
@@ -605,6 +620,8 @@ impl PropertiesPanel {
             z_offset_unit_label,
             step_down_unit_label,
             step_in_unit_label,
+            step_in_label,
+            depth_label,
         )
     }
 

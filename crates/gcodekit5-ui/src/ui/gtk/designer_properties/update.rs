@@ -867,13 +867,33 @@ impl PropertiesPanel {
             self.chamfer_entry.set_text(&format!("{:.2}", chamfer));
 
             // Enable/disable pocket-specific controls
+            // Obtener el modo actual
             let is_pocket = op_type == OperationType::Pocket;
-            self.strategy_combo
-                .set_sensitive(cam_entries_enabled && is_pocket);
-            self.step_in_entry
-                .set_sensitive(cam_entries_enabled && is_pocket);
-            self.raster_fill_entry
-                .set_sensitive(cam_entries_enabled && is_pocket);
+
+            // Determinar qué valor mostrar para profundidad
+            let depth_value_to_show = if is_pocket {
+                // En modo Pocket: usar el valor guardado de pocket_depth
+                depth
+            } else {
+                // En modo Profile: usar el valor de Z (start_depth)
+                start_depth
+            };
+
+            // Actualizar el entry de profundidad
+            self.set_entry_text_if_changed(&self.depth_entry, depth_value_to_show as f32, system);
+
+            // El campo depth_entry solo es editable en modo Pocket
+            self.depth_entry.set_sensitive(cam_entries_enabled && is_pocket);
+            self.depth_label.set_sensitive(cam_entries_enabled && is_pocket);
+            self.depth_unit_label.set_sensitive(cam_entries_enabled && is_pocket);
+            let is_pocket = op_type == OperationType::Pocket;
+            self.strategy_combo.set_sensitive(cam_entries_enabled && is_pocket);
+            self.step_in_entry.set_sensitive(cam_entries_enabled && is_pocket);
+            self.step_in_label.set_sensitive(cam_entries_enabled && is_pocket);
+            self.step_in_unit_label.set_sensitive(cam_entries_enabled && is_pocket);
+            self.raster_fill_entry.set_sensitive(cam_entries_enabled && is_pocket);
+
+
 
             *self.updating.borrow_mut() = false;
         } else {

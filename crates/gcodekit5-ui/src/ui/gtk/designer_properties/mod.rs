@@ -125,8 +125,10 @@ pub struct PropertiesPanel {
     pub(crate) radius_unit_label: Label,
     pub(crate) font_size_unit_label: Label,
     pub(crate) depth_unit_label: Label,
+    depth_label: Label,
     pub(crate) z_offset_unit_label: Label,
     pub(crate) step_down_unit_label: Label,
+    step_in_label: Label,
     pub(crate) step_in_unit_label: Label,
     pub(crate) offset_unit_label: Label,
     pub(crate) chamfer_unit_label: Label,
@@ -282,6 +284,8 @@ impl PropertiesPanel {
             z_offset_unit_label,
             step_down_unit_label,
             step_in_unit_label,
+            step_in_label,
+            depth_label,
         ) = Self::build_cam_section();
         content.append(&cam_frame);
 
@@ -403,7 +407,9 @@ impl PropertiesPanel {
             depth_unit_label,
             z_offset_unit_label,
             step_down_unit_label,
+            step_in_label,
             step_in_unit_label,
+            depth_label,
             offset_unit_label,
             chamfer_unit_label,
             lock_aspect_ratio,
