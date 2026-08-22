@@ -1149,7 +1149,10 @@ msgid "maintenance"
 msgstr ""
 
 # gcodekit5/crates/gcodekit5-ui/src/ui/gtk/cam_tools/tabbed_box.rs
-msgid "Generate G-code for laser/CNC cut boxes with finger joints based on the boxes.py algorithm."
+msgid "Generate G-code for laser/CNC cut boxes with finger joints based on the boxes.py algorithm. For more cases involving boxes and other objects, it is recommended to use the "
+msgstr ""
+
+msgid ". Install the Extension in Inkscape. There, generate the models and save them as SVG files. Then import the SVG file into the Designer, rearrange the objects as needed, and generate the G-code to send to the machine."
 msgstr ""
 
 msgid "X (Width):"
