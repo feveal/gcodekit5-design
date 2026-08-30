@@ -17,8 +17,8 @@ ignore = [
     { id = "RUSTSEC-2024-0436", reason = "transitive dep, no direct replacement available" },
     # rusttype - unmaintained, used for text rendering in designer
     { id = "RUSTSEC-2021-0140", reason = "no suitable drop-in replacement for text rendering yet" },
-    # ttf-parser - unmaintained, transitive dep via fontdb
-    { id = "RUSTSEC-2026-0192", reason = "transitive dep unmaintained, no safe upgrade available for fontdb" },
+    # ttf-parser - unmaintained, transitive dep via fontdb, to cover both versions
+    "RUSTSEC-2026-0192",
 ]
 
 # License checking
