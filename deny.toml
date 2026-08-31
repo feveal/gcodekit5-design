@@ -45,9 +45,10 @@ skip-tree = []
 
 [sources]
 unknown-registry = "deny"
-# Permitimos la descarga externa por Git del repositorio bbqsrc/core2
 unknown-git = "allow"
-allow-registry = ["https://github.com"]
+# Permitimos de forma oficial el almacén central de Rust
+allow-registry = []
+allow-registries = ["crates-io"]
 allow-git = []
 
 [sources.allow-org]
