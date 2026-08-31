@@ -12,6 +12,7 @@ feature-depth = 1
 
 # Advisory/vulnerability checking
 [advisories]
+unmaintained = "transitive"
 ignore = [
     # paste - unmaintained, transitive dep via simba/rav1e (no replacement)
     { id = "RUSTSEC-2024-0436", reason = "transitive dep, no direct replacement available" },
