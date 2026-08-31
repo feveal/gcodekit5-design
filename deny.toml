@@ -44,14 +44,13 @@ skip = []
 skip-tree = []
 
 [sources]
-unknown-registry = "deny"
+unknown-registry = "allow"
 unknown-git = "allow"
-# Permitimos de forma oficial el almacén central de Rust
-allow-registry = []
-allow-registries = ["crates-io"]
+allow-registry = ["https://github.com"]
 allow-git = []
 
 [sources.allow-org]
 github = []
 gitlab = []
 bitbucket = []
+
