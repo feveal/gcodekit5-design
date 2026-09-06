@@ -286,6 +286,27 @@ impl DesignerState {
         id
     }
 
+    /// Adds a shape with an explicit start depth / pocket depth override (e.g. from
+    /// DXF elevation/thickness metadata), applied before the undo snapshot is taken.
+    pub fn add_shape_with_undo_and_depth(
+        &mut self,
+        shape: Shape,
+        start_depth: f64,
+        pocket_depth: f64,
+    ) -> u64 {
+        let id = self.canvas.generate_id();
+        let mut obj = self.new_object_with_mode_defaults(id, shape);
+        obj.use_custom_values = true;
+        obj.start_depth = start_depth;
+        obj.pocket_depth = pocket_depth;
+        let cmd = DesignerCommand::AddShape(AddShape {
+            id,
+            object: Some(obj),
+        });
+        self.push_command(cmd);
+        id
+    }
+
     /// Adds a shape to the canvas at the specified position based on current mode.
     pub fn add_shape_at(&mut self, x: f64, y: f64, shift: bool, ctrl: bool) {
         match self.canvas.mode() {
