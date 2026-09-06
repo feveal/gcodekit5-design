@@ -466,7 +466,7 @@ impl DesignerView {
                                         crate::ui::gtk::file_dialog::parent_window(&canvas.widget);
                                     crate::ui::gtk::common::dialog::show_warning(
                                         &t!("3D depth detected"),
-                                        &t!("Object with depth: switching to CNC 3D mode."),
+                                        &t!("Object with depth: Switching to CNC 3D mode."),
                                         parent.as_ref(),
                                     );
                                 }

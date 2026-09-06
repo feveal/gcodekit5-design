@@ -247,6 +247,18 @@ msgstr "Advertencia Fuera de Límites"
 msgid "The generated G-code contains coordinates outside the machine working area (Negative values). Review the path before sending it to the machine."
 msgstr "El G-code generado contiene coordenadas fuera del área de trabajo de la máquina (Valores Negativos). Revise las trayectorias antes de enviarlo a la máquina."
 
+msgid "3D depth detected"
+msgstr "Profundidad 3D detectada"
+
+msgid "Object with depth: Switching to CNC 3D mode."
+msgstr "Objeto con profundidad: Cambiando al modo CNC 3D."
+
+msgid "Unsupported 3D solids discarded"
+msgstr "Se descartaron los sólidos 3D no soportados."
+
+msgid "This DXF file contains ACIS solid entities (3D solids) that are not supported and were discarded:"
+msgstr "Este archivo DXF contiene entidades sólidas ACIS (sólidos 3D) que no son compatibles y fueron descartadas:"
+
 # crates/gcodekit5-settings/src/config.rs
 msgid "Machine Control"
 msgstr "Control de máquina"

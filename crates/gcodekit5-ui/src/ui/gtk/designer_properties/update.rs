@@ -276,6 +276,7 @@ impl PropertiesPanel {
 
             // Z position is only editable in CNC/3D mode.
             self.pos_z_entry.set_sensitive(!is_laser);
+            self.z_label.set_sensitive(!is_laser);
 
             // El panel de propiedades láser solo se muestra en modo láser
             self.laser_override_frame

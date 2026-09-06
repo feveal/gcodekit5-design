@@ -249,6 +249,18 @@ msgstr ""
 msgid "The generated G-code contains coordinates outside the machine working area (Negative values). Review the path before sending it to the machine."
 msgstr ""
 
+msgid "3D depth detected"
+msgstr ""
+
+msgid "Object with depth: Switching to CNC 3D mode."
+msgstr ""
+
+msgid "Unsupported 3D solids discarded"
+msgstr ""
+
+msgid "This DXF file contains ACIS solid entities (3D solids) that are not supported and were discarded:"
+msgstr ""
+
 # crates/gcodekit5-settings/src/config.rs
 msgid "Machine Control"
 msgstr ""
@@ -324,7 +336,7 @@ msgstr ""
 msgid "Fast Shapes"
 msgstr ""
 
-msgid "Shape Galleryâ¦"
+msgid "Shape Gallery…"
 msgstr ""
 
 msgid "Machine Mode"
@@ -375,7 +387,7 @@ msgstr ""
 msgid "Depth per pass"
 msgstr ""
 
-msgid "Tool Settingsâ¦"
+msgid "Tool Settings…"
 msgstr ""
 
 msgid "Tool Parameters"
@@ -408,7 +420,7 @@ msgstr ""
 msgid "Show Stock Removal"
 msgstr ""
 
-msgid "Stock Settingsâ¦"
+msgid "Stock Settings…"
 msgstr ""
 
 msgid "Stock Settings"
@@ -467,7 +479,7 @@ msgid "Unlocking..."
 msgstr ""
 
 #: gcodekit5-ui/src/ui/gtk/machine_control/mod.rs.rs
-msgid "â Work completed in:"
+msgid "✅ Work completed in:"
 msgstr ""
 
 # crates/gcodekit5-ui/src/ui/gtk/designer.rs
@@ -694,9 +706,8 @@ msgstr ""
 msgid "mm will not be visually displayed, but the G-code will execute correctly."
 msgstr ""
 
-
 # crates/gcodekit5-ui/src/ui/gtk/device_manager.rs
-msgid "Delete â{}â? This cannot be undone."
+msgid "Delete “{}”? This cannot be undone."
 msgstr ""
 
 # crates/gcodekit5-ui/src/ui/gtk/machine_control.rs
@@ -739,7 +750,7 @@ msgstr ""
 msgid "Resume streaming (~)"
 msgstr ""
 
-msgid "Stop aborts streaming; EâStop resets the controller."
+msgid "Stop aborts streaming; E‑Stop resets the controller."
 msgstr ""
 
 msgid "Job Control"
@@ -862,10 +873,10 @@ msgstr ""
 msgid "Error disconnecting"
 msgstr ""
 
-msgid "Connectingâ¦"
+msgid "Connecting…"
 msgstr ""
 
-msgid "State: Connectingâ¦"
+msgid "State: Connecting…"
 msgstr ""
 
 msgid "Connected to"
@@ -1054,7 +1065,7 @@ msgstr ""
 msgid "Enable Hatch:"
 msgstr ""
 
-msgid "Hatch Angle (Â°):"
+msgid "Hatch Angle (°):"
 msgstr ""
 
 msgid "Cross Hatch:"

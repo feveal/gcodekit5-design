@@ -1089,9 +1089,16 @@ impl DxfParser {
             return None;
         }
 
-        // Scale sample density with control point count for smooth curves
-        // without generating excessive geometry for very detailed splines.
-        let samples = (num_ctrl * 8).clamp(32, 400);
+        // Scale sample density so chord segments are ~1mm long. The control
+        // polygon length is an upper bound on the actual curve length, so it
+        // gives a safe (never too coarse) sample count estimate.
+        const TARGET_SEGMENT_LEN: f64 = 1.0;
+        let control_length: f64 = control_points
+            .windows(2)
+            .map(|w| w[0].distance_to(&w[1]))
+            .sum();
+        let length_based = (control_length / TARGET_SEGMENT_LEN).ceil() as usize;
+        let samples = length_based.max(num_ctrl * 8).clamp(32, 2000);
         let mut points = Vec::with_capacity(samples + 1);
 
         for step in 0..=samples {
