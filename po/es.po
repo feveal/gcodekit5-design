@@ -433,6 +433,35 @@ msgstr "Parametros en bruto"
 msgid "Generate G-Code"
 msgstr "Generar G-Code"
 
+# crates/gcodekit5-ui/src/ui/gtk/designer_canvas/mod.rs
+msgid "Raster image import is only available in 2D mode"
+msgstr "La importación de imágenes raster solo está disponible en modo 2D"
+
+# crates/gcodekit5-ui/src/ui/gtk/status_bar.rs
+msgid "Elapsed"
+msgstr "Transcurrido"
+
+msgid "Remaining"
+msgstr "Restante"
+
+msgid "No device selected"
+msgstr "Dispositivo no seleccionado"
+
+msgid "Importing image..."
+msgstr "Importando Imagen..."
+
+msgid "Image files"
+msgstr "Archivos de Imagen"
+
+msgid "Image imported successfully"
+msgstr "Imagen importada correctamente"
+
+msgid "Image import failed: {}"
+msgstr "Error al importar imagen: {}"
+
+msgid "Import error"
+msgstr "Error de Importación"
+
 #: gcodekit5-ui/src/ui/gtk/machine_control/direct_sender.rs
 msgid "> Starting laser engraving:"
 msgstr "> Iniciando grabado láser:"
@@ -475,10 +504,6 @@ msgstr "Reanudando"
 
 msgid "Unlocking..."
 msgstr "Desbloqueando..."
-
-#: gcodekit5-ui/src/ui/gtk/machine_control/mod.rs.rs
-msgid "✅ Work completed in:"
-msgstr "✅ Trabajo completado en:"
 
 # crates/gcodekit5-ui/src/ui/gtk/designer.rs
 msgid "View Controls"
@@ -708,7 +733,7 @@ msgstr "mm. no se visualizará, pero el Gcode se ejecutará correctamente."
 msgid "Delete “{}”? This cannot be undone."
 msgstr "Borrar \"{}\"? No se puede deshacer."
 
-# crates/gcodekit5-ui/src/ui/gtk/machine_control.rs
+# crates/gcodekit5-ui/src/ui/gtk/machine_control/mod.rs
 msgid "No ports available"
 msgstr "No hay puertos disponibles"
 
@@ -897,6 +922,9 @@ msgstr "Error al conectar"
 
 msgid "No valid G-Code lines found."
 msgstr "No se encontraron líneas de G-Code válidas."
+
+msgid "✅ Work completed in:"
+msgstr "✅ Trabajo completado en:"
 
 # crates/gcodekit5-ui/src/ui/gtk/cam-tools/mod.rs
 msgid "Select a tool"
