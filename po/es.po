@@ -1110,7 +1110,7 @@ msgid "Work Offsets"
 msgstr "Offsets de trabajo"
 
 msgid "Home Device Before Start"
-msgstr "Iniciar Dispositivo antes de comenzar"
+msgstr "Hacer 'Homing' antes de iniciar"
 
 msgid "Unknown file extension"
 msgstr "Extensión no reconocida"
