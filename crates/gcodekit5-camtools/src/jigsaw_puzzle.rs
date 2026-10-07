@@ -11,24 +11,10 @@ pub struct PuzzleParameters {
     pub height: f32,
     pub pieces_across: i32,
     pub pieces_down: i32,
-//    pub kerf: f32,
-//    pub laser_passes: i32,
-//    pub laser_power: i32,
-//    pub feed_rate: f32,
-//    pub z_step_down: f32,
     pub seed: u32,
     pub tab_size_percent: f32,
     pub jitter_percent: f32,
     pub corner_radius: f32,
-//    pub offset_x: f32,
-//    pub offset_y: f32,
-    /// Number of axes on the target device (default 3).
-    #[serde(default = "default_num_axes")]
-    pub num_axes: u8,
-}
-
-fn default_num_axes() -> u8 {
-    3
 }
 
 impl Default for PuzzleParameters {
@@ -38,18 +24,10 @@ impl Default for PuzzleParameters {
             height: 150.0,
             pieces_across: 4,
             pieces_down: 3,
-//            kerf: 0.5,
-//            laser_passes: 3,
-//            laser_power: 1000,
-//            feed_rate: 500.0,
-//            z_step_down: 0.5,
             seed: 42,
             tab_size_percent: 20.0,
             jitter_percent: 4.0,
             corner_radius: 2.0,
-//            offset_x: 10.0,
-//            offset_y: 10.0,
-            num_axes: 3,
         }
     }
 }
@@ -116,10 +94,6 @@ impl JigsawPuzzleMaker {
         if piece_width < 15.0 || piece_height < 15.0 {
             return Err("Pieces too small (minimum 15mm per piece)".to_string());
         }
-
-//        if params.kerf < 0.0 || params.kerf > 2.0 {
-//            return Err("Kerf must be between 0 and 2mm".to_string());
-//        }
 
         if params.tab_size_percent < 10.0 || params.tab_size_percent > 30.0 {
             return Err("Tab size must be between 10% and 30%".to_string());
@@ -434,18 +408,6 @@ impl JigsawPuzzleMaker {
             mt3 * p0.x + 3.0 * mt2 * t * p1.x + 3.0 * mt * t2 * p2.x + t3 * p3.x,
             mt3 * p0.y + 3.0 * mt2 * t * p1.y + 3.0 * mt * t2 * p2.y + t3 * p3.y,
         )
-    }
-
-    pub fn to_gcode(&self, _plunge_rate: f32, _cut_depth: f32) -> String {
-        // G-code generation is disabled: Designer handles export now.
-        // Keep a compatible return value (safe placeholder) so callers still receive valid text.
-        let mut gcode = String::new();
-        gcode.push_str("; G-code generation for JigsawPuzzleMaker has been disabled.\n");
-        gcode.push_str("; Use the Designer to edit paths and export G-code with per-path parameters.\n");
-        gcode.push_str("; This placeholder emits no motion commands.\n");
-        gcode.push_str("M5 ; ensure spindle/laser off\n");
-        gcode.push_str("M2 ; program end\n");
-        gcode
     }
 
     /// Return the generated paths as Vec of Vec of (f64, f64) points for UI/Designer consumption.

@@ -23,7 +23,6 @@ pub use speeds_feeds_page::SpeedsFeedsTool;
 pub use spoilboard_grid::SpoilboardGridTool;
 pub use spoilboard_surfacing::SpoilboardSurfacingTool;
 pub use tabbed_box::TabbedBoxMaker;
-// pub use vector_engraving::VectorEngravingTool;
 
 use common::set_paned_initial_fraction;
 
@@ -80,17 +79,14 @@ impl CamToolsView {
 
         // Placeholders for other tools
         // Jigsaw Puzzle Tool
-        let jigsaw_tool = JigsawTool::new(&stack, settings.clone(), on_generate.clone(), designer_view.clone());
+        let jigsaw_tool = JigsawTool::new(&stack, settings.clone(), designer_view.clone());
+
         stack.add_named(jigsaw_tool.widget(), Some("jigsaw"));
 
         // Bitmap Engraving Tool
         let bitmap_tool = BitmapEngravingTool::new(&stack, settings.clone(), on_generate.clone());
         stack.add_named(bitmap_tool.widget(), Some("laser_image"));
-/*
-        // Vector Engraving Tool
-        let vector_tool = VectorEngravingTool::new(&stack, settings.clone(), on_generate.clone());
-        stack.add_named(vector_tool.widget(), Some("laser_vector"));
-*/
+
         // Speeds & Feeds Calculator
         let feeds_tool = SpeedsFeedsTool::new(&stack, settings.clone());
         stack.add_named(feeds_tool.widget(), Some("feeds"));
@@ -161,15 +157,7 @@ impl CamToolsView {
                     icon: "camera-photo-symbolic",
                     category: t!("engraving"),
                 },
-/*
-                Tool {
-                    page: "laser_vector",
-                    title: t!("Laser Vector Engraver"),
-                    desc: t!("Convert SVG and DXF vector files to G-code"),
-                    icon: "insert-image-symbolic",
-                    category: t!("engraving"),
-                },
-*/
+
                 Tool {
                     page: "feeds",
                     title: t!("Speeds and Feeds Calculator"),
