@@ -65,26 +65,31 @@ impl BufferedCommand {
     pub fn mark_sent(&mut self) {
         self.status = CommandStatus::Sent;
         self.retry_count += 1;
+        println!("mark_sent");
     }
 
     /// Mark command as acknowledged
     pub fn mark_acknowledged(&mut self) {
         self.status = CommandStatus::Acknowledged;
+        println!("mark_acknowledged");
     }
 
     /// Mark command as completed
     pub fn mark_completed(&mut self) {
         self.status = CommandStatus::Completed;
+        println!("mark_completed");
     }
 
     /// Mark command as failed
     pub fn mark_failed(&mut self) {
         self.status = CommandStatus::Failed;
+        println!("mark_failed");
     }
 
     /// Set the response received from device
     pub fn set_response(&mut self, response: String) {
         self.response = Some(response);
+        println!("set_response");
     }
 }
 

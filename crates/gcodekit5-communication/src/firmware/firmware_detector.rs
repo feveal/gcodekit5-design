@@ -214,14 +214,55 @@ impl FirmwareDetector {
         ))
     }
 
+    // 4.1 Añadir un nuevo método para parsear Repetier (similar al de Marlin)
+    pub fn parse_repetier_version_info(response: &str) -> Result<FirmwareDetectionResult> {
+        let mut version_string = String::new();
+
+        for line in response.lines() {
+            let line = line.trim();
+            if line.contains("FIRMWARE_NAME:Repetier") {
+                // Busca el fragmento que empieza por FIRMWARE_NAME:
+                if let Some(version_part) = line
+                    .split_whitespace()
+                    .find(|part| part.contains("FIRMWARE_NAME:"))
+                {
+                    // Limpia los prefijos más comunes de Repetier
+                    let mut cleaned = version_part.trim_start_matches("FIRMWARE_NAME:");
+                    cleaned = cleaned.trim_start_matches("Repetier_");
+                    cleaned = cleaned.trim_start_matches("Repetier");
+
+                    // Quita caracteres como la 'V' inicial si existe (ej. V1.0.4)
+                    cleaned = cleaned.trim_start_matches('V').trim_start_matches('v');
+                    version_string = cleaned.to_string();
+                }
+            }
+        }
+
+        if version_string.is_empty() {
+            anyhow::bail!("Could not extract Repetier version");
+        }
+
+        // Intenta parsear la versión semántica. Si tiene caracteres extraños,
+        // usa un fallback seguro para evitar que rompa la comunicación.
+        let version = SemanticVersion::parse(&version_string)
+            .unwrap_or_else(|| SemanticVersion::new(1, 0, 0));
+
+        Ok(FirmwareDetectionResult::new(
+            FirmwareType::Repetier,
+            version,
+            version_string,
+        ))
+    }
+
     /// Get query command for firmware type
     ///
     /// Returns the command to send to query firmware information.
     pub fn get_query_command(firmware_type: FirmwareType) -> &'static str {
         match firmware_type {
             FirmwareType::Grbl => "$I",
-            FirmwareType::Unknown => "$I", // Try GRBL first
-            _ => "$I",                     // Default to GRBL command
+            FirmwareType::Unknown => "$I",        // Try GRBL first
+            FirmwareType::Repetier => "M115\r\n", //
+            _ => "$I",                            // Default to GRBL command
         }
     }
 
@@ -237,6 +278,11 @@ impl FirmwareDetector {
         // Try GRBL startup format
         if response.contains("Grbl") || response.contains("grbl") {
             return Self::parse_grbl_startup(response);
+        }
+
+        // Try Repetier format (Evaluar antes o de forma independiente a Marlin)
+        if response.contains("Repetier") {
+            return Self::parse_repetier_version_info(response);
         }
 
         // Try Marlin format

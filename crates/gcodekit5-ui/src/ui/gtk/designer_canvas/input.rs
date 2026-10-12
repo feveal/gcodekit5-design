@@ -1170,7 +1170,10 @@ impl DesignerCanvas {
                     // 1. Obtener datos de zoom y estado de selección haciendo un préstamo inmutable rápido y soltándolo de inmediato
                     let (has_selection, zoom) = {
                         let state = self.state.borrow();
-                        (state.canvas.selection_manager.selected_id().is_some(), state.canvas.zoom())
+                        (
+                            state.canvas.selection_manager.selected_id().is_some(),
+                            state.canvas.zoom(),
+                        )
                     };
 
                     if has_selection {
@@ -1193,7 +1196,8 @@ impl DesignerCanvas {
                         };
 
                         // 4. Aplicar el SNAP a la posición absoluta destino (aquí snap_canvas_point hará su borrow sin conflictos)
-                        let (snapped_dest_x, snapped_dest_y) = self.snap_canvas_point(constrained_x, constrained_y);
+                        let (snapped_dest_x, snapped_dest_y) =
+                            self.snap_canvas_point(constrained_x, constrained_y);
 
                         // 5. Calcular el punto donde nos encontrábamos en el frame anterior
                         let last_offset = *self.last_drag_offset.borrow();
@@ -1211,7 +1215,8 @@ impl DesignerCanvas {
                         } else {
                             (raw_last_x, raw_last_y)
                         };
-                        let (snapped_last_x, snapped_last_y) = self.snap_canvas_point(constrained_last_x, constrained_last_y);
+                        let (snapped_last_x, snapped_last_y) =
+                            self.snap_canvas_point(constrained_last_x, constrained_last_y);
 
                         // 6. El delta incremental es la diferencia entre los puntos con SNAP
                         let delta_x = snapped_dest_x - snapped_last_x;
@@ -1227,7 +1232,6 @@ impl DesignerCanvas {
                         *self.last_drag_offset.borrow_mut() = (offset_x, offset_y);
                     }
                 }
-
             } else if tool == DesignerTool::Pan {
                 // Handle panning
                 // offset_x/y are total offsets from drag start.

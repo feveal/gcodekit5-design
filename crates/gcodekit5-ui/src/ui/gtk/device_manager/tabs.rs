@@ -60,6 +60,7 @@ impl DeviceManagerWindow {
         edit_controller_type.append(Some("Smoothieware"), "Smoothieware");
         edit_controller_type.append(Some("FluidNC"), "FluidNC");
         edit_controller_type.append(Some("Marlin"), "Marlin");
+        edit_controller_type.append(Some("Repetier"), "Repetier");
         edit_controller_type.set_active_id(Some("GRBL"));
         grid.attach(&ctrl_label, 0, row, 1, 1);
         grid.attach(&edit_controller_type, 1, row, 1, 1);

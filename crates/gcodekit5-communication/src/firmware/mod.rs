@@ -21,6 +21,7 @@ pub mod g2core;
 pub mod grbl;
 pub mod grblhal;
 pub mod override_manager;
+pub mod repetier;
 pub mod settings;
 pub mod smoothieware;
 pub mod tinyg;

@@ -14,6 +14,7 @@ pub mod buffered;
 pub mod serial;
 pub mod tcp;
 
+use crate::firmware::repetier::processor::RepetierEvent;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::sync::Arc;
@@ -385,6 +386,11 @@ pub struct SerialCommunicator {
     port: Option<Box<dyn serial::SerialPort>>,
     params: Option<ConnectionParams>,
     listeners: Vec<CommunicatorListenerHandle>,
+    pub is_repetier_firmware: bool,
+    pub repetier_processor: crate::firmware::repetier::processor::RepetierProcessor,
+    repetier_events: Vec<RepetierEvent>,
+    repetier_flow_paused: bool,
+    repetier_flow_stopped: bool,
 }
 
 impl SerialCommunicator {
@@ -394,6 +400,11 @@ impl SerialCommunicator {
             port: None,
             params: None,
             listeners: Vec::new(),
+            is_repetier_firmware: false,
+            repetier_processor: crate::firmware::repetier::processor::RepetierProcessor::new(),
+            repetier_events: Vec::new(),
+            repetier_flow_paused: false,
+            repetier_flow_stopped: false,
         }
     }
 
@@ -409,6 +420,43 @@ impl SerialCommunicator {
                 CommunicatorEvent::Timeout => listener.on_timeout(),
             }
         }
+    }
+
+    fn looks_like_repetier(incoming: &str) -> bool {
+        incoming.contains("Free RAM") || incoming.contains("start") || incoming.contains("Resend:1")
+    }
+
+    /// Devuelve y vacía los eventos Repetier acumulados desde la última llamada.
+    pub fn take_repetier_events(&mut self) -> Vec<RepetierEvent> {
+        std::mem::take(&mut self.repetier_events)
+    }
+
+    /// Consulta si el streaming Repetier está pausado por el usuario.
+    /// El RepetierSender lo consulta antes de enviar cada comando.
+    pub fn repetier_is_paused(&self) -> bool {
+        self.repetier_flow_paused
+    }
+
+    /// Consulta si el streaming Repetier ha sido detenido por el usuario.
+    /// El RepetierSender lo consulta para terminar su bucle.
+    pub fn repetier_is_stopped(&self) -> bool {
+        self.repetier_flow_stopped
+    }
+
+    /// Limpia los flags de control de flujo.
+    pub fn repetier_reset_flow_control(&mut self) {
+    self.repetier_flow_paused = false;
+    self.repetier_flow_stopped = false;
+}
+
+    /// Devuelve el valor actual del contador de líneas N de Repetier.
+    pub fn repetier_line_counter(&self) -> u32 {
+        self.repetier_processor.line_counter
+    }
+
+    /// Fija el contador de líneas N de Repetier (usado por el sender en rewind).
+    pub fn repetier_set_line_counter(&mut self, n: u32) {
+        self.repetier_processor.line_counter = n;
     }
 }
 
@@ -426,6 +474,11 @@ impl Communicator for SerialCommunicator {
                 "SerialCommunicator requires Serial driver type",
             ));
         }
+
+        // Resetear banderas de emulación al conectar
+        self.is_repetier_firmware = false;
+        self.repetier_flow_paused = false;
+        self.repetier_flow_stopped = false;
 
         // Try to open the port
         match serial::RealSerialPort::open(params) {
@@ -445,6 +498,8 @@ impl Communicator for SerialCommunicator {
     }
 
     fn disconnect(&mut self) -> gcodekit5_core::Result<()> {
+        self.is_repetier_firmware = false;
+
         if let Some(mut port) = self.port.take() {
             match port.close() {
                 Ok(()) => {
@@ -456,7 +511,6 @@ impl Communicator for SerialCommunicator {
                 }
                 Err(e) => {
                     let msg = format!("Error closing port: {}", e);
-                    // tracing::error!("{}", msg);
                     self.notify_listeners(CommunicatorEvent::Error, &msg);
                     Err(gcodekit5_core::Error::other(msg))
                 }
@@ -472,9 +526,82 @@ impl Communicator for SerialCommunicator {
 
     fn send(&mut self, data: &[u8]) -> gcodekit5_core::Result<usize> {
         if let Some(port) = &mut self.port {
+            let raw_str = String::from_utf8_lossy(data);
+            let cleaned = raw_str.trim().to_ascii_uppercase();
+
+            if self.is_repetier_firmware {
+                if cleaned.is_empty()
+                    || cleaned == "\n"
+                    || cleaned == "\r"
+                    || cleaned == "?"
+                    || cleaned == "$I"
+                    || cleaned == "$$"
+                    || cleaned == "$10=47"
+                {
+                    return Ok(data.len());
+                }
+
+                if self.is_repetier_firmware {
+                    if data == b"!" {
+                        tracing::debug!("⏸️  [REPETIER] Pausa solicitada. Streaming en hold.");
+                        self.repetier_flow_paused = true;
+                        return Ok(0);
+                    }
+                    if data == b"~" {
+                        tracing::debug!("▶️  [REPETIER] Resume solicitado. Streaming continúa.");
+                        self.repetier_flow_paused = false;
+                        return Ok(0);
+                    }
+                    // 0x18 = Ctrl-X (soft reset)
+                    if data == &[0x18u8] {
+                        tracing::debug!("⏹️  [REPETIER] Stop solicitado. Firmware reset + parada del sender.");
+                        self.repetier_flow_stopped = true;
+                        // No hacemos return: dejamos que el byte llegue al firmware.
+                    }
+                }
+
+                if let Some(translated_bytes) = self.repetier_processor.process_outgoing(data) {
+                    // 🔎 TRAZA: mostramos el comando EXACTO que sale por el puerto USB.
+                    // Formato: "📤 [TX] N<num> <gcode> *<checksum>"
+                    for tx_line in translated_bytes.split(|&b| b == b'\n') {
+                        if !tx_line.is_empty() {
+                            tracing::debug!("📤 [TX] {}", String::from_utf8_lossy(tx_line).trim_end());
+                        }
+                    }
+
+                    let mut bytes_to_send = translated_bytes.as_slice();
+                    while !bytes_to_send.is_empty() {
+                        match port.write(bytes_to_send) {
+                            Ok(0) => {
+                                return Err(gcodekit5_core::Error::other(
+                                    "Puerto lleno".to_string(),
+                                ))
+                            }
+                            Ok(n) => bytes_to_send = &bytes_to_send[n..],
+                            Err(e) => return Err(gcodekit5_core::Error::other(e.to_string())),
+                        }
+                    }
+
+                    if cleaned.starts_with("$J=")
+                        || cleaned.starts_with('G')
+                        || cleaned.starts_with('X')
+                    {
+                        self.repetier_processor.mark_buffer_full();
+                    }
+
+                    self.notify_listeners(
+                        CommunicatorEvent::DataSent,
+                        &String::from_utf8_lossy(&translated_bytes),
+                    );
+                    return Ok(data.len());
+                } else {
+                    tracing::debug!("🗑️  [TX-DESCARTADO] {:?}", cleaned);
+                    return Ok(0);
+                }
+            }
+
             match port.write(data) {
                 Ok(n) => {
-                    // Notify listeners of sent data
                     let sent_data = &data[..n];
                     let data_str = String::from_utf8_lossy(sent_data);
                     self.notify_listeners(CommunicatorEvent::DataSent, &data_str);
@@ -482,10 +609,6 @@ impl Communicator for SerialCommunicator {
                 }
                 Err(e) => {
                     let msg = format!("Send error: {}", e);
-                    // Suppress BrokenPipe errors which happen during disconnect
-                    // if e.kind() != std::io::ErrorKind::BrokenPipe {
-                    //     tracing::error!("{}", msg);
-                    // }
                     self.notify_listeners(CommunicatorEvent::Error, &msg);
                     Err(gcodekit5_core::Error::other(msg))
                 }
@@ -500,26 +623,56 @@ impl Communicator for SerialCommunicator {
             let mut buf = [0u8; 4096];
             match port.read(&mut buf) {
                 Ok(n) => {
-                    let data = buf[..n].to_vec();
-                    // Notify listeners of received data
+                    let mut data = buf[..n].to_vec();
+
                     if !data.is_empty() {
-                        let data_str = String::from_utf8_lossy(&data);
-                        self.notify_listeners(CommunicatorEvent::DataReceived, &data_str);
+                        let incoming_text = String::from_utf8_lossy(&data);
+                        tracing::debug!("📥 [RX] {}", incoming_text.trim_end().replace('\n', " | "));
+
+                        if SerialCommunicator::looks_like_repetier(&incoming_text)
+                            && !self.is_repetier_firmware
+                        {
+                            tracing::debug!("🔒 [HACK-REPETIER] Firma de Repetier capturada en recibo. Sincronizando pasarela activa.");
+                            self.is_repetier_firmware = true;
+                            self.repetier_processor.activate();
+                            write_m110_handshake(port.as_mut());
+                        }
+
+                        if self.is_repetier_firmware {
+                            let result = self.repetier_processor.process_incoming(data.clone());
+
+                            for event in &result.events {
+                                match event {
+                                    RepetierEvent::Ack => {
+                                        self.repetier_processor.mark_ack();
+                                    }
+                                    RepetierEvent::Resend(_n) => {
+                                        self.repetier_processor.mark_buffer_full();
+                                    }
+                                }
+                            }
+
+                            // Encólamos los eventos para que el sender los pueda consumir sin
+                            // volver a parsear el texto.
+                            self.repetier_events.extend(result.events.clone());
+
+                            data = result.display;
+                        } else {
+                            let data_str = String::from_utf8_lossy(&data);
+                            self.notify_listeners(CommunicatorEvent::DataReceived, &data_str);
+                        }
                     }
                     Ok(data)
                 }
                 Err(e) => {
-                    // Check if it's a timeout (no data) which is normal
                     if e.kind() == std::io::ErrorKind::WouldBlock
                         || e.kind() == std::io::ErrorKind::TimedOut
                     {
                         Ok(vec![])
                     } else if e.kind() == std::io::ErrorKind::BrokenPipe {
-                        // BrokenPipe during receive often happens during cleanup or disconnect
                         Ok(vec![])
                     } else {
                         let msg = format!("Receive error: {}", e);
-                        // tracing::error!("{}", msg);
                         self.notify_listeners(CommunicatorEvent::Error, &msg);
                         Err(gcodekit5_core::Error::other(msg))
                     }
@@ -721,5 +874,22 @@ impl Communicator for TcpCommunicator {
         params.validate()?;
         self.params = Some(params);
         Ok(())
+    }
+}
+
+/// Envía el handshake inicial M110 que Repetier espera al activarse.
+fn write_m110_handshake(port: &mut dyn serial::SerialPort) {
+    let cmd = "N1 M110";
+    let mut ck: u8 = 0;
+    for b in cmd.as_bytes() {
+        ck ^= b;
+    }
+    let line = format!("{}*{}\n", cmd, ck);
+    let mut bytes_to_send = line.as_bytes();
+    while !bytes_to_send.is_empty() {
+        match port.write(bytes_to_send) {
+            Ok(n) if n > 0 => bytes_to_send = &bytes_to_send[n..],
+            _ => break,
+        }
     }
 }

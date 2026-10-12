@@ -123,6 +123,7 @@ impl DeviceUiController {
             "Smoothieware" => ControllerType::Smoothieware,
             "FluidNC" => ControllerType::FluidNC,
             "Marlin" => ControllerType::Marlin,
+            "Repetier" => ControllerType::Repetier,
             _ => anyhow::bail!("Unknown controller type: {}", ui_model.controller_type),
         };
 

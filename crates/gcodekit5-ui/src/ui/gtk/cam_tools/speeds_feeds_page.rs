@@ -6,10 +6,10 @@ use libadwaita::prelude::*;
 use libadwaita::{ActionRow, PreferencesGroup};
 use std::rc::Rc;
 
-use gcodekit5_core::data::materials::{Material, MaterialCategory, MaterialId, CuttingParameters};
-use gcodekit5_core::data::tools::{Tool, ToolType, ToolCuttingParams, ToolId};
-use gcodekit5_devicedb::model::DeviceProfile;
 use gcodekit5_camtools::speeds_feeds::SpeedsFeedsCalculator;
+use gcodekit5_core::data::materials::{CuttingParameters, Material, MaterialCategory, MaterialId};
+use gcodekit5_core::data::tools::{Tool, ToolCuttingParams, ToolId, ToolType};
+use gcodekit5_devicedb::model::DeviceProfile;
 
 use super::common::set_paned_initial_fraction;
 use crate::ui::gtk::help_browser;
@@ -179,16 +179,32 @@ impl SpeedsFeedsTool {
 
         calculate_btn.connect_clicked(move |_| {
             // 1. Obtener los IDs seleccionados en la pantalla
-            let selected_material = material_combo.active_id().unwrap_or_else(|| "aluminum".into());
-            let selected_tool = tool_combo.active_id().unwrap_or_else(|| "endmill_6mm".into());
+            let selected_material = material_combo
+                .active_id()
+                .unwrap_or_else(|| "aluminum".into());
+            let selected_tool = tool_combo
+                .active_id()
+                .unwrap_or_else(|| "endmill_6mm".into());
 
             // 2. Construir el objeto Material emulando la base de datos de manera limpia
             let (mat_id_str, mat_name, mat_cat) = match selected_material.as_str() {
-                "aluminum" => ("metal_al_6061", "Aluminum 6061", MaterialCategory::NonFerrousMetal),
+                "aluminum" => (
+                    "metal_al_6061",
+                    "Aluminum 6061",
+                    MaterialCategory::NonFerrousMetal,
+                ),
                 "wood" => ("wood_oak_red", "Wood (Softwood)", MaterialCategory::Wood),
                 "acrylic" => ("plastic_acrylic", "Acrylic", MaterialCategory::Plastic),
-                "steel" => ("metal_steel_mild", "Steel (Mild)", MaterialCategory::FerrousMetal),
-                _ => ("metal_al_6061", "Aluminum 6061", MaterialCategory::NonFerrousMetal),
+                "steel" => (
+                    "metal_steel_mild",
+                    "Steel (Mild)",
+                    MaterialCategory::FerrousMetal,
+                ),
+                _ => (
+                    "metal_al_6061",
+                    "Aluminum 6061",
+                    MaterialCategory::NonFerrousMetal,
+                ),
             };
 
             let mut material = Material::new(
@@ -200,10 +216,28 @@ impl SpeedsFeedsTool {
 
             // 3. Crear la herramienta nativa mapeando las geometrías de la interfaz
             let (t_id, t_name, t_type, t_dia, t_flutes) = match selected_tool.as_str() {
-                "endmill_6mm" => ("endmill_6mm", "6mm Flat End Mill", ToolType::EndMillFlat, 6.0, 2),
-                "endmill_3mm" => ("endmill_3mm", "3mm Ball End Mill", ToolType::EndMillBall, 3.0, 2),
+                "endmill_6mm" => (
+                    "endmill_6mm",
+                    "6mm Flat End Mill",
+                    ToolType::EndMillFlat,
+                    6.0,
+                    2,
+                ),
+                "endmill_3mm" => (
+                    "endmill_3mm",
+                    "3mm Ball End Mill",
+                    ToolType::EndMillBall,
+                    3.0,
+                    2,
+                ),
                 "vbit_30deg" => ("vbit_30deg", "V-Bit 30°", ToolType::VBit, 3.175, 1),
-                _ => ("endmill_6mm", "6mm Flat End Mill", ToolType::EndMillFlat, 6.0, 2),
+                _ => (
+                    "endmill_6mm",
+                    "6mm Flat End Mill",
+                    ToolType::EndMillFlat,
+                    6.0,
+                    2,
+                ),
             };
 
             let mut tool = Tool::new(

@@ -157,7 +157,6 @@ impl CamToolsView {
                     icon: "camera-photo-symbolic",
                     category: t!("engraving"),
                 },
-
                 Tool {
                     page: "feeds",
                     title: t!("Speeds and Feeds Calculator"),

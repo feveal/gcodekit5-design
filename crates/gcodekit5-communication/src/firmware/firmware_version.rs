@@ -21,6 +21,8 @@ pub enum FirmwareType {
     Smoothieware,
     /// FluidNC - Modern open-source CNC controller
     FluidNC,
+    ///
+    Repetier,
     /// Unknown firmware type
     Unknown,
 }
@@ -41,6 +43,8 @@ impl FirmwareType {
             Self::Smoothieware
         } else if lower.contains("fluidnc") {
             Self::FluidNC
+        } else if lower.contains("repetier") {
+            Self::Repetier
         } else {
             Self::Unknown
         }
@@ -56,6 +60,7 @@ impl std::fmt::Display for FirmwareType {
             Self::G2Core => write!(f, "g2core"),
             Self::Smoothieware => write!(f, "Smoothieware"),
             Self::FluidNC => write!(f, "FluidNC"),
+            Self::Repetier => write!(f, "Repetier"),
             Self::Unknown => write!(f, "Unknown"),
         }
     }

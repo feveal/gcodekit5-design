@@ -463,8 +463,8 @@ msgid "Import error"
 msgstr "Error de Importación"
 
 #: gcodekit5-ui/src/ui/gtk/machine_control/direct_sender.rs
-msgid "> Starting laser engraving:"
-msgstr "> Iniciando grabado láser:"
+msgid "> Starting work:"
+msgstr "> Iniciando trabajo:"
 
 msgid "lines"
 msgstr "líneas"

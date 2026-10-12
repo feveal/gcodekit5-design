@@ -1,3 +1,5 @@
+//! gcodekit5-ui/src/ui/gtk/machine_control/mod.rs
+//
 //! # Machine Control Panel
 //!
 //! UI panel for real-time CNC machine control including jogging,
@@ -864,33 +866,6 @@ impl MachineControlView {
             });
         }
 
-        {
-            let console_view = device_console.clone();
-            let console_container = console_container.clone();
-            console_copy_err_btn.connect_clicked(move |_| {
-                let Some(c) = console_view.as_ref() else {
-                    return;
-                };
-                let text = c.get_log_text();
-                let mut last = None;
-                for line in text.lines().rev() {
-                    let l = line.trim();
-                    if l.is_empty() || l == "ok" || l.starts_with('<') {
-                        continue;
-                    }
-                    let low = l.to_lowercase();
-                    if low.contains("error") || low.contains("alarm") {
-                        last = Some(l.to_string());
-                        break;
-                    }
-                }
-                if let Some(line) = last {
-                    let clipboard = console_container.display().clipboard();
-                    clipboard.set_text(&line);
-                }
-            });
-        }
-
         inner_paned.set_end_child(Some(&right_vpaned));
 
         // Header actions (DeviceConsoleView toolbar is intentionally minimal)
@@ -1359,7 +1334,7 @@ impl MachineControlView {
             let console = view.device_console.clone();
             let view_pause = view.clone();
 
-        // Boton de pausa
+            // Boton de pausa
             view.pause_btn.connect_clicked(move |_| {
                 if let Some(c) = console.as_ref() {
                     c.append_log("> ! (Pause)\n");
@@ -1372,7 +1347,7 @@ impl MachineControlView {
                     let is_laser = device_status::get_grbl_setting(32)
                         .and_then(|v| v.parse::<i32>().ok())
                         .map(|v| v == 1)
-                        .unwrap_or(false);  // ← Default: CNC
+                        .unwrap_or(false); // ← Default: CNC
 
                     if !is_laser {
                         // CNC: Enviar M5 para detener el spindle
@@ -1532,29 +1507,58 @@ impl MachineControlView {
                 // Deshabilitar send_btn durante la ejecución
                 view_clone.send_btn.set_sensitive(false);
 
-                // Usar DirectSender
-                let (sender, receiver) = DirectSender::new(
-                    communicator_clone.clone(),
-                    view_clone.is_streaming.clone(),
-                    view_clone.is_paused.clone(),
-                    view_clone.waiting_for_ack.clone(),
-                );
+                // 🌟 BIFURCACIÓN DE SENDER
+                let is_repetier = if let Some(comm) = communicator_clone.try_lock() {
+                    comm.is_repetier_firmware
+                } else {
+                    false
+                };
 
-                // Guardar el sender en direct_sender para pausa/stop
-                *view_clone.direct_sender.lock() = Some(sender.clone());
+                let receiver = if is_repetier {
+                    tracing::debug!("Machine with Repetier protocol connected. Via repetier_sender.rs");
+
+                    let (rep_sender, rx) = gcodekit5_communication::firmware::repetier::RepetierSender::new(
+                        communicator_clone.clone(),
+                        view_clone.is_streaming.clone(),
+                        view_clone.is_paused.clone(),
+                        view_clone.waiting_for_ack.clone(),
+                    );
+
+                    rep_sender.send_gcode(&content);
+                    rx
+                } else {
+                    tracing::debug!("Machine with GRBL protocol connected. Via direct_sender.rs");
+
+                    let (dir_sender, rx) = DirectSender::new(
+                        communicator_clone.clone(),
+                        view_clone.is_streaming.clone(),
+                        view_clone.is_paused.clone(),
+                        view_clone.waiting_for_ack.clone(),
+                    );
+
+                    // Guardamos la instancia del sender láser/CNC en el lock global de la interfaz
+                    *view_clone.direct_sender.lock() = Some(dir_sender.clone());
+
+                    dir_sender.send_gcode(&content);
+                    rx
+                };
+
+                // Guardamos la hora de arranque global del trabajo
+                *view_clone.job_start_time.lock() = Some(std::time::Instant::now());
+
+                let receiver = std::rc::Rc::new(receiver);
 
                 let status_bar = view_clone.status_bar.clone();
                 let job_start_time = view_clone.job_start_time.clone();
                 let view_timeout = view_clone.clone();
                 let is_streaming_timeout = view_clone.is_streaming.clone();
 
-                let receiver = std::sync::Mutex::new(receiver);
-
                 // Timeout para leer progreso
                 glib::timeout_add_local(std::time::Duration::from_millis(100), move || {
-                    let receiver_guard = receiver.lock().unwrap();
-                    while let Ok(message) = receiver_guard.try_recv() {
-                        // println!("🔍 Mensaje recibido: '{}'", message);
+
+                    // El '*' le indica a Rust que desasocie el MutexGuard y acceda al método del Receiver real
+                    while let Ok(message) = receiver.try_recv() {
+                        tracing::debug!("🔍 Message received: '{}'", message);
 
                         if message.starts_with('>') {
                             if let Some(console) = view_timeout.device_console.as_ref() {
@@ -1603,7 +1607,6 @@ impl MachineControlView {
                 });
 
                 *view_clone.job_start_time.lock() = Some(std::time::Instant::now());
-                sender.send_gcode(&content);
             });
         }
 
@@ -2089,10 +2092,10 @@ impl MachineControlView {
                                 // Try to read data (non-blocking, quick)
                                 if let Some(mut comm) = communicator_poll.try_lock() {
                                     if let Ok(response_bytes) = comm.receive() {
-                                        if !response_bytes.is_empty() {
-                                            let s = String::from_utf8_lossy(&response_bytes);
+                                if !response_bytes.is_empty() {
+                                    let s = String::from_utf8_lossy(&response_bytes);
 
-                                            response_buffer.push_str(&s);
+                                    response_buffer.push_str(&s);
 
                                             // Process complete lines (support both \n and \r line endings)
                                             while let Some(idx) = {
@@ -2256,9 +2259,9 @@ impl MachineControlView {
 
                                                         for cls in [
                                                             "state-idle",
-                                                    "state-run",
-                                                    "state-hold",
-                                                    "state-alarm",
+                                                            "state-run",
+                                                            "state-hold",
+                                                            "state-alarm",
                                                         ] {
                                                             state_label_poll.remove_css_class(cls);
                                                         }
@@ -2281,7 +2284,6 @@ impl MachineControlView {
                                                             sb.set_state(&state);
                                                         }
 
-
                                                         // If machine is Idle and not streaming, just clear the timer without showing duplicate message
                                                         if state == "Idle" && !*is_streaming_poll.lock() {
                                                             let mut start_time = job_start_time_poll.lock();
@@ -2290,7 +2292,6 @@ impl MachineControlView {
                                                                 if let Some(sb) = status_bar_poll.as_ref() {
                                                                     sb.set_progress(0.0, "", "");
                                                                 }
-                                                                // NO mostrar mensaje de tiempo aquí - ya se muestra con "Program End"
                                                             }
                                                         }
 
@@ -2423,8 +2424,8 @@ impl MachineControlView {
                                                         state_buffer_label_poll.set_text(&format!(
                                                             "{} {}/{}",
                                                             t!("Buffer:"),
-                                                                                                  buffer.plan,
-                                                                                                  buffer.rx
+                                                            buffer.plan,
+                                                            buffer.rx
                                                         ));
                                                         device_status::update_buffer_state(buffer);
                                                     }
@@ -2461,8 +2462,8 @@ impl MachineControlView {
                                                         state_feed_label_poll.set_text(&format!(
                                                             "{} {} {}",
                                                             t!("Feed:"),
-                                                                                                feed,
-                                                                                                units
+                                                            feed,
+                                                            units
                                                         ));
 
                                                         // Calculate adjusted feed
@@ -2489,8 +2490,7 @@ impl MachineControlView {
                                                     if let Some(spindle_speed) = display_spindle {
                                                         state_spindle_label_poll.set_text(&format!(
                                                             "{} {} S",
-                                                            t!("Spindle:"),
-                                                                                                   spindle_speed
+                                                            t!("Spindle:"),                                                                                                   spindle_speed
                                                         ));
 
                                                         // Calculate adjusted spindle
@@ -2528,9 +2528,12 @@ impl MachineControlView {
                                         }
                                     }
 
-                                    // Send status query every ~250ms (every 5 cycles of 50ms)
+                                    // Send status query every ~250ms (every 5 cycles of 50ms).
+                                    // Consultamos al comunicador si es Repetier para no mandar '?' en ese caso.
                                     if query_counter.is_multiple_of(5) {
-                                        let _ = comm.send(b"?");
+                                        if !comm.is_repetier_firmware {
+                                            let _ = comm.send(b"?");
+                                        }
                                     }
                                 }
 

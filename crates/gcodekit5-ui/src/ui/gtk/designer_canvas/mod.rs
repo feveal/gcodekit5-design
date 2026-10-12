@@ -346,7 +346,11 @@ impl DesignerCanvas {
                 // Obtener el estado actual del zoom y pan
                 let (current_zoom, pan_x, pan_y) = {
                     let state = canvas_scroll.state.borrow();
-                    (state.canvas.zoom(), state.canvas.pan_x(), state.canvas.pan_y())
+                    (
+                        state.canvas.zoom(),
+                        state.canvas.pan_x(),
+                        state.canvas.pan_y(),
+                    )
                 };
 
                 // Calcular el factor de zoom
@@ -459,7 +463,11 @@ impl DesignerCanvas {
 
             let (pan_x, pan_y, zoom) = {
                 let state = canvas_pan_update.state.borrow();
-                (state.canvas.pan_x(), state.canvas.pan_y(), state.canvas.zoom())
+                (
+                    state.canvas.pan_x(),
+                    state.canvas.pan_y(),
+                    state.canvas.zoom(),
+                )
             };
 
             let zoom_factor = zoom.max(0.01); // Evitar división por cero
@@ -708,7 +716,10 @@ impl DesignerCanvas {
         let canvas = self.clone();
         let settings_controller = self.settings_controller.clone();
         // Apply last working directory from settings
-        super::file_dialog::set_last_working_directory(&dialog, self.settings_controller.as_deref());
+        super::file_dialog::set_last_working_directory(
+            &dialog,
+            self.settings_controller.as_deref(),
+        );
 
         dialog.connect_response(move |dialog, response| {
             if response == ResponseType::Accept {
@@ -717,10 +728,14 @@ impl DesignerCanvas {
                         // Persist last-used directory so subsequent dialogs default to it
                         if let Some(controller) = settings_controller.as_ref() {
                             if let Ok(mut persistence) = controller.persistence.try_borrow_mut() {
-                                persistence.config_mut().file_processing.output_directory = path.clone();
+                                persistence.config_mut().file_processing.output_directory =
+                                    path.clone();
 
-                                let config_path = gcodekit5_settings::SettingsManager::config_file_path()
-                                    .unwrap_or_else(|_| std::path::PathBuf::from("config.json"));
+                                let config_path =
+                                    gcodekit5_settings::SettingsManager::config_file_path()
+                                        .unwrap_or_else(|_| {
+                                            std::path::PathBuf::from("config.json")
+                                        });
                                 let _ = persistence.save_to_file(&config_path);
                             }
                         }

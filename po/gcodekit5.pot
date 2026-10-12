@@ -465,7 +465,7 @@ msgid "Import error"
 msgstr ""
 
 #: gcodekit5-ui/src/ui/gtk/machine_control/direct_sender.rs
-msgid "> Starting laser engraving:"
+msgid "> Starting work:"
 msgstr ""
 
 msgid "lines"

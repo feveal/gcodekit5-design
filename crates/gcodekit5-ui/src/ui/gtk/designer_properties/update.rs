@@ -185,9 +185,11 @@ impl PropertiesPanel {
 
                 // Solo actualizar si el valor ha cambiado y NO hay foco
                 if !*self.has_focus.borrow() {
-                    self.laser_feed_rate_entry.set_text(&display_feed.to_string());
+                    self.laser_feed_rate_entry
+                        .set_text(&display_feed.to_string());
                     self.laser_power_entry.set_text(&display_power.to_string());
-                    self.laser_passes_entry.set_text(&display_passes.to_string());
+                    self.laser_passes_entry
+                        .set_text(&display_passes.to_string());
                     self.laser_use_global_check.set_active(params.use_global);
 
                     self.laser_feed_rate_entry.set_sensitive(!params.use_global);
@@ -195,9 +197,11 @@ impl PropertiesPanel {
                     self.laser_passes_entry.set_sensitive(!params.use_global);
                 }
 
-                self.laser_feed_rate_entry.set_text(&display_feed.to_string());
+                self.laser_feed_rate_entry
+                    .set_text(&display_feed.to_string());
                 self.laser_power_entry.set_text(&display_power.to_string());
-                self.laser_passes_entry.set_text(&display_passes.to_string());
+                self.laser_passes_entry
+                    .set_text(&display_passes.to_string());
                 self.laser_use_global_check.set_active(params.use_global);
 
                 // Deshabilitar campos si es global
@@ -214,10 +218,12 @@ impl PropertiesPanel {
                 // Asignar feed_rate a la caja de texto
                 if let Ok(current) = self.laser_feed_rate_entry.text().parse::<f64>() {
                     if (current - display_feed).abs() > 1e-6 {
-                        self.laser_feed_rate_entry.set_text(&display_feed.to_string());
+                        self.laser_feed_rate_entry
+                            .set_text(&display_feed.to_string());
                     }
                 } else {
-                    self.laser_feed_rate_entry.set_text(&display_feed.to_string());
+                    self.laser_feed_rate_entry
+                        .set_text(&display_feed.to_string());
                 }
 
                 // Asignar power a la caja de texto
@@ -232,10 +238,12 @@ impl PropertiesPanel {
                 // Asignar passes a la caja de texto
                 if let Ok(current) = self.laser_passes_entry.text().parse::<u32>() {
                     if current != display_passes {
-                        self.laser_passes_entry.set_text(&display_passes.to_string());
+                        self.laser_passes_entry
+                            .set_text(&display_passes.to_string());
                     }
                 } else {
-                    self.laser_passes_entry.set_text(&display_passes.to_string());
+                    self.laser_passes_entry
+                        .set_text(&display_passes.to_string());
                 }
 
                 // Forzar al Checkbox visual a ponerse en su sitio
@@ -333,12 +341,12 @@ impl PropertiesPanel {
                             .set_active_id(Some(&r.scan_direction));
                         self.image_bidirectional_check.set_active(r.bidirectional);
                         self.image_invert_check.set_active(r.invert);
-//                        self.image_dithering_combo.set_active_id(Some(&r.dithering));
+                        //                        self.image_dithering_combo.set_active_id(Some(&r.dithering));
                         //Force lock aspect ratio and disable the button so it cannot be changed
-//                        if !*self.has_focus.borrow() {
-//                            self.image_halftone_threshold_entry
-//                                .set_text(&r.halftone_threshold.to_string());
-//                        }
+                        //                        if !*self.has_focus.borrow() {
+                        //                            self.image_halftone_threshold_entry
+                        //                                .set_text(&r.halftone_threshold.to_string());
+                        //                        }
                         self.lock_aspect_ratio.set_active(true);
                         self.lock_aspect_ratio.set_sensitive(false);
                         // No rotation
@@ -650,7 +658,8 @@ impl PropertiesPanel {
                             }) => Some((*pitch, *teeth, *belt_width, *hole_radius)),
                             _ => None,
                         };
-                        self.timing_pulley_frame.set_visible(timing_params.is_some());
+                        self.timing_pulley_frame
+                            .set_visible(timing_params.is_some());
                         self.path_frame.set_visible(true);
                         self.path_closed_check.set_active(p.closed);
 
@@ -861,13 +870,16 @@ impl PropertiesPanel {
             self.chamfer_entry.set_text(&format!("{:.2}", chamfer));
 
             let is_pocket = op_type == OperationType::Pocket;
-            self.strategy_combo.set_sensitive(cam_entries_enabled && is_pocket);
-            self.step_in_entry.set_sensitive(cam_entries_enabled && is_pocket);
-            self.step_in_label.set_sensitive(cam_entries_enabled && is_pocket);
-            self.step_in_unit_label.set_sensitive(cam_entries_enabled && is_pocket);
-            self.raster_fill_entry.set_sensitive(cam_entries_enabled && is_pocket);
-
-
+            self.strategy_combo
+                .set_sensitive(cam_entries_enabled && is_pocket);
+            self.step_in_entry
+                .set_sensitive(cam_entries_enabled && is_pocket);
+            self.step_in_label
+                .set_sensitive(cam_entries_enabled && is_pocket);
+            self.step_in_unit_label
+                .set_sensitive(cam_entries_enabled && is_pocket);
+            self.raster_fill_entry
+                .set_sensitive(cam_entries_enabled && is_pocket);
 
             *self.updating.borrow_mut() = false;
         } else {
@@ -951,7 +963,7 @@ impl PropertiesPanel {
             &self.image_min_power_entry,
             &self.image_max_power_entry,
             &self.image_ppi_entry,
-//           &self.image_halftone_threshold_entry,
+            //           &self.image_halftone_threshold_entry,
             // ---
             &self.laser_feed_rate_entry,
             &self.laser_power_entry,

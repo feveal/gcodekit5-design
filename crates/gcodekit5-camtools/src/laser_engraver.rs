@@ -472,7 +472,6 @@ impl BitmapImageEngraver {
             gcode.push('\n');
         }
 
-
         if self.params.num_axes >= 3 {
             gcode.push_str(&format!(
                 "G0 Z{:.2} F{:.0} ; Move to safe height\n",

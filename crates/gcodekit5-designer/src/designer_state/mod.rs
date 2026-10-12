@@ -21,7 +21,7 @@ mod transforms;
 mod viewport;
 
 use crate::commands::DesignerCommand;
-use crate::stock_removal::{StockMaterial};
+use crate::stock_removal::StockMaterial;
 use crate::{Canvas, ToolpathGenerator};
 
 /// Tool settings for the designer
@@ -201,7 +201,11 @@ impl DesignerState {
             step.round().clamp(1.0, 10.0)
         } else {
             // En modo CNC: profundidad de pasada en mm
-            if step <= 0.0 { 0.1 } else { step }
+            if step <= 0.0 {
+                0.1
+            } else {
+                step
+            }
         };
         debug_assert!(
             step.is_finite() && step > 0.0,

@@ -14,6 +14,7 @@ pub enum DeviceType {
     LaserCutter,
     ThreeDPrinter,
     Plotter,
+    Repetier,
 }
 
 impl std::fmt::Display for DeviceType {
@@ -24,6 +25,7 @@ impl std::fmt::Display for DeviceType {
             Self::LaserCutter => write!(f, "Laser Cutter"),
             Self::ThreeDPrinter => write!(f, "3D Printer"),
             Self::Plotter => write!(f, "Plotter"),
+            Self::Repetier => write!(f, "Repetier"),
         }
     }
 }
@@ -38,6 +40,7 @@ pub enum ControllerType {
     Smoothieware,
     FluidNC,
     Marlin,
+    Repetier,
 }
 
 impl std::fmt::Display for ControllerType {
@@ -50,6 +53,7 @@ impl std::fmt::Display for ControllerType {
             Self::Smoothieware => write!(f, "Smoothieware"),
             Self::FluidNC => write!(f, "FluidNC"),
             Self::Marlin => write!(f, "Marlin"),
+            Self::Repetier => write!(f, "Repetier"),
         }
     }
 }
