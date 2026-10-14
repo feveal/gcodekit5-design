@@ -928,6 +928,15 @@ msgstr ""
 msgid "✅ Work completed in:"
 msgstr ""
 
+msgid "❌ Connection rejected: active machine is"
+msgstr ""
+
+msgid "but the device responded as"
+msgstr ""
+
+msgid "Change the active machine in the Device Manager."
+msgstr ""
+
 # crates/gcodekit5-ui/src/ui/gtk/cam-tools/mod.rs
 msgid "Select a tool"
 msgstr ""

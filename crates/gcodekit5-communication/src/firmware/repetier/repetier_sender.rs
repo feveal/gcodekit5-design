@@ -44,7 +44,7 @@ impl RepetierSender {
             let mut last_retry_idx: Option<usize> = None;
 
             loop {
-                // 1. PROCESAR COMANDOS DE CONTROL DESDE LA UI
+                // Process control commands from the UI
                 while let Ok(cmd) = rx_control.try_recv() {
                     match cmd {
                         SenderCommand::SendGcode(content) => {
@@ -61,8 +61,7 @@ impl RepetierSender {
                                 .collect();
                             tracing::debug!("📋 [SENDER] Cargadas {} líneas útiles (comandos reales)", file_lines.len());
 
-                            // Limpiar flags de control de flujo del comunicador para que un Stop
-                            // anterior no impida el envío del job actual.
+                            // Clear the communicator's flow control flags
                             if let Some(mut comm) = communicator.try_lock() {
                                 comm.repetier_reset_flow_control();
                             }
@@ -91,9 +90,7 @@ impl RepetierSender {
                 }
 
                     if local_streaming && !local_paused {
-                        // 2. COMPROBAR ESTADO DE CONTROL DE FLUJO DEL COMUNICADOR.
-                        //    - Si el usuario ha pulsado Stop (0x18), terminamos el bucle.
-                        //    - Si el usuario ha pulsado Pause (!), no enviamos nada nuevo.
+                        // Check the communicator's flow control status
                         let (flow_paused, flow_stopped) = if let Some(comm) = communicator.try_lock() {
                             (comm.repetier_is_paused(), comm.repetier_is_stopped())
                         } else {
@@ -105,48 +102,42 @@ impl RepetierSender {
                             local_streaming = false;
                             *is_streaming.lock() = false;
                             let _ = tx_ui_thread.send("Completed".to_string());
-                            // Nota: no salimos del bucle; el hilo sigue vivo por si llega otro job.
                         } else if flow_paused {
-                            // En pausa: no enviamos comandos, pero seguimos leyendo del puerto
-                            // para no acumular datos en el buffer serie.
-                            // El bloque de lectura de eventos sigue ejecutándose más abajo.
-                        } else if commands_in_flight < 1 && current_idx < file_lines.len() {
-                        let raw_line = file_lines[current_idx].clone();
 
-                        if let Some(mut comm) = communicator.try_lock() {
-                            match comm.send(raw_line.as_bytes()) {
-                                Ok(written) if written > 0 => {
-                                    let _ = tx_ui_thread.send(format!("> {}", raw_line.trim()));
-                                    commands_in_flight += 1;
-                                    current_idx += 1;
-                                    last_retry_idx = None;
-                                }
-                                Ok(_) => {
-                                    // Descartado por el comunicador (comentario, vacío, ruido).
-                                    current_idx += 1;
-                                }
-                                Err(e) => {
-                                    if last_retry_idx != Some(current_idx) {
-                                        tracing::debug!(
-                                            "⏸️  [SENDER] Reintentando idx={} por: {}",
-                                            current_idx, e
-                                        );
-                                        last_retry_idx = Some(current_idx);
+                            } else if commands_in_flight < 1 && current_idx < file_lines.len() {
+                            let raw_line = file_lines[current_idx].clone();
+
+                            if let Some(mut comm) = communicator.try_lock() {
+                                match comm.send(raw_line.as_bytes()) {
+                                    Ok(written) if written > 0 => {
+                                        let _ = tx_ui_thread.send(format!("> {}", raw_line.trim()));
+                                        commands_in_flight += 1;
+                                        current_idx += 1;
+                                        last_retry_idx = None;
+                                    }
+                                    Ok(_) => {
+                                        current_idx += 1;
+                                    }
+                                    Err(e) => {
+                                        if last_retry_idx != Some(current_idx) {
+                                            tracing::debug!(
+                                                "⏸️  [SENDER] Reintentando idx={} por: {}",
+                                                current_idx, e
+                                            );
+                                            last_retry_idx = Some(current_idx);
+                                        }
                                     }
                                 }
                             }
+
+                            let progress = (current_idx as f64 / file_lines.len() as f64) * 100.0;
+                            let _ = tx_ui_thread.send(format!("*{:.1}%", progress));
                         }
 
-                        let progress = (current_idx as f64 / file_lines.len() as f64) * 100.0;
-                        let _ = tx_ui_thread.send(format!("*{:.1}%", progress));
-                    }
-
-                    // 3. ESCUCHA DE CONFIRMACIONES REALES Y MANEJO DE OKs
+                    // Listening for Confirmations and Handling OKs
                     if let Some(mut comm) = communicator.try_lock() {
-                        // 1) Vaciamos la cola de eventos del comunicador
                         let events = comm.take_repetier_events();
 
-                        // 2) Los consumimos sin parsear texto.
                         for event in events {
                             match event {
                                 RepetierEvent::Ack => {
@@ -158,19 +149,14 @@ impl RepetierSender {
                                         target_line, commands_in_flight, current_idx);
 
                                     let _ = tx_ui_thread.send(format!(
-                                        "> ⚠️ [REPARACIÓN] Resend detectado para línea N{}",
+                                        "> ⚠️ [FIX] Resend detected for line N{}",
                                         target_line
                                     ));
 
-                                    // Vaciamos la estimación de vuelo
                                     commands_in_flight = 0;
 
-                                    // Sincronizamos el contador N del comunicador con lo que
-                                    // el firmware espera.
                                     comm.repetier_set_line_counter(target_line.saturating_sub(1));
 
-                                    // Rebobinamos el puntero de archivo del sender para que
-                                    // vuelva a enviar desde la línea pedida.
                                     if target_line as usize <= file_lines.len() {
                                         current_idx = (target_line as usize).saturating_sub(1);
                                     }
@@ -178,7 +164,7 @@ impl RepetierSender {
                             }
                         }
 
-                        // 3) Drenamos el buffer de bytes para no acumularlo.
+                        // Drain the byte buffer to avoid accumulation
                         let _ = comm.receive();
                     }
 
@@ -197,7 +183,7 @@ impl RepetierSender {
     }
 
     // ====================================================================
-    // 🌟 MÉTODOS PÚBLICOS DE CONTROL (Conexión con los botones de la UI)
+    // 🌟 PUBLIC CONTROL METHODS (Connection to UI buttons)
     // ====================================================================
     pub fn send_gcode(&self, content: &str) {
         let _ = self

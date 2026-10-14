@@ -926,6 +926,9 @@ msgstr "No se encontraron líneas de G-Code válidas."
 msgid "✅ Work completed in:"
 msgstr "✅ Trabajo completado en:"
 
+msgid "Connection rejected: active machine is configured as {} but the device responded as {}. Change the active machine in the Device Manager."
+msgstr "Conexión rechazada: la máquina activa está configurada como {}, pero el dispositivo respondió como {}. Cambie la máquina activa en el Administrador de dispositivos."
+
 # crates/gcodekit5-ui/src/ui/gtk/cam-tools/mod.rs
 msgid "Select a tool"
 msgstr "Seleccione Herramienta"

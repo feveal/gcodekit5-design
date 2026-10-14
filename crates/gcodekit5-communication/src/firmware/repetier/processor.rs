@@ -1,24 +1,20 @@
 //! gcodekit5-communication/src/communication/repetier.rs
-//! Procesador de flujo específico para el protocolo Repetier
-//! Controles operativos en Machine Control
-//! Comandos desde la consola
+//! Stream processor specific to the Repetier protocol
+//! Operational controls in Machine Control
+//! Commands from the console
 
-use std::time::Instant;
-
-/// Evento estructurado extraído de una respuesta del firmware.
+/// Structured event extracted from a firmware response
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RepetierEvent {
-    /// Firmware ha confirmado: ok, wait, exec.
+    /// Firmware has confirmed: ok, wait, exec
     Ack,
-    /// Firmware pide reenviar desde la línea N.
+    /// Firmware requests forwarding from line N
     Resend(u32),
 }
 
-/// Resultado de procesar bytes entrantes del firmware.
+/// Result of processing incoming firmware bytes
 pub struct IncomingResult {
-    /// Bytes que la UI debe mostrar / reenviar.
     pub display: Vec<u8>,
-    /// Eventos estructurados para el control de flujo.
     pub events: Vec<RepetierEvent>,
 }
 
@@ -28,9 +24,6 @@ pub struct RepetierProcessor {
     last_known_y: f32,
     last_known_z: f32,
     last_state: String,
-    connect_time: Option<Instant>,
-    pub initialized_printer: bool,
-    pub inject_buffer: Vec<Vec<u8>>,
     pub is_waiting_for_hardware: bool,
 }
 
@@ -42,45 +35,32 @@ impl RepetierProcessor {
             last_known_y: 0.0,
             last_known_z: 0.0,
             last_state: "Idle".to_string(),
-            connect_time: Some(Instant::now()),
-            initialized_printer: false,
-            inject_buffer: Vec::new(),
             is_waiting_for_hardware: false,
         }
     }
 
     pub fn reset(&mut self) {
         self.line_counter = 0;
-        self.connect_time = Some(Instant::now());
-        self.initialized_printer = false;
-        self.inject_buffer.clear();
         self.is_waiting_for_hardware = false;
     }
 
-    /// Marca que el firmware ha recibido un comando y no acepta más hasta su ack.
     pub fn mark_buffer_full(&mut self) {
         self.is_waiting_for_hardware = true;
     }
 
-    /// Marca que el firmware ha confirmado (ok / wait / exec) y libera el buffer.
     pub fn mark_ack(&mut self) {
         self.is_waiting_for_hardware = false;
     }
 
-    /// Consulta si el buffer de hardware está lleno.
-    pub fn is_buffer_full(&self) -> bool {
-        self.is_waiting_for_hardware
-    }
-
-    /// Reset de estado cuando el firmware señala M30 / ok 14.
-    /// Devuelve el contador de líneas N a 0 y libera el buffer.
+    /// State reset when firmware signals M30 / ok 14
+    /// Resets the N line counter to 0 and clears the buffer
     pub fn on_hardware_reset(&mut self) {
         self.line_counter = 0;
         self.is_waiting_for_hardware = false;
     }
 
-    /// Activa el modo Repetier tras la detección de firma.
-    /// Deja el processor en estado limpio para empezar a traducir.
+    /// Activates Repetier mode after signature detection.
+    /// Leaves the processor in a clean state to begin translation.
     pub fn activate(&mut self) {
         self.reset();
     }
@@ -101,12 +81,12 @@ impl RepetierProcessor {
         mock_str.into_bytes()
     }
 
-    // 🌟 1. MÉTODO DE ENVÍO CENTRALIZADO (Llamado tanto por mod.rs como por repetier_sender.rs)
+    // CENTRALIZED SENDING METHOD (Called by both mod.rs and repetier_sender.rs)
     pub fn process_outgoing(&mut self, data: &[u8]) -> Option<Vec<u8>> {
         let raw_string = String::from_utf8_lossy(data);
         let cleaned_upper = raw_string.trim().to_ascii_uppercase();
 
-        // Filtro contra comandos indexados ya formateados que vengan del propio repetier_sender.rs
+        // Filter for pre-formatted indexed commands originating from repetier_sender.rs itself
         if cleaned_upper.starts_with('N') && cleaned_upper.contains('*') {
             let mut raw_line = cleaned_upper.to_string();
             if let Some(ast_idx) = raw_line.find('*') {
@@ -142,7 +122,7 @@ impl RepetierProcessor {
 
         let mut translated_payload = String::new();
 
-        // Transmutación de Homing / Orígenes de la UI
+        // Homing Transmutation / UI Origins
         if cleaned_upper.contains("$H") || cleaned_upper.contains("G28") {
             self.line_counter += 1;
             let cmd = format!("N{} G28 ", self.line_counter);
@@ -155,7 +135,7 @@ impl RepetierProcessor {
             return Some(translated_payload.into_bytes());
         }
 
-        // Intercepción de Jog manual ($J=)
+        // Manual Jog Interception ($J=)
         if cleaned_upper.starts_with("$J=") {
             let extracted = cleaned_upper.trim_start_matches("$J=").trim();
             let clean_move = extracted.replace("G91", "").to_string();
@@ -174,7 +154,7 @@ impl RepetierProcessor {
             return Some(translated_payload.into_bytes());
         }
 
-        // Comandos de consola manuales en crudo o líneas limpias de G-code
+        // Manual Jog Interception (Raw manual console commands or clean lines of G-code)
         if cleaned_upper.starts_with('G')
             || cleaned_upper.starts_with('M')
             || cleaned_upper.starts_with('T')
@@ -232,8 +212,7 @@ impl RepetierProcessor {
         let mut display: Vec<u8> = Vec::new();
         let mut events: Vec<RepetierEvent> = Vec::new();
 
-        // 1) Detección temprana de Resend para sincronizar el contador global.
-        //    Usamos lower_text para que sea robusto ante "Resend:" / "resend:".
+        // Early detection by Resend to synchronize the global counter
         if lower_text.contains("resend:") {
             if let Some(idx) = lower_text.find("resend:") {
                 let num_str: String = lower_text[idx + 7..]
@@ -249,11 +228,11 @@ impl RepetierProcessor {
             }
         }
 
-        // 2) Recorrido línea a línea.
+        // Line-by-line walkthrough
         for line in text.lines() {
             let l = line.trim();
 
-            // Ruido / ecos internos del firmware: no se muestran, no generan eventos.
+            // Line-by-line walkthrough. Firmware noise/internal echoes: not displayed, do not generate events
             if l.is_empty()
                 || l.contains("==")
                 || l.contains("recv")
@@ -263,10 +242,10 @@ impl RepetierProcessor {
                 continue;
             }
 
-            // 2a) Clasificación de la línea.
-            //     - Ack: "ok", "wait", "exec" (exec ya filtrado arriba, pero por si acaso)
+            // Line classification.
+            //     - Ack: "ok", "wait", "exec"
             //     - Resend(n): "Resend:N"
-            //     - Resto: se muestra pero no genera evento.
+            //     - Other: displayed but does not trigger an event
             let lower = l.to_lowercase();
 
             if lower.starts_with("ok") || lower.contains("wait") {
@@ -283,13 +262,13 @@ impl RepetierProcessor {
                 }
             }
 
-            // 2b) Añadimos la línea al display tal cual, SIN inyectar `ok` extra.
+            // Add the line to the display, WITHOUT injecting an extra `ok`.
             display.extend_from_slice(line.as_bytes());
             display.extend_from_slice(b"\r\n");
         }
 
-        // 3) Cola final con el mock de status GRBL para que la UI siga teniendo
-        //    con qué alimentar sus DROs mientras estamos en modo Repetier.
+        // Final queue entry with the GRBL status mock so the UI continues to have
+        // data to feed its DROs while we are in Repetier mode.
         display.extend_from_slice(&self.generate_mock_grbl_status());
 
         IncomingResult { display, events }

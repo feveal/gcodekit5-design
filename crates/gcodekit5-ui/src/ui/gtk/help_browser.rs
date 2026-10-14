@@ -102,7 +102,7 @@ fn load_topic_markdown(topic: &str) -> Result<String> {
                 {
                     let s = std::str::from_utf8(bytes.as_ref())
                         .map_err(|e| anyhow!("Invalid UTF-8 in {}: {}", fallback_path, e))?;
-                    tracing::info!("Using English fallback for topic '{}'", topic);
+                    println!("Using English fallback for topic '{}'", topic);
                     return Ok(s.to_string());
                 }
             }

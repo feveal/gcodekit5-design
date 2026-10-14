@@ -822,21 +822,20 @@ impl GcodeVisualizer {
             .build();
         gl_area.set_required_version(3, 3);
 
-        // CONFIGURAR EL CONTEXTO ANTES DE USARLO
+        // Configure the context before using it.
         gl_area.set_has_depth_buffer(true);
         gl_area.set_auto_render(true);
 
-        // CONECTAR REALIZE
+        // Connect realize
         gl_area.connect_realize(|area| {
-            // El contexto GL se activa automáticamente en realize
-            // Hacer que el área sea focuseable para recibir eventos
+            // The GL context is automatically activated in realize
+            // Make the area focusable to receive events.
             area.set_can_focus(true);
             area.grab_focus();
         });
 
-        // CONECTAR UNMAP - Limpiar recursos cuando se oculta
+        // Connect UNMAP - Clean up resources when hidden
         gl_area.connect_unmap(|_area| {
-            // El contexto se libera automáticamente
         });
 
         // 3D Scrollbars
@@ -985,24 +984,6 @@ impl GcodeVisualizer {
         floating_box.append(&nav_fit_device_btn);
         floating_box.append(&help_btn);
 
-        /*
-                // Status Panel (Bottom Left)
-                let status_box = Box::new(Orientation::Horizontal, 4);
-                status_box.add_css_class("visualizer-osd");
-                status_box.set_halign(gtk4::Align::Start);
-                status_box.set_valign(gtk4::Align::End);
-                status_box.set_margin_bottom(20);
-                status_box.set_margin_start(10);
-
-                let status_label = Label::builder().label(" ").build();
-                status_label.set_hexpand(true);
-
-                let units_badge = Label::new(Some(""));
-                units_badge.add_css_class("osd-units-badge");
-
-                status_box.append(&status_label);
-                status_box.append(&units_badge);
-        */
         // Run preview controls (Bottom Left)
         let run_controls_box = Box::new(Orientation::Horizontal, 6);
         run_controls_box.add_css_class("visualizer-osd");
@@ -1110,9 +1091,6 @@ impl GcodeVisualizer {
         }
 
         overlay.add_overlay(&floating_box);
-        //Eliminar barra de estado
-        //        overlay.add_overlay(&status_box);
-
         overlay.add_overlay(&run_controls_box);
         overlay.add_overlay(&sidebar_show_panel);
         overlay.add_overlay(&sim_panel);
@@ -1166,7 +1144,7 @@ impl GcodeVisualizer {
                 };
             drop(vis);
 
-            // Comprobar contenido
+            // Check content
             let has_content = (max_x - min_x).abs() > 0.001 || (max_y - min_y).abs() > 0.001;
 
             if has_content {
@@ -1201,63 +1179,12 @@ impl GcodeVisualizer {
             //            let units_badge = units_badge.clone();
             let empty_box = empty_box.clone();
             let vis = visualizer.clone();
-            //            let cursor_pos = cursor_pos.clone();
-            //            let settings = settings_controller.clone();
             move || {
                 let v = vis.borrow();
-
-                /*
-                                let (cursor_x, cursor_y) = *cursor_pos.borrow();
-                                let system = settings.persistence.borrow().config().ui.measurement_system;
-
-
-                                // Visualizer offsets are negative of center, so we negate them to show center
-                                let center_x = -v.x_offset;
-                                let center_y = -v.y_offset;
-
-                                label.set_text(&format_zoom_center_cursor(
-                                    v.zoom_scale as f64,
-                                    center_x,
-                                    center_y,
-                                    cursor_x,
-                                    cursor_y,
-                                    system,
-                                ));
-
-                                units_badge.set_text(gcodekit5_core::units::get_unit_label(system));
-                */
-
                 empty_box.set_visible(v.commands().is_empty());
             }
         });
-        /*
-                // Track cursor position in world coordinates
-                let motion = EventControllerMotion::new();
-                let vis_motion = visualizer.clone();
-                let da_motion = drawing_area.clone();
-                let cursor_pos_motion = cursor_pos.clone();
-                motion.connect_motion(move |_, x, y| {
-                    let v = vis_motion.borrow();
-                    let width = da_motion.width() as f64;
-                    let height = da_motion.height() as f64;
-                    if width <= 0.0 || height <= 0.0 {
-                        return;
-                    }
 
-                    let center_x = width / 2.0;
-                    let center_y = height / 2.0;
-                    let s = v.zoom_scale as f64;
-                    if s == 0.0 {
-                        return;
-                    }
-
-                    let world_x = (x - center_x) / s - v.x_offset as f64;
-                    let world_y = -((y - center_y) / s) - v.y_offset as f64;
-                    *cursor_pos_motion.borrow_mut() = (world_x as f32, world_y as f32);
-                });
-
-                drawing_area.add_controller(motion);
-        */
         // connect_cliked for top_view_btn
         let cam_top = camera.clone();
         let gl_top = gl_area.clone();
@@ -2075,9 +2002,9 @@ impl GcodeVisualizer {
                     let cancel_thread = sim_cancel_flag.clone();
                     let progress_thread = sim_progress_flag.clone();
 
-                    // ============================================================
-                    // CREAR CANAL PARA EL PROGRESO
-                    // ============================================================
+                    // ===============================
+                    // Create a channel for progress
+                    // ===============================
                     let (progress_tx, progress_rx) = std::sync::mpsc::channel();
 
                     // ✅ USAR Arc<AtomicBool> - SIN importar Borrow
@@ -2110,10 +2037,10 @@ impl GcodeVisualizer {
 
                         let _ =
                             simulator.simulate_toolpath_with_progress(&toolpath_segments_3d, |p| {
-                                // Enviar progreso por el canal
+                                // Send progress via the channel
                                 let _ = tx.send(p);
 
-                                // Actualizar también la variable atómica para compatibilidad
+                                // Update the atomic variable for compatibility.
                                 if p > 0.0 {
                                     progress.store(
                                         (p * 100.0).round() as usize,
@@ -2124,7 +2051,7 @@ impl GcodeVisualizer {
                             });
 
                         progress.store(100, std::sync::atomic::Ordering::Relaxed);
-                        // Enviar 100% al final
+                        // Send 100% at the end
                         let _ = progress_tx.send(1.0);
 
                         let result_sim = simulator;
@@ -2148,7 +2075,7 @@ impl GcodeVisualizer {
                     let render_ready_poll = render_ready.clone();
 
                     glib::timeout_add_local(std::time::Duration::from_millis(50), move || {
-                        // 1. Actualizar progreso desde el canal
+                        // Update progress from the channel
                         while let Ok(p) = progress_rx.try_recv() {
                             let pct = (p * 100.0).round() as usize;
                             sim_progress_label_poll.set_text(&format!("{}%", pct));
@@ -2162,7 +2089,7 @@ impl GcodeVisualizer {
                             }
                         }
 
-                        // 2. Verificar cancelación
+                        // Verify cancellation
                         if sim_cancel_flag_poll.load(std::sync::atomic::Ordering::SeqCst) {
                             *sim_running_poll.borrow_mut() = false;
                             sim_panel_toggle_poll.set_visible(false);
@@ -2173,8 +2100,7 @@ impl GcodeVisualizer {
                             return glib::ControlFlow::Break;
                         }
 
-                        // 3. Verificar si el renderizado está listo
-                        // ✅ Usar load en lugar de borrow
+                        // Check if the rendering is ready.
                         if render_ready_poll.load(std::sync::atomic::Ordering::SeqCst) {
                             if let Some(mut guard) = result_arc_poll.try_lock() {
                                 if let Some(result_simulator) = guard.take() {
@@ -2190,22 +2116,22 @@ impl GcodeVisualizer {
                                         return glib::ControlFlow::Break;
                                     }
 
-                                    // Asignar el simulador
+                                    // Assign the simulator
                                     *result_3d_ref.borrow_mut() = Some(result_simulator);
                                     *pending_flag.borrow_mut() = true;
                                     *sim_running_poll.borrow_mut() = false;
 
-                                    // Ocultar panel de progreso
+                                    // Hide progress panel
                                     sim_panel_toggle_poll.set_visible(false);
                                     if let Some(sb) = sb_poll.as_ref() {
                                         sb.set_progress(0.0, "", "");
                                         sb.set_cancel_action(None);
                                     }
 
-                                    // Forzar renderizado
+                                    // Force rendering
                                     gl_ref.queue_render();
 
-                                    // ✅ Detener el poller AHORA
+                                    // Stop the poll NOW
                                     return glib::ControlFlow::Break;
                                 }
                             }
@@ -2331,12 +2257,12 @@ impl GcodeVisualizer {
         let show_stock_removal_3d = show_stock_removal.clone();
 
         let grid_spacing_mm_render = grid_spacing_mm.clone();
-        // Guardar el último valor procesado para detectar cambios
+        // Save the last processed value to detect changes.
         let last_grid_spacing = std::cell::Cell::new(50.0_f64);
 
-        // Cuando el usuario cambia el combo de tamaño de rejilla, forzar
-        // un redraw del área de dibujo y del GLArea para que la rejilla
-        // se regenere inmediatamente (si está visible).
+        // When the user changes the grid size combo box, force
+        // a redraw of the drawing area and the GLArea so that the grid
+        // regenerates immediately (if visible)
         let grid_combo_update = grid_spacing_combo.clone();
         let da_update = drawing_area.clone();
         let gl_update = gl_area.clone();
@@ -2452,7 +2378,7 @@ impl GcodeVisualizer {
                 }
                 drop(vis);
 
-                // --- Actualización dinámica de la rejilla ---
+                // --- Dynamic grid update ---
                 let current_spacing = grid_spacing_mm_render.get();
                 if current_spacing != last_grid_spacing.get() {
                     let grid_data = generate_grid_data(4000.0, current_spacing as f32);
@@ -2548,24 +2474,24 @@ impl GcodeVisualizer {
                         if let (Some(shader), Some(buffers)) =
                             (&state.stock_removal_shader, &state.stock_removal_buffers)
                         {
-                            // Configurar estado de renderizado para sólido opaco
+                            // Set render state to opaque solid
                             unsafe {
-                                // Deshabilitar blending para evitar transparencias
+                                // Disable blending to avoid transparency
                                 gl.disable(glow::BLEND);
-                                // Habilitar depth test para correcta profundidad
+                                // Enable depth test for correct depth
                                 gl.enable(glow::DEPTH_TEST);
-                                // Configurar depth function para que funcione correctamente
+                                // Configure the depth function to work correctly.
                                 gl.depth_func(glow::LESS);
-                                // Habilitar back-face culling para eliminar caras internas
+                                // Enable back-face culling to remove internal faces
                                 gl.enable(glow::CULL_FACE);
                                 gl.cull_face(glow::BACK);
-                                // Orientación de caras: CCW (counter-clockwise)
+                                // Face orientation: CCW (counter-clockwise)
                                 gl.front_face(glow::CCW);
                             }
 
                             shader.bind();
 
-                            // Configurar matriz MVP
+                            // Configure MVP matrix
                             if let Some(loc) = shader.get_uniform_location("uModelViewProjection") {
                                 unsafe {
                                     gl.uniform_matrix_4_f32_slice(
@@ -2593,13 +2519,13 @@ impl GcodeVisualizer {
                                 }
                             }
 
-                            // Dibujar el mesh
+                            // Draw the mesh
                             buffers.draw();
 
-                            // Restaurar estado
+                            // Restore state
                             unsafe {
                                 gl.disable(glow::CULL_FACE);
-                                // NO deshabilitar depth test porque el toolpath lo necesita
+                                // Do NOT disable depth testing, as the toolpath requires it
                             }
 
                             shader.unbind();
@@ -2609,8 +2535,8 @@ impl GcodeVisualizer {
                     }
                 }
 
-                // Después de dibujar el stock removal, dibujar el toolpath
-                // Draw Toolpath (asegurar que se dibuja encima del stock)
+                // After drawing the stock removal, draw the toolpath
+                // Draw Toolpath (ensure it is drawn on top of the stock)
                 if show_rapid_3d.is_active() || show_cut_3d.is_active() {
                     state.shader.bind();
 
@@ -2624,7 +2550,7 @@ impl GcodeVisualizer {
                         }
                     }
 
-                    // Dibujar con depth test activo pero con offset para evitar z-fighting
+                    // Draw with depth testing enabled but with an offset to avoid z-fighting.
                     unsafe {
                         gl.enable(glow::POLYGON_OFFSET_FILL);
                         gl.polygon_offset(-1.0, -1.0);
@@ -2882,11 +2808,11 @@ impl GcodeVisualizer {
         drop(cache);
 
         // ============================================================
-        // ✅ DETECTAR SI ES 2D SEGÚN MACHINE_MODE
+        //        Detect if it is 2D based on MACHINE_MODE.
         // ============================================================
         let is_2d = self.is_machine_2d();
 
-        // Ocultar/mostrar el checkbox de simulación
+        // Show/hide the simulation checkbox
         self.show_stock_removal.set_visible(!is_2d);
         if is_2d {
             self.show_stock_removal.set_active(false);
@@ -2962,7 +2888,7 @@ impl GcodeVisualizer {
             });
         drop(vis);
 
-        // ★ Sincronizar stock con el diseñador ★
+        // ★ Synchronize stock with designer ★
         self.sync_stock_from_designer();
 
         // Force 3D top view and fit whenever G-code is loaded
@@ -2982,13 +2908,13 @@ impl GcodeVisualizer {
         self.drawing_area.queue_draw();
     }
 
-    /// Detecta si la máquina está en modo 2D (Láser)
+    /// Detects whether the machine is in 2D mode (Laser).
     fn is_machine_2d(&self) -> bool {
         if let Some(state) = self.designer_state.as_ref() {
             let mode = state.borrow().machine_mode();
             return mode == MachineMode::Laser2D;
         }
-        false // Por defecto, asumir 3D
+        false // Assume 3D by default
     }
 
     pub fn sync_stock_from_designer(&self) {

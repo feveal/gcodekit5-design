@@ -1,3 +1,4 @@
+//! gcodekit5-communication/src/firmware/repetier/mod.rs
 //! # Repetier Protocol Firmware Module
 //!
 //! Encapsulates both the stream processor (aduana) and the asynchronous
@@ -5,7 +6,5 @@
 
 pub mod processor;
 pub mod repetier_sender;
-
-// Re-exportamos para que desde fuera se pueda importar de forma más cómoda
 pub use processor::RepetierProcessor;
 pub use repetier_sender::RepetierSender;

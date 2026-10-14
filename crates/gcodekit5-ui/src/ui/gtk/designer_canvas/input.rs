@@ -172,7 +172,7 @@ impl DesignerCanvas {
         {
             let mut points = self.polyline_points.borrow_mut();
             if is_polyline_mode && !points.is_empty() {
-                tracing::info!("Polyline mode with points - finishing polyline");
+                println!("Polyline mode with points - finishing polyline");
                 if points.len() >= 2 {
                     // Create polyline
                     let path_shape = PathShape::from_points(&points, true); // Close polyline

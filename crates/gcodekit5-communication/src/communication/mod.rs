@@ -1,3 +1,4 @@
+//! gcodekit5-communication/src/communication/src/communication/mod.rs
 //! Communication layer for serial, TCP, and WebSocket protocols
 //!
 //! Provides trait-based communication interface for different connection types.
@@ -15,6 +16,7 @@ pub mod serial;
 pub mod tcp;
 
 use crate::firmware::repetier::processor::RepetierEvent;
+use crate::firmware::ControllerProtocol;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::sync::Arc;
@@ -275,8 +277,6 @@ pub trait Communicator: Send + Sync {
         Ok(())
     }
 
-    /// Send a command and receive response
-    ///
     /// Sends a command and attempts to receive a response.
     fn send_command_and_receive(&mut self, command: &str) -> gcodekit5_core::Result<Vec<u8>> {
         self.send_command(command)?;
@@ -386,7 +386,16 @@ pub struct SerialCommunicator {
     port: Option<Box<dyn serial::SerialPort>>,
     params: Option<ConnectionParams>,
     listeners: Vec<CommunicatorListenerHandle>,
-    pub is_repetier_firmware: bool,
+
+    /// Protocol configured by the user via Device Manager
+    ///
+    /// **Source of truth** for the communicator's operating mode
+    /// It is set using `set_configured_protocol()`
+    pub configured_protocol: ControllerProtocol,
+
+    /// Protocol detected via autodetect while reading incoming bytes
+    pub detected_protocol: ControllerProtocol,
+
     pub repetier_processor: crate::firmware::repetier::processor::RepetierProcessor,
     repetier_events: Vec<RepetierEvent>,
     repetier_flow_paused: bool,
@@ -400,7 +409,8 @@ impl SerialCommunicator {
             port: None,
             params: None,
             listeners: Vec::new(),
-            is_repetier_firmware: false,
+            configured_protocol: ControllerProtocol::Unknown,
+            detected_protocol: ControllerProtocol::Unknown,
             repetier_processor: crate::firmware::repetier::processor::RepetierProcessor::new(),
             repetier_events: Vec::new(),
             repetier_flow_paused: false,
@@ -422,42 +432,68 @@ impl SerialCommunicator {
         }
     }
 
-    fn looks_like_repetier(incoming: &str) -> bool {
-        incoming.contains("Free RAM") || incoming.contains("start") || incoming.contains("Resend:1")
-    }
-
-    /// Devuelve y vacía los eventos Repetier acumulados desde la última llamada.
+    /// Returns and clears the Repetier events accumulated since the last call
     pub fn take_repetier_events(&mut self) -> Vec<RepetierEvent> {
         std::mem::take(&mut self.repetier_events)
     }
 
-    /// Consulta si el streaming Repetier está pausado por el usuario.
-    /// El RepetierSender lo consulta antes de enviar cada comando.
+    /// Checks if the Repetier stream is paused by the user
+    /// The RepetierSender checks this before sending each command
     pub fn repetier_is_paused(&self) -> bool {
         self.repetier_flow_paused
     }
 
-    /// Consulta si el streaming Repetier ha sido detenido por el usuario.
-    /// El RepetierSender lo consulta para terminar su bucle.
+    /// Checks if the Repetier stream has been paused by the user
+    /// The RepetierSender checks this to terminate its loop
     pub fn repetier_is_stopped(&self) -> bool {
         self.repetier_flow_stopped
     }
 
-    /// Limpia los flags de control de flujo.
+    /// Clears the flow control flags
     pub fn repetier_reset_flow_control(&mut self) {
     self.repetier_flow_paused = false;
     self.repetier_flow_stopped = false;
 }
 
-    /// Devuelve el valor actual del contador de líneas N de Repetier.
+    /// Returns the current value of Repetier's line counter N
     pub fn repetier_line_counter(&self) -> u32 {
         self.repetier_processor.line_counter
     }
 
-    /// Fija el contador de líneas N de Repetier (usado por el sender en rewind).
+    /// Sets the Repetier line counter N (used by the sender during rewind)
     pub fn repetier_set_line_counter(&mut self, n: u32) {
         self.repetier_processor.line_counter = n;
     }
+
+    /// Sets the protocol configured by the user (via Device Manager)
+    ///
+    /// The CONFIGURATION is the source of truth for the operating mode
+    /// - `Repetier`: activates the `RepetierProcessor`
+    /// - Anything else: deactivates it
+    ///
+    /// Must be called **after `connect()`** and **before** the first
+    /// command (reset, $I, etc.)
+    pub fn set_configured_protocol(&mut self, protocol: ControllerProtocol) {
+        self.configured_protocol = protocol;
+        if protocol == ControllerProtocol::Repetier {
+            self.repetier_processor.activate();
+        }
+        println!(
+            "SerialCommunicator: protocolo configurado a {:?}",
+            protocol
+        );
+    }
+
+    /// User-configured protocol. Source of truth
+    pub fn configured_protocol(&self) -> ControllerProtocol {
+        self.configured_protocol
+    }
+
+    /// Protocol detected via auto-detection. For information only
+    pub fn detected_protocol(&self) -> ControllerProtocol {
+        self.detected_protocol
+    }
+
 }
 
 impl Default for SerialCommunicator {
@@ -475,8 +511,9 @@ impl Communicator for SerialCommunicator {
             ));
         }
 
-        // Resetear banderas de emulación al conectar
-        self.is_repetier_firmware = false;
+        // Reset emulation flags upon connection
+        self.configured_protocol = ControllerProtocol::Unknown;
+        self.detected_protocol = ControllerProtocol::Unknown;
         self.repetier_flow_paused = false;
         self.repetier_flow_stopped = false;
 
@@ -498,7 +535,8 @@ impl Communicator for SerialCommunicator {
     }
 
     fn disconnect(&mut self) -> gcodekit5_core::Result<()> {
-        self.is_repetier_firmware = false;
+        self.configured_protocol = ControllerProtocol::Unknown;
+        self.detected_protocol = ControllerProtocol::Unknown;
 
         if let Some(mut port) = self.port.take() {
             match port.close() {
@@ -529,7 +567,7 @@ impl Communicator for SerialCommunicator {
             let raw_str = String::from_utf8_lossy(data);
             let cleaned = raw_str.trim().to_ascii_uppercase();
 
-            if self.is_repetier_firmware {
+            if self.configured_protocol == ControllerProtocol::Repetier {
                 if cleaned.is_empty()
                     || cleaned == "\n"
                     || cleaned == "\r"
@@ -541,23 +579,39 @@ impl Communicator for SerialCommunicator {
                     return Ok(data.len());
                 }
 
-                if self.is_repetier_firmware {
-                    if data == b"!" {
-                        tracing::debug!("⏸️  [REPETIER] Pausa solicitada. Streaming en hold.");
-                        self.repetier_flow_paused = true;
-                        return Ok(0);
+                if data == b"!" {
+                    println!("⏸️  [REPETIER] Pausa solicitada. Streaming en hold.");
+                    self.repetier_flow_paused = true;
+                    return Ok(0);
+                }
+                if data == b"~" {
+                    println!("▶️  [REPETIER] Resume solicitado. Streaming continúa.");
+                    self.repetier_flow_paused = false;
+                    return Ok(0);
+                }
+                // 0x18 = Ctrl-X (soft reset)
+                                // 0x18 = Ctrl-X (soft reset). Es un comando UNIVERSAL:
+                // todos los firmwares lo entienden. Debe salir al puerto
+                // tal cual, sin pasar por el processor Repetier (que lo
+                // descartaría porque no encaja en su formato N<num>*ck).
+                if data == &[0x18u8] {
+                    println!("⏹️  [REPETIER] Reset universal (bypass processor).");
+                    self.repetier_flow_stopped = true;
+
+                    // Enviar directo al puerto.
+                    let mut bytes_to_send = data;
+                    while !bytes_to_send.is_empty() {
+                        match port.write(bytes_to_send) {
+                            Ok(0) => {
+                                return Err(gcodekit5_core::Error::other(
+                                    "Full port".to_string(),
+                                ))
+                            }
+                            Ok(n) => bytes_to_send = &bytes_to_send[n..],
+                            Err(e) => return Err(gcodekit5_core::Error::other(e.to_string())),
+                        }
                     }
-                    if data == b"~" {
-                        tracing::debug!("▶️  [REPETIER] Resume solicitado. Streaming continúa.");
-                        self.repetier_flow_paused = false;
-                        return Ok(0);
-                    }
-                    // 0x18 = Ctrl-X (soft reset)
-                    if data == &[0x18u8] {
-                        tracing::debug!("⏹️  [REPETIER] Stop solicitado. Firmware reset + parada del sender.");
-                        self.repetier_flow_stopped = true;
-                        // No hacemos return: dejamos que el byte llegue al firmware.
-                    }
+                    return Ok(data.len());
                 }
 
                 if let Some(translated_bytes) = self.repetier_processor.process_outgoing(data) {
@@ -565,7 +619,7 @@ impl Communicator for SerialCommunicator {
                     // Formato: "📤 [TX] N<num> <gcode> *<checksum>"
                     for tx_line in translated_bytes.split(|&b| b == b'\n') {
                         if !tx_line.is_empty() {
-                            tracing::debug!("📤 [TX] {}", String::from_utf8_lossy(tx_line).trim_end());
+                            println!("📤 [TX] {}", String::from_utf8_lossy(tx_line).trim_end());
                         }
                     }
 
@@ -574,7 +628,7 @@ impl Communicator for SerialCommunicator {
                         match port.write(bytes_to_send) {
                             Ok(0) => {
                                 return Err(gcodekit5_core::Error::other(
-                                    "Puerto lleno".to_string(),
+                                    "Full port".to_string(),
                                 ))
                             }
                             Ok(n) => bytes_to_send = &bytes_to_send[n..],
@@ -595,7 +649,7 @@ impl Communicator for SerialCommunicator {
                     );
                     return Ok(data.len());
                 } else {
-                    tracing::debug!("🗑️  [TX-DESCARTADO] {:?}", cleaned);
+                    println!("🗑️  [TX-DESCARTADO] {:?}", cleaned);
                     return Ok(0);
                 }
             }
@@ -627,18 +681,31 @@ impl Communicator for SerialCommunicator {
 
                     if !data.is_empty() {
                         let incoming_text = String::from_utf8_lossy(&data);
-                        tracing::debug!("📥 [RX] {}", incoming_text.trim_end().replace('\n', " | "));
+                        println!("📥 [RX] {}", incoming_text.trim_end().replace('\n', " | "));
 
-                        if SerialCommunicator::looks_like_repetier(&incoming_text)
-                            && !self.is_repetier_firmware
-                        {
-                            tracing::debug!("🔒 [HACK-REPETIER] Firma de Repetier capturada en recibo. Sincronizando pasarela activa.");
-                            self.is_repetier_firmware = true;
-                            self.repetier_processor.activate();
-                            write_m110_handshake(port.as_mut());
+                        // ─── Auto-detection (informational only) ───
+                        // Uses the PROTOCOLS table from protocol_registry to
+                        // determine which protocol is transmitting. It does NOT
+                        // activate the processor. The protocol is determined by
+                        // `configured_protocol`.
+                        //
+                        // If something has already been detected, detection is
+                        // not performed again (prevents overwriting due to
+                        // false positives from subsequent messages).
+                        if self.detected_protocol == ControllerProtocol::Unknown {
+                            if let Some(detected) =
+                                crate::firmware::protocol_registry::detect_protocol(&incoming_text)
+                            {
+                                println!(
+                                    "🔒 Autodetección: {:?} capturado.",
+                                    detected
+                                );
+                                self.detected_protocol = detected;
+                            }
                         }
 
-                        if self.is_repetier_firmware {
+                        // ─── Operating mode based on configuration ───
+                        if self.configured_protocol == ControllerProtocol::Repetier {
                             let result = self.repetier_processor.process_incoming(data.clone());
 
                             for event in &result.events {
@@ -652,8 +719,6 @@ impl Communicator for SerialCommunicator {
                                 }
                             }
 
-                            // Encólamos los eventos para que el sender los pueda consumir sin
-                            // volver a parsear el texto.
                             self.repetier_events.extend(result.events.clone());
 
                             data = result.display;
@@ -877,7 +942,7 @@ impl Communicator for TcpCommunicator {
     }
 }
 
-/// Envía el handshake inicial M110 que Repetier espera al activarse.
+/// Sends the initial M110 handshake that Repetier expects upon activation
 fn write_m110_handshake(port: &mut dyn serial::SerialPort) {
     let cmd = "N1 M110";
     let mut ck: u8 = 0;

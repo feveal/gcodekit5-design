@@ -1,3 +1,4 @@
+//! gcodekit5-ui/src/gtk_app.rs
 //! # GTK Application Entry Point
 //!
 //! Initializes and runs the main GTK4 application window.
@@ -9,7 +10,6 @@ use crate::ui::gtk::config_settings::ConfigSettingsView;
 use crate::ui::gtk::designer::DesignerView;
 use crate::ui::gtk::device_console::DeviceConsoleView;
 // DeviceInfoView is now embedded in the Device Config panel; standalone import removed.
-use crate::device_status;
 use crate::i18n;
 use crate::t;
 use crate::ui::gtk::device_manager::DeviceManagerWindow;
@@ -184,20 +184,31 @@ pub fn main() {
         let device_manager_clone = device_manager.clone();
         glib::timeout_add_local(std::time::Duration::from_millis(1000), move || {
             status_bar_clone.refresh_device_info(&device_manager_clone);
-            glib::ControlFlow::Continue
-        });
+
+        if let Some(profile) = device_manager_clone.get_active_profile() {
+            crate::device_status::set_active_controller_type(
+                Some(profile.controller_type.as_str().to_string())
+            );
+        } else {
+            crate::device_status::set_active_controller_type(None);
+        }
+                    glib::ControlFlow::Continue
+                });
 
         // Sync active device num_axes to global state
         if let Some(profile) = device_manager.get_active_profile() {
             crate::device_status::set_active_num_axes(profile.num_axes);
 
-            // Convert ControllerType to &str
-            let controller_type = format!("{:?}", profile.controller_type);
+            // Usamos as_str() (== Display) para coherencia con el combo y el registry.
+            let controller_type = profile.controller_type.as_str().to_string();
             let device_name = &profile.name;
             let device_type = format!("{:?}", profile.device_type);
 
+            // Publicar el ControllerType de la activa en el estado global
+            crate::device_status::set_active_controller_type(Some(controller_type.clone()));
+
             status_bar.set_device_info(device_name, &controller_type, &device_type);
-        }
+}
 
         let device_controller = Rc::new(gcodekit5_devicedb::DeviceUiController::new(
             device_manager.clone(),
@@ -442,40 +453,6 @@ pub fn main() {
             editor_clone_gen.grab_focus();
         });
 
-        // Connect device info and config to machine control connection state
-        let config_settings_clone = config_settings.clone();
-        let communicator_for_device = machine_control.communicator.clone();
-
-        // Update device info when connection changes
-        glib::timeout_add_local(std::time::Duration::from_millis(500), move || {
-            let comm = communicator_for_device.lock();
-            let connected = comm.is_connected();
-
-            if connected {
-                // Get firmware info from device status
-                let status = device_status::get_status();
-                let firmware_type = status.firmware_type.as_deref().unwrap_or("GRBL");
-                let firmware_version = status.firmware_version.as_deref().unwrap_or("Unknown");
-                let device_name = status
-                    .device_name
-                    .as_deref()
-                    .unwrap_or_else(|| status.port_name.as_deref().unwrap_or("CNC Device"));
-
-                config_settings_clone.set_connected(true);
-                config_settings_clone.set_device_info(
-                    true,
-                    device_name,
-                    firmware_type,
-                    firmware_version,
-                );
-            } else {
-                config_settings_clone.set_connected(false);
-                config_settings_clone.set_device_info(false, "", "", "");
-            }
-
-            glib::ControlFlow::Continue
-        });
-
         main_box.append(&content_box);
 
         // Append the StatusBar
@@ -629,7 +606,7 @@ pub fn main() {
                 //                stack_frame.set_visible_child_name("machine");
                 stack_frame.set_visible_child_name("visualizer");
             } else {
-                tracing::info!("Frame requested but canvas is empty - nothing to frame");
+                tracing::debug!("Frame requested but canvas is empty - nothing to frame");
             }
         });
 

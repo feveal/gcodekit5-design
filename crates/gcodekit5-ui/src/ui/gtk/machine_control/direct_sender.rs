@@ -1,4 +1,5 @@
-//! direct_sender.rs // Improved file for raster engraving
+//! gcodekit5-ui/src/ui/gtk/machine_control/direct_sender.rs
+//! Improved file for raster engraving
 
 use crate::t;
 use gcodekit5_communication::{Communicator, SerialCommunicator};
@@ -20,7 +21,7 @@ impl DirectSender {
     pub fn new(
         communicator: ThreadSafe<SerialCommunicator>,
         is_streaming: ThreadSafe<bool>,
-        _is_paused: ThreadSafe<bool>, // Mantenemos el parámetro por compatibilidad pero no lo usamos
+        _is_paused: ThreadSafe<bool>, // We retain the parameter for compatibility but do not use it
         _waiting_for_ack: ThreadSafe<bool>,
     ) -> (Self, mpsc::Receiver<String>) {
         let stop_flag = Arc::new(AtomicBool::new(false));
@@ -81,7 +82,7 @@ impl DirectSender {
             let mut last_percent: u32 = 0;
 
             while i < total && !stop_flag.load(Ordering::SeqCst) {
-                // Enviar hasta llenar la ventana
+                // Send until the window is full
                 {
                     if let Some(mut c) = comm.try_lock() {
                         while lines_in_flight < max_window && i < total {
@@ -99,7 +100,7 @@ impl DirectSender {
                     }
                 }
 
-                // Leer respuestas y procesar OKs
+                // Read responses and process approvals
                 let mut attempts = 0;
                 while lines_in_flight >= max_window && !stop_flag.load(Ordering::SeqCst) {
                     if let Some(mut c) = comm.try_lock() {
@@ -125,7 +126,7 @@ impl DirectSender {
                     }
                 }
 
-                // Lectura residual
+                // Residual reading
                 if let Some(mut c) = comm.try_lock() {
                     if let Ok(data) = c.receive() {
                         if !data.is_empty() {
@@ -185,7 +186,6 @@ impl DirectSender {
         });
 
         let _ = self.progress_tx.send(t!("Paused").to_string());
-        // NOTA: No tocamos ninguna bandera. El hilo de envío sigue funcionando.
     }
 
     /// Resume the current job by sending the GRBL resume command (~)
@@ -208,7 +208,6 @@ impl DirectSender {
         });
 
         let _ = self.progress_tx.send(t!("Resuming").to_string());
-        // NOTA: No tocamos ninguna bandera. El hilo de envío sigue funcionando.
     }
 
     pub fn unlock(&self) {
@@ -224,7 +223,7 @@ impl DirectSender {
         });
     }
 
-    /// Calcula el tiempo estimado de ejecución en segundos analizando el G-code
+    /// Calculate the estimated execution time in seconds by analyzing G-code
     pub fn estimate_execution_time(gcode: &str) -> f64 {
         let mut total_time = 0.0;
         let mut current_feed = 0.0;
