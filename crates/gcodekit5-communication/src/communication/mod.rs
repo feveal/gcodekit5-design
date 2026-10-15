@@ -478,7 +478,7 @@ impl SerialCommunicator {
         if protocol == ControllerProtocol::Repetier {
             self.repetier_processor.activate();
         }
-        println!(
+        tracing::debug!(
             "SerialCommunicator: protocolo configurado a {:?}",
             protocol
         );
@@ -568,24 +568,21 @@ impl Communicator for SerialCommunicator {
             let cleaned = raw_str.trim().to_ascii_uppercase();
 
             if self.configured_protocol == ControllerProtocol::Repetier {
-                if cleaned.is_empty()
-                    || cleaned == "\n"
-                    || cleaned == "\r"
-                    || cleaned == "?"
-                    || cleaned == "$I"
-                    || cleaned == "$$"
-                    || cleaned == "$10=47"
-                {
+                // Drop only truly empty payloads. Line terminators (`\n`,
+                // `\r`) must reach the port: `send_command` issues them
+                // separately, and if they are dropped the command is left
+                // unterminated and the firmware silently ignores it.
+                if data.is_empty() {
                     return Ok(data.len());
                 }
 
                 if data == b"!" {
-                    println!("⏸️  [REPETIER] Pausa solicitada. Streaming en hold.");
+                    tracing::debug!("⏸️  [REPETIER] Pausa solicitada. Streaming en hold.");
                     self.repetier_flow_paused = true;
                     return Ok(0);
                 }
                 if data == b"~" {
-                    println!("▶️  [REPETIER] Resume solicitado. Streaming continúa.");
+                    tracing::debug!("▶️  [REPETIER] Resume solicitado. Streaming continúa.");
                     self.repetier_flow_paused = false;
                     return Ok(0);
                 }
@@ -595,7 +592,7 @@ impl Communicator for SerialCommunicator {
                 // tal cual, sin pasar por el processor Repetier (que lo
                 // descartaría porque no encaja en su formato N<num>*ck).
                 if data == &[0x18u8] {
-                    println!("⏹️  [REPETIER] Reset universal (bypass processor).");
+                    tracing::debug!("⏹️  [REPETIER] Reset universal (bypass processor).");
                     self.repetier_flow_stopped = true;
 
                     // Enviar directo al puerto.
@@ -619,7 +616,7 @@ impl Communicator for SerialCommunicator {
                     // Formato: "📤 [TX] N<num> <gcode> *<checksum>"
                     for tx_line in translated_bytes.split(|&b| b == b'\n') {
                         if !tx_line.is_empty() {
-                            println!("📤 [TX] {}", String::from_utf8_lossy(tx_line).trim_end());
+                            tracing::debug!("📤 [TX] {:?}", String::from_utf8_lossy(&translated_bytes));
                         }
                     }
 
@@ -649,13 +646,14 @@ impl Communicator for SerialCommunicator {
                     );
                     return Ok(data.len());
                 } else {
-                    println!("🗑️  [TX-DESCARTADO] {:?}", cleaned);
+                    tracing::debug!("🗑️  [TX-DESCARTADO] {:?}", cleaned);
                     return Ok(0);
                 }
             }
 
             match port.write(data) {
                 Ok(n) => {
+                    tracing::debug!("📤 [TX] (raw) {:?}", String::from_utf8_lossy(data));
                     let sent_data = &data[..n];
                     let data_str = String::from_utf8_lossy(sent_data);
                     self.notify_listeners(CommunicatorEvent::DataSent, &data_str);
@@ -681,7 +679,7 @@ impl Communicator for SerialCommunicator {
 
                     if !data.is_empty() {
                         let incoming_text = String::from_utf8_lossy(&data);
-                        println!("📥 [RX] {}", incoming_text.trim_end().replace('\n', " | "));
+                        tracing::debug!("📥 [RX] {}", incoming_text.trim_end().replace('\n', " | "));
 
                         // ─── Auto-detection (informational only) ───
                         // Uses the PROTOCOLS table from protocol_registry to
@@ -696,7 +694,7 @@ impl Communicator for SerialCommunicator {
                             if let Some(detected) =
                                 crate::firmware::protocol_registry::detect_protocol(&incoming_text)
                             {
-                                println!(
+                                tracing::debug!(
                                     "🔒 Autodetección: {:?} capturado.",
                                     detected
                                 );
@@ -942,19 +940,3 @@ impl Communicator for TcpCommunicator {
     }
 }
 
-/// Sends the initial M110 handshake that Repetier expects upon activation
-fn write_m110_handshake(port: &mut dyn serial::SerialPort) {
-    let cmd = "N1 M110";
-    let mut ck: u8 = 0;
-    for b in cmd.as_bytes() {
-        ck ^= b;
-    }
-    let line = format!("{}*{}\n", cmd, ck);
-    let mut bytes_to_send = line.as_bytes();
-    while !bytes_to_send.is_empty() {
-        match port.write(bytes_to_send) {
-            Ok(n) if n > 0 => bytes_to_send = &bytes_to_send[n..],
-            _ => break,
-        }
-    }
-}

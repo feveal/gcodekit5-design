@@ -292,7 +292,7 @@ pub fn main() {
         glib::timeout_add_local(std::time::Duration::from_millis(1500), move || {
             designer_fit.canvas.fit_to_device_area();
             designer_fit.canvas.widget.queue_draw();
-            //    println!("fit_to_device_area aplicado al designer");
+
             glib::ControlFlow::Break
         });
 

@@ -13,17 +13,6 @@
 //! - Whether the firmware announces its identity (for autodetection).
 //! - Whether it is currently wired up and supported.
 //!
-//! ## Why this exists
-//!
-//! Prior to this module, the decision logic was scattered:
-//! - `machine_control/mod.rs` hardcoded `if is_repetier { ... } else { ... }`.
-//! - `SerialCommunicator` embedded the Repetier processor internally.
-//! - `device_status` published a `Debug`-formatted string.
-//!
-//! That made adding a new protocol require touching multiple files and
-//! invited inconsistencies between them. This module centralises the
-//! decision so the rest of the code only has to consult the profile.
-//!
 //! ## Design notes
 //!
 //! - All data is `&'static` → zero runtime allocation, zero lookup cost.
@@ -40,20 +29,6 @@ pub enum SenderKind {
     /// Flow-control window. Waits for `ok` per command before sending
     /// the next. Used by Repetier.
     FlowControl,
-}
-
-/// Which line processor the `SerialCommunicator` should install, if any.
-///
-/// A processor transforms outgoing commands (adding checksums, line
-/// numbers, protocol-specific framing) and/or parses incoming bytes
-/// into user-visible text.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ProcessorKind {
-    /// Raw bytes in/out. No translation. GRBL-compatible behaviour.
-    None,
-    /// Repetier: adds `N<n>` line numbers, `*<xor>` checksums, and does
-    /// the `M110` handshake.
-    Repetier,
 }
 
 /// Per-protocol behaviour profile.
@@ -80,9 +55,6 @@ pub struct ProtocolProfile {
     /// controller-type combo.
     pub is_supported: bool,
 
-    /// Which line processor to install in the `SerialCommunicator`.
-    pub processor: ProcessorKind,
-
     /// Which sender to use for streaming.
     pub sender: SenderKind,
 
@@ -93,16 +65,22 @@ pub struct ProtocolProfile {
     /// skipped (fase 5).
     pub announces_identity: bool,
 
-    /// Command to send to trigger the identity banner.
+    /// Commands sent right after connecting, in order, spaced by a small
+    /// delay (currently 300 ms) between them.
     ///
-    /// - GRBL/grblHAL/FluidNC: `"$I"`
-    /// - Repetier: `"M115"`
-    /// - TinyG/g2core: `"{\"fv\":null}"` (JSON query)
-    /// - Smoothieware: `"version"`
-    /// - Marlin: `"M115"`
+    /// These are queries and safe setup commands only. They must not
+    /// change the machine's state in a way the user did not ask for
+    /// (e.g. do not touch `$10`, `$32` or any setting that some firmware
+    /// variants may reject).
     ///
-    /// Empty string means "no query command".
-    pub identity_query: &'static str,
+    /// - GRBL/grblHAL/FluidNC: `&["$I", "$$"]`
+    /// - Repetier: `&["M110", "M115"]`
+    /// - TinyG/g2core: `&["{\"fv\":null}"]`
+    /// - Smoothieware: `&["version"]`
+    /// - Marlin: `&["M115"]`
+    /// - Unknown/unsupported: `&[]`
+    pub init_commands: &'static [&'static str],
+
     pub detection_signatures: &'static [&'static str],
 }
 
@@ -114,10 +92,9 @@ pub const PROTOCOLS: &[ProtocolProfile] = &[
         id: "Repetier",
         display_name: "Repetier",
         is_supported: true,
-        processor: ProcessorKind::Repetier,
         sender: SenderKind::FlowControl,
         announces_identity: true,
-        identity_query: "M115",
+        init_commands: &["M110", "M115"],
         detection_signatures: &[
             "Free RAM",
             "FIRMWARE_NAME:Repetier",
@@ -131,10 +108,9 @@ pub const PROTOCOLS: &[ProtocolProfile] = &[
         id: "grblHAL",
         display_name: "grblHAL",
         is_supported: false,
-        processor: ProcessorKind::None,
         sender: SenderKind::Direct,
         announces_identity: true,
-        identity_query: "$I",
+        init_commands: &["$I", "$$"],
         detection_signatures: &["grblHAL", "[FIRMWARE:grblHAL]"],
     },
 
@@ -143,10 +119,9 @@ pub const PROTOCOLS: &[ProtocolProfile] = &[
         id: "FluidNC",
         display_name: "FluidNC",
         is_supported: false,
-        processor: ProcessorKind::None,
         sender: SenderKind::Direct,
         announces_identity: true,
-        identity_query: "$I",
+        init_commands: &["$I", "$$"],
         detection_signatures: &["FluidNC"],
     },
 
@@ -155,11 +130,10 @@ pub const PROTOCOLS: &[ProtocolProfile] = &[
         id: "GRBL",
         display_name: "GRBL",
         is_supported: true,
-        processor: ProcessorKind::None,
         sender: SenderKind::Direct,
         announces_identity: true,
-        identity_query: "$I",
-        detection_signatures: &["Grbl "],
+        init_commands: &["$I", "$$"],
+        detection_signatures: &["Grbl"],
     },
 
     // ──────────────────────────
@@ -169,40 +143,36 @@ pub const PROTOCOLS: &[ProtocolProfile] = &[
         id: "TinyG",
         display_name: "TinyG",
         is_supported: false,
-        processor: ProcessorKind::None,
         sender: SenderKind::Direct,
         announces_identity: true,
-        identity_query: "{\"fv\":null}",
+        init_commands: &["{\"fv\":null}"],
         detection_signatures: &["TinyG", "tinyg"],
     },
     ProtocolProfile {
         id: "g2core",
         display_name: "g2core",
         is_supported: false,
-        processor: ProcessorKind::None,
         sender: SenderKind::Direct,
         announces_identity: true,
-        identity_query: "{\"fv\":null}",
+        init_commands: &["{\"fv\":null}"],
         detection_signatures: &["g2core", "G2Core"],
     },
     ProtocolProfile {
         id: "Smoothieware",
         display_name: "Smoothieware",
         is_supported: false,
-        processor: ProcessorKind::None,
         sender: SenderKind::Direct,
         announces_identity: true,
-        identity_query: "version",
+        init_commands: &["version"],
         detection_signatures: &["Smoothieware", "Build version:"],
     },
     ProtocolProfile {
         id: "Marlin",
         display_name: "Marlin",
         is_supported: false,
-        processor: ProcessorKind::None,
         sender: SenderKind::Direct,
         announces_identity: true,
-        identity_query: "M115",
+        init_commands: &["M115"],
         detection_signatures: &["FIRMWARE_NAME:Marlin", "Marlin"],
     },
 ];
@@ -212,10 +182,9 @@ pub const FALLBACK_PROFILE: ProtocolProfile = ProtocolProfile {
     id: "Unknown",
     display_name: "Unknown",
     is_supported: false,
-    processor: ProcessorKind::None,
     sender: SenderKind::Direct,
     announces_identity: false,
-    identity_query: "",
+    init_commands: &[],
     detection_signatures: &[],
 };
 
@@ -239,12 +208,13 @@ pub fn protocol_profile(id: &str) -> ProtocolProfile {
 
 /// Detects the protocol based on incoming bytes.
 pub fn detect_protocol(text: &str) -> Option<ControllerProtocol> {
+    let text_lower = text.to_lowercase();
     PROTOCOLS
         .iter()
         .find(|p| {
             p.detection_signatures
                 .iter()
-                .any(|sig| text.contains(sig))
+                .any(|sig| text_lower.contains(&sig.to_lowercase()))
         })
         .map(|p| ControllerProtocol::from_str(p.id))
 }
@@ -276,7 +246,6 @@ mod tests {
         let p = protocol_profile("Siemens");
         assert_eq!(p.id, "Unknown");
         assert_eq!(p.sender, SenderKind::Direct);
-        assert_eq!(p.processor, ProcessorKind::None);
         assert!(!p.is_supported);
     }
 
@@ -285,14 +254,12 @@ mod tests {
         let p = protocol_profile("");
         assert_eq!(p.id, "Unknown");
         assert_eq!(p.sender, SenderKind::Direct);
-        assert_eq!(p.processor, ProcessorKind::None);
     }
 
     #[test]
     fn repetier_uses_flow_control_and_processor() {
         let p = protocol_profile("Repetier");
         assert_eq!(p.sender, SenderKind::FlowControl);
-        assert_eq!(p.processor, ProcessorKind::Repetier);
         assert!(p.is_supported);
     }
 
@@ -300,7 +267,6 @@ mod tests {
     fn grbl_uses_direct_and_no_processor() {
         let p = protocol_profile("GRBL");
         assert_eq!(p.sender, SenderKind::Direct);
-        assert_eq!(p.processor, ProcessorKind::None);
         assert!(p.is_supported);
     }
 
@@ -309,7 +275,6 @@ mod tests {
         for id in ["TinyG", "g2core", "Smoothieware", "Marlin"] {
             let p = protocol_profile(id);
             assert_eq!(p.sender, SenderKind::Direct, "{} should use Direct", id);
-            assert_eq!(p.processor, ProcessorKind::None, "{} should have no processor", id);
             assert!(!p.is_supported, "{} should be unsupported", id);
         }
     }

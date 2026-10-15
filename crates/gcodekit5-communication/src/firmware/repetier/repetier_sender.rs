@@ -11,10 +11,18 @@ use gcodekit5_core::ThreadSafe;
 use std::sync::mpsc::{channel, Receiver, Sender as MpscSender};
 use std::thread;
 use std::time::Duration;
+use crate::firmware::Sender;
 
 #[derive(Clone)]
 pub struct RepetierSender {
     tx_control: MpscSender<SenderCommand>,
+    communicator: ThreadSafe<SerialCommunicator>,
+    is_streaming: ThreadSafe<bool>,
+    /// Processor is created in `new()` and shared with the sender thread.
+    /// For now it is only stored here; the actual migration of the
+    /// `process_outgoing`/`process_incoming` calls from the communicator to
+    /// the sender happens in later phases.
+    processor: std::sync::Arc<std::sync::Mutex<crate::firmware::repetier::processor::RepetierProcessor>>,
 }
 
 enum SenderCommand {
@@ -35,7 +43,20 @@ impl RepetierSender {
         let (tx_ui, rx_ui) = channel();
         let tx_ui_thread = tx_ui.clone();
 
+        // Clones for the struct. The `move` closure below takes ownership of
+        // the originals, so we save copies here.
+        let communicator_for_struct = communicator.clone();
+        let is_streaming_for_struct = is_streaming.clone();
+        let processor = std::sync::Arc::new(std::sync::Mutex::new(
+            crate::firmware::repetier::processor::RepetierProcessor::new()
+        ));
+        let processor_for_thread = processor.clone();
+
         thread::spawn(move || {
+            // The processor is not used from the thread yet in this phase.
+            // It is kept alive so the next phase can start using it without
+            // re-plumbing the struct.
+            let _ = &processor_for_thread;
             let mut file_lines: Vec<String> = Vec::new();
             let mut current_idx: usize = 0;
             let mut commands_in_flight: usize = 0;
@@ -47,19 +68,20 @@ impl RepetierSender {
                 // Process control commands from the UI
                 while let Ok(cmd) = rx_control.try_recv() {
                     match cmd {
-                        SenderCommand::SendGcode(content) => {
-                            file_lines = content
-                                .lines()
-                                .map(|s| s.trim())
-                                .filter(|s| {
-                                    let s = s.trim();
-                                    !s.is_empty()
-                                        && !s.starts_with(';')
-                                        && !s.starts_with('(')
-                                })
-                                .map(|s| s.to_string())
-                                .collect();
-                            tracing::debug!("📋 [SENDER] Cargadas {} líneas útiles (comandos reales)", file_lines.len());
+            SenderCommand::SendGcode(content) => {
+                let gcode_with_pen = apply_pen_mode(&content);
+                file_lines = gcode_with_pen
+                    .lines()
+                    .map(|s| s.trim())
+                    .filter(|s| {
+                        let s = s.trim();
+                        !s.is_empty()
+                            && !s.starts_with(';')
+                            && !s.starts_with('(')
+                    })
+                    .map(|s| s.to_string())
+                    .collect();
+                    tracing::debug!("📋 [SENDER] Cargadas {} líneas útiles (comandos reales)", file_lines.len());
 
                             // Clear the communicator's flow control flags
                             if let Some(mut comm) = communicator.try_lock() {
@@ -179,27 +201,93 @@ impl RepetierSender {
             }
         });
 
-        (Self { tx_control }, rx_ui)
+        (
+            Self {
+                tx_control,
+                communicator: communicator_for_struct,
+                is_streaming: is_streaming_for_struct,
+                processor,
+            },
+            rx_ui,
+        )
     }
+}
 
-    // ====================================================================
-    // 🌟 PUBLIC CONTROL METHODS (Connection to UI buttons)
-    // ====================================================================
-    pub fn send_gcode(&self, content: &str) {
+impl Sender for RepetierSender {
+    fn send_gcode(&self, content: &str) {
         let _ = self
             .tx_control
             .send(SenderCommand::SendGcode(content.to_string()));
     }
 
-    pub fn pause(&self) {
+    fn pause(&self) {
         let _ = self.tx_control.send(SenderCommand::Pause);
     }
 
-    pub fn resume(&self) {
+    fn resume(&self) {
         let _ = self.tx_control.send(SenderCommand::Resume);
     }
 
-    pub fn stop(&self) {
+    fn stop(&self) {
         let _ = self.tx_control.send(SenderCommand::Stop);
     }
+
+    fn unlock(&self) {
+        // Repetier/Marlin do not have a `$X` equivalent.
+        // Some Marlin variants accept M999, but it is not a drop-in
+        // replacement for GRBL's unlock and could reset the printer
+        // unexpectedly, so we treat it as a no-op.
+        tracing::debug!("unlock() called on RepetierSender (no-op)");
+    }
+
+    fn is_streaming(&self) -> bool {
+        *self.is_streaming.lock()
+    }
+}
+
+/// Replace laser on/off commands with a Z move, for pen-plotter use.
+///
+/// Repetier/Marlin machines have no laser. When the profile is
+/// Repetier, we assume the tool is a pen (or any non-laser tool)
+/// and translate the laser commands into Z moves so the tool is
+/// lowered when the "laser" would be on and lifted when it would
+/// be off.
+fn apply_pen_mode(gcode: &str) -> String {
+    let mut out = String::with_capacity(gcode.len() + 256);
+    // Whether the tool is currently up (laser off). Start with
+    // "false" so the initial M5 (which is always present in laser
+    // G-code, to guarantee the laser starts off) triggers a lift.
+    let mut tool_is_up = false;
+
+    for line in gcode.lines() {
+        let upper = line.trim().to_ascii_uppercase();
+        let first_token = upper.split_whitespace().next().unwrap_or("");
+
+        match first_token {
+            "M3" | "M4" => {
+                if !tool_is_up {
+                    // Already down, drop the redundant command.
+                    continue;
+                }
+                // Lower the tool to the contact position (Z0).
+                out.push_str("G0 Z0\n");
+                tool_is_up = false;
+            }
+            "M5" => {
+                if tool_is_up {
+                    // Already up, drop the redundant command.
+                    continue;
+                }
+                // Lift the tool clear of the surface.
+                out.push_str("G0 Z5\n");
+                tool_is_up = true;
+            }
+            _ => {
+                out.push_str(line);
+                out.push('\n');
+            }
+        }
+    }
+
+    out
 }

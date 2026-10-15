@@ -52,13 +52,6 @@ impl RepetierProcessor {
         self.is_waiting_for_hardware = false;
     }
 
-    /// State reset when firmware signals M30 / ok 14
-    /// Resets the N line counter to 0 and clears the buffer
-    pub fn on_hardware_reset(&mut self) {
-        self.line_counter = 0;
-        self.is_waiting_for_hardware = false;
-    }
-
     /// Activates Repetier mode after signature detection.
     /// Leaves the processor in a clean state to begin translation.
     pub fn activate(&mut self) {
@@ -82,9 +75,34 @@ impl RepetierProcessor {
     }
 
     // CENTRALIZED SENDING METHOD (Called by both mod.rs and repetier_sender.rs)
+    // CENTRALIZED SENDING METHOD (Called by both mod.rs and repetier_sender.rs)
     pub fn process_outgoing(&mut self, data: &[u8]) -> Option<Vec<u8>> {
         let raw_string = String::from_utf8_lossy(data);
         let cleaned_upper = raw_string.trim().to_ascii_uppercase();
+
+        // Pass through any command that is not standard G-code. This
+        // covers GRBL-style commands ($I, $$, $X, $H, $J=...) and the
+        // realtime bytes (? ! ~) which have no meaning in Repetier but
+        // are harmless to forward as-is.
+        //
+        // Sending them unchanged is what makes the divergence check
+        // work: if the firmware actually speaks GRBL (misconfigured
+        // profile), it will answer with its GRBL identity banner and
+        // the UI can reject the connection.
+        //
+        // Note: `$H` and `$J=` have their own dedicated blocks below,
+        // so they are deliberately NOT covered by this early return.
+        // They need to be translated to `G28` / `G91+G1` respectively.
+        if (cleaned_upper.starts_with('$')
+            && !cleaned_upper.contains("$H")
+            && !cleaned_upper.starts_with("$J="))
+            || cleaned_upper == "?"
+            || cleaned_upper == "!"
+            || cleaned_upper == "~"
+            || cleaned_upper.is_empty()
+        {
+            return Some(data.to_vec());
+        }
 
         // Filter for pre-formatted indexed commands originating from repetier_sender.rs itself
         if cleaned_upper.starts_with('N') && cleaned_upper.contains('*') {
@@ -123,6 +141,7 @@ impl RepetierProcessor {
         let mut translated_payload = String::new();
 
         // Homing Transmutation / UI Origins
+        // Homing Transmutation / UI Origins
         if cleaned_upper.contains("$H") || cleaned_upper.contains("G28") {
             self.line_counter += 1;
             let cmd = format!("N{} G28 ", self.line_counter);
@@ -133,6 +152,27 @@ impl RepetierProcessor {
                 translated_payload.trim()
             );
             return Some(translated_payload.into_bytes());
+        }
+
+        // WCS zero (GRBL-style) → G92 (Repetier/Marlin)
+        //
+        // The UI emits `G10 L20 P<n> X0 Y0 Z0` (and per-axis variants)
+        // for "set current position as origin". GRBL understands it;
+        // Repetier/Marlin do not. Marlin's equivalent is `G92`.
+        // We translate on the fly so the UI does not have to know.
+        if cleaned_upper.starts_with("G10") {
+            let translated = translate_g10_to_g92(&cleaned_upper);
+            if let Some(g92) = translated {
+                self.line_counter += 1;
+                let cmd = format!("N{} {} ", self.line_counter, g92);
+                let ck = self.calculate_checksum(&cmd);
+                translated_payload.push_str(&format!("{}*{}\n", cmd, ck));
+                tracing::debug!(
+                    "📡 [PROCESSOR-REPETIER] Transmutado {} → {}",
+                    cleaned_upper, g92
+                );
+                return Some(translated_payload.into_bytes());
+            }
         }
 
         // Manual Jog Interception ($J=)
@@ -273,4 +313,33 @@ impl RepetierProcessor {
 
         IncomingResult { display, events }
     }
+}
+
+/// Translate a GRBL `G10 L20 P<n> X0 ...` into a Repetier/Marlin `G92`.
+///
+/// The UI emits `G10 L20 P<n> X0 Y0 Z0` (or per-axis) to set the
+/// current position as the work origin. GRBL understands that
+/// command; Repetier/Marlin use `G92` for the same purpose.
+///
+/// Returns `Some("G92 X0 Y0 Z0")` and similar, or `None` if the
+/// input is not a `G10 L20` we recognise.
+fn translate_g10_to_g92(cleaned_upper: &str) -> Option<String> {
+    // Must be a `G10 L20 P<n>` command.
+    if !cleaned_upper.contains("G10") || !cleaned_upper.contains("L20") {
+        return None;
+    }
+
+    // Collect the axes that are being zeroed.
+    let mut axes: Vec<&str> = Vec::new();
+    for axis in ["X0", "Y0", "Z0"] {
+        if cleaned_upper.contains(axis) {
+            axes.push(axis);
+        }
+    }
+
+    if axes.is_empty() {
+        return None;
+    }
+
+    Some(format!("G92 {}", axes.join(" ")))
 }

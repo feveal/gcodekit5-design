@@ -24,6 +24,7 @@ pub mod grblhal;
 pub mod override_manager;
 pub mod protocol_registry;
 pub mod repetier;
+pub mod sender;
 pub mod settings;
 pub mod smoothieware;
 pub mod tinyg;
@@ -39,13 +40,14 @@ pub use override_manager::{
 };
 
 pub use protocol_registry::{
-    protocol_profile, ProcessorKind, ProtocolProfile, SenderKind, FALLBACK_PROFILE, PROTOCOLS,
+    protocol_profile, ProtocolProfile, SenderKind, FALLBACK_PROFILE, PROTOCOLS,
 };
 
 pub use settings::{DefaultFirmwareSettings, FirmwareSetting, FirmwareSettingsTrait, SettingType};
 
 pub use smoothieware::{SmoothiewareCapabilities, SmoothiewareController, SmoothiewareVersion};
 pub use tinyg::{TinyGCapabilities, TinyGController, TinyGVersion as TinyGVer};
+pub use sender::Sender;
 
 /// Supported CNC controller types
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
