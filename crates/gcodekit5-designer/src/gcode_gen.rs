@@ -194,35 +194,42 @@ impl ToolpathToGcode {
     /// Generates the G-code header.
     pub fn generate_header(
         &self,
-        spindle_speed: u32,
-        feed_rate: f64,
+        _spindle_speed: u32,
+        _feed_rate: f64,
         tool_diameter: f64,
         depth: f64,
-        total_length: f64,
+        _total_length: f64,
     ) -> String {
         let mut gcode = String::new();
 
+// NOTE: These lines are removed as they do not provide meaningful information;
+        //they fail to account for the varying speeds of objects
+        //or the rapid movements occurring between them.
+
         if self.is_laser_2d {
             gcode.push_str("; Generated Laser G-code from Designer tool\n");
-            gcode.push_str(&format!("; Feed rate: {:.0} mm/min\n", feed_rate));
-            gcode.push_str(&format!("; Laser power (S): {}\n", spindle_speed));
+//            gcode.push_str(&format!("; Feed rate: {:.0} mm/min\n", feed_rate));
+//            gcode.push_str(&format!("; Laser power (S): {}\n", spindle_speed));
         } else {
             gcode.push_str("; Generated G-code from Designer tool\n");
             gcode.push_str(&format!("; Tool diameter: {:.2}mm\n", tool_diameter));
             gcode.push_str(&format!("; Cut depth: {:.2}mm\n", depth));
-            gcode.push_str(&format!("; Feed rate: {:.0} mm/min\n", feed_rate));
-            gcode.push_str(&format!("; Spindle speed: {} RPM / Power\n", spindle_speed));
+//            gcode.push_str(&format!("; Feed rate: {:.0} mm/min\n", feed_rate));
+//            gcode.push_str(&format!("; Spindle speed: {} RPM / Power\n", spindle_speed));
         }
-        gcode.push_str(&format!("; Total path length: {:.2}mm\n", total_length));
-
+//        gcode.push_str(&format!("; Total path length: {:.2}mm\n", total_length));
+/*
         let estimated_minutes = if feed_rate > 0.0 {
             total_length / feed_rate
         } else {
             0.0
         };
+
         let hours = (estimated_minutes / 60.0).floor() as u32;
         let minutes = (estimated_minutes.rem_euclid(60.0)).round() as u32;
         gcode.push_str(&format!("; Estimated time: {}h {}m\n", hours, minutes));
+*/
+
         gcode.push('\n');
 
         // Setup

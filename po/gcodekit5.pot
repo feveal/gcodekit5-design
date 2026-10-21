@@ -464,7 +464,7 @@ msgstr ""
 msgid "Import error"
 msgstr ""
 
-#: gcodekit5-ui/src/ui/gtk/machine_control/direct_sender.rs
+# crates/gcodekit5-ui/src/ui/gtk/machine_control/direct_sender.rs
 msgid "> Starting work:"
 msgstr ""
 
@@ -1035,7 +1035,7 @@ msgstr ""
 msgid "Load Parameters"
 msgstr ""
 
-# gcodekit5/crates/gcodekit5-ui/src/ui/gtk/cam_tools/vector_engraving.rs
+# crates/gcodekit5-ui/src/ui/gtk/cam_tools/vector_engraving.rs
 msgid "Convert vector graphics (SVG, DXF) to G-code for laser cutting/engraving. Supports hatching, multi-pass, and path optimization."
 msgstr ""
 
@@ -1135,7 +1135,7 @@ msgstr ""
 msgid "Failed to load DXF"
 msgstr ""
 
-# gcodekit5/crates/gcodekit5-ui/src/ui/gtk/cam_tools/mod.rs
+# crates/gcodekit5-ui/src/ui/gtk/cam_tools/mod.rs
 msgid "Tabbed Box Maker"
 msgstr ""
 
@@ -1196,7 +1196,7 @@ msgstr ""
 msgid "maintenance"
 msgstr ""
 
-# gcodekit5/crates/gcodekit5-ui/src/ui/gtk/cam_tools/tabbed_box.rs
+# crates/gcodekit5-ui/src/ui/gtk/cam_tools/tabbed_box.rs
 msgid "Generate G-code for laser/CNC cut boxes with finger joints based on the boxes.py algorithm. For more cases involving boxes and other objects, it is recommended to use the "
 msgstr ""
 
@@ -1320,7 +1320,7 @@ msgstr ""
 msgid "Generating box panels..."
 msgstr ""
 
-# gcodekit5/crates/gcodekit5-ui/src/ui/gtk/cam_tools/jigsaw.rs
+# crates/gcodekit5-ui/src/ui/gtk/cam_tools/jigsaw.rs
 msgid "Create custom jigsaw puzzle patterns from images or blank material. Features Draradech's algorithm for unique pieces."
 msgstr ""
 
@@ -1375,7 +1375,7 @@ msgstr ""
 msgid "Failed to generate puzzle"
 msgstr ""
 
-# gcodekit5/crates/gcodekit5-ui/src/ui/gtk/fast_shape_gallery.rs
+# crates/gcodekit5-ui/src/ui/gtk/fast_shape_gallery.rs
 msgid "Spur Gear"
 msgstr ""
 
@@ -1406,7 +1406,7 @@ msgstr ""
 msgid "U-shaped channel bracket"
 msgstr ""
 
-# gcodekit5/crates/gcodekit5-ui/src/ui/gtk/designer_properties/builders.rs
+# crates/gcodekit5-ui/src/ui/gtk/designer_properties/builders.rs
 msgid "Position"
 msgstr ""
 
@@ -1521,7 +1521,7 @@ msgstr ""
 msgid "Closed:"
 msgstr ""
 
-# gcodekit5/crates/gcodekit5-ui/src/ui/gtk/designer_properties/mod.rs
+# crates/gcodekit5-ui/src/ui/gtk/designer_properties/mod.rs
 msgid "Select a shape to edit its properties"
 msgstr ""
 
@@ -1529,7 +1529,26 @@ msgstr ""
 msgid "Objects"
 msgstr ""
 
-# gcodekit5/crates/gcodekit5-ui/src/ui/gtk/editor.rs
+msgid "Move to start"
+msgstr ""
+
+msgid "Move up"
+msgstr ""
+
+msgid "Move down"
+msgstr ""
+
+msgid "Move to end"
+msgstr ""
+
+
+msgid "It cannot be moved"
+msgstr ""
+
+msgid "The move would split a group. The members of a group must remain contiguous."
+msgstr ""
+
+# crates/gcodekit5-ui/src/ui/gtk/editor.rs
 msgid "Calculating..."
 msgstr ""
 
@@ -1581,7 +1600,7 @@ msgstr ""
 msgid "Save G-Code File"
 msgstr ""
 
-# gcodekit5/crates/gcodekit5-ui/src/ui/gtk/help_browser.rs
+# crates/gcodekit5-ui/src/ui/gtk/help_browser.rs
 msgid "🏠 Index"
 msgstr ""
 
@@ -1652,4 +1671,59 @@ msgid "Forward"
 msgstr ""
 
 msgid "Help (F1)"
+msgstr ""
+
+# crates/gcodekit5-ui/src/ui/gtk/designer_canvas/input.rs
+msgid "Delete"
+msgstr ""
+
+msgid "Group"
+msgstr ""
+
+msgid "Ungroup"
+msgstr ""
+
+msgid "Align"
+msgstr ""
+
+msgid "Difference"
+msgstr ""
+
+msgid "Intersection"
+msgstr ""
+
+msgid "Union"
+msgstr ""
+
+msgid "Diff"
+msgstr ""
+
+msgid "Inter"
+msgstr ""
+
+msgid "Mirror on X"
+msgstr ""
+
+msgid "Mirror on Y"
+msgstr ""
+
+msgid "Align ▸"
+msgstr ""
+
+msgid "Align Left"
+msgstr ""
+
+msgid "Align Right"
+msgstr ""
+
+msgid "Align Top"
+msgstr ""
+
+msgid "Align Bottom"
+msgstr ""
+
+msgid "Align Center X"
+msgstr ""
+
+msgid "Align Center Y"
 msgstr ""

@@ -568,3 +568,10 @@ stackswitcher > button:checked {
     font-weight: bold;
 }
 
+.group-badge {
+    cursor: pointer;
+    color: @accent_color;
+}
+.group-badge:hover {
+    text-decoration: underline;
+}

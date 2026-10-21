@@ -277,8 +277,8 @@ impl DesignerCanvas {
             menu_box.append(&separator);
 
             let union_button = Button::with_label("Union");
-            let difference_button = Button::with_label("Difference");
-            let intersection_button = Button::with_label("Intersection");
+            let difference_button = Button::with_label(&t!("Difference"));
+            let intersection_button = Button::with_label(&t!("Intersection"));
             menu_box.append(&union_button);
             menu_box.append(&difference_button);
             menu_box.append(&intersection_button);
@@ -338,20 +338,20 @@ impl DesignerCanvas {
         };
 
         // Edit - only show items that are actionable
-        vbox.append(&create_item("Cut", "cut"));
-        vbox.append(&create_item("Copy", "copy"));
+        vbox.append(&create_item(&t!("Cut"), "cut"));
+        vbox.append(&create_item(&t!("Copy"), "copy"));
         if can_paste {
-            vbox.append(&create_item("Paste", "paste"));
+            vbox.append(&create_item(&t!("Paste"), "paste"));
         }
-        vbox.append(&create_item("Delete", "delete"));
+        vbox.append(&create_item(&t!("Delete"), "delete"));
 
         vbox.append(&Separator::new(Orientation::Horizontal));
 
         if can_group {
-            vbox.append(&create_item("Group", "group"));
+            vbox.append(&create_item(&t!("Group"), "group"));
         }
         if can_ungroup {
-            vbox.append(&create_item("Ungroup", "ungroup"));
+            vbox.append(&create_item(&t!("Ungroup"), "ungroup"));
         }
 
         if can_group || can_ungroup {
@@ -359,70 +359,18 @@ impl DesignerCanvas {
         }
 
         if can_boolean {
-            vbox.append(&create_item("Union", "boolean_union"));
-            vbox.append(&create_item("Diff", "boolean_difference"));
-            vbox.append(&create_item("Inter", "boolean_intersection"));
+            vbox.append(&create_item(&t!("Union"), "boolean_union"));
+            vbox.append(&create_item(&t!("Diff"), "boolean_difference"));
+            vbox.append(&create_item(&t!("Inter"), "boolean_intersection"));
             vbox.append(&Separator::new(Orientation::Horizontal));
         }
 
-        vbox.append(&create_item("Mirror on X", "mirror_x"));
-        vbox.append(&create_item("Mirror on Y", "mirror_y"));
-
-        // Rotate menu is always shown since we have a selection
-        {
-            let rotate_btn = gtk4::Button::builder()
-                .label("Rotate ▸")
-                .has_frame(false)
-                .halign(gtk4::Align::Start)
-                .build();
-
-            let rotate_menu = Popover::new();
-            rotate_menu.set_parent(&rotate_btn);
-            rotate_menu.set_has_arrow(false);
-            rotate_menu.set_position(gtk4::PositionType::Right);
-
-            let rotate_vbox = Box::new(Orientation::Vertical, 0);
-            rotate_vbox.add_css_class("context-menu");
-
-            // Helper for rotate items
-            let create_rotate_item = |label: &str, angle_degrees: f64| {
-                let btn = gtk4::Button::builder()
-                    .label(label)
-                    .has_frame(false)
-                    .halign(gtk4::Align::Start)
-                    .build();
-
-                let canvas = self.clone();
-                let menu_clone = menu.clone(); // Main menu
-                let rotate_menu_clone = rotate_menu.clone();
-                let angle_radians = angle_degrees.to_radians();
-
-                btn.connect_clicked(move |_| {
-                    rotate_menu_clone.popdown();
-                    menu_clone.popdown();
-                    canvas.set_selected_rotation(angle_radians);
-                });
-                btn
-            };
-
-            rotate_vbox.append(&create_rotate_item("90° CW", -90.0));
-            rotate_vbox.append(&create_rotate_item("90° CCW", 90.0));
-            rotate_vbox.append(&create_rotate_item("45° CW", -45.0));
-            rotate_vbox.append(&create_rotate_item("45° CCW", 45.0));
-            rotate_vbox.append(&create_rotate_item("180°", 180.0));
-
-            rotate_menu.set_child(Some(&rotate_vbox));
-
-            rotate_btn.connect_clicked(move |_| {
-                rotate_menu.popup();
-            });
-
-            vbox.append(&rotate_btn);
-        }
+        vbox.append(&create_item(&t!("Mirror on X"), "mirror_x"));
+        vbox.append(&create_item(&t!("Mirror on Y"), "mirror_y"));
 
         if can_align {
             let align_btn = gtk4::Button::builder()
-                .label("Align ▸")
+                .label(&t!("Align ▸"))
                 .has_frame(false)
                 .halign(gtk4::Align::Start)
                 .build();
@@ -464,12 +412,12 @@ impl DesignerCanvas {
                 btn
             };
 
-            align_vbox.append(&create_align_item("Align Left", "align_left"));
-            align_vbox.append(&create_align_item("Align Right", "align_right"));
-            align_vbox.append(&create_align_item("Align Top", "align_top"));
-            align_vbox.append(&create_align_item("Align Bottom", "align_bottom"));
-            align_vbox.append(&create_align_item("Align Center X", "align_center_x"));
-            align_vbox.append(&create_align_item("Align Center Y", "align_center_y"));
+            align_vbox.append(&create_align_item(&t!("Align Left"), "align_left"));
+            align_vbox.append(&create_align_item(&t!("Align Right"), "align_right"));
+            align_vbox.append(&create_align_item(&t!("Align Top"), "align_top"));
+            align_vbox.append(&create_align_item(&t!("Align Bottom"), "align_bottom"));
+            align_vbox.append(&create_align_item(&t!("Align Center X"), "align_center_x"));
+            align_vbox.append(&create_align_item(&t!("Align Center Y"), "align_center_y"));
 
             align_menu.set_child(Some(&align_vbox));
 

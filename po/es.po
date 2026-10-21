@@ -3,7 +3,7 @@ msgstr ""
 "Project-Id-Version: GCodeKit5\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2025-12-12 09:36+0700\n"
-"PO-Revision-Date: 2026-09-07 12:34+0200\n"
+"PO-Revision-Date: 2026-10-20 18:41+0200\n"
 "Last-Translator: Fernando Velez <feveal@hotmail.com>\n"
 "Language-Team: Spanish\n"
 "Language: es_ES\n"
@@ -462,7 +462,7 @@ msgstr "Error al importar imagen: {}"
 msgid "Import error"
 msgstr "Error de Importación"
 
-#: gcodekit5-ui/src/ui/gtk/machine_control/direct_sender.rs
+# crates/gcodekit5-ui/src/ui/gtk/machine_control/direct_sender.rs
 msgid "> Starting work:"
 msgstr "> Iniciando trabajo:"
 
@@ -1027,7 +1027,7 @@ msgstr "Guardar parámetros"
 msgid "Load Parameters"
 msgstr "Cargar parámetros"
 
-# gcodekit5/crates/gcodekit5-ui/src/ui/gtk/cam_tools/vector_engraving.rs
+# crates/gcodekit5-ui/src/ui/gtk/cam_tools/vector_engraving.rs
 msgid "Convert vector graphics (SVG, DXF) to G-code for laser cutting/engraving. Supports hatching, multi-pass, and path optimization."
 msgstr "Convierte gráficos vectoriales (SVG, DXF) a G-code para corte/grabado láser. Admite sombreado, pasadas múltiples y optimización de trayectoria."
 
@@ -1127,7 +1127,7 @@ msgstr "Fallo leyendo SVG"
 msgid "Failed to load DXF"
 msgstr "Fallo leyendo DXF"
 
-# gcodekit5/crates/gcodekit5-ui/src/ui/gtk/cam_tools/mod.rs
+# crates/gcodekit5-ui/src/ui/gtk/cam_tools/mod.rs
 msgid "Tabbed Box Maker"
 msgstr "Creador de cajas con pestañas"
 
@@ -1188,7 +1188,7 @@ msgstr "calculadoras"
 msgid "maintenance"
 msgstr "mantenimiento"
 
-# gcodekit5/crates/gcodekit5-ui/src/ui/gtk/cam_tools/tabbed_box.rs
+# crates/gcodekit5-ui/src/ui/gtk/cam_tools/tabbed_box.rs
 msgid "Generate G-code for laser/CNC cut boxes with finger joints based on the boxes.py algorithm. For more cases involving boxes and other objects, it is recommended to use the "
 msgstr "Generar G-code para cajas cortadas con Láser/CNC con uniones dentadas basado en el algoritmo boxes.py. Para más casos de cajas y otros objetos, se recomienda utilizar "
 
@@ -1312,7 +1312,7 @@ msgstr "Generando Caja"
 msgid "Generating box panels..."
 msgstr "Generando paneles de caja..."
 
-# gcodekit5/crates/gcodekit5-ui/src/ui/gtk/cam_tools/jigsaw.rs
+# crates/gcodekit5-ui/src/ui/gtk/cam_tools/jigsaw.rs
 msgid "Create custom jigsaw puzzle patterns from images or blank material. Features Draradech's algorithm for unique pieces."
 msgstr "Crea patrones personalizados para puzzles a partir de imágenes o material en blanco. Incorpora el algoritmo de Draradech para piezas únicas."
 
@@ -1367,7 +1367,7 @@ msgstr "Generación de Puzzle Fallida"
 msgid "Failed to generate puzzle"
 msgstr "Fallo al Generar el Puzzle"
 
-# gcodekit5/crates/gcodekit5-ui/src/ui/gtk/fast_shape_gallery.rs
+# crates/gcodekit5-ui/src/ui/gtk/fast_shape_gallery.rs
 msgid "Spur Gear"
 msgstr "Engranaje recto"
 
@@ -1398,7 +1398,7 @@ msgstr "Soporte en L con agujeros"
 msgid "U-shaped channel bracket"
 msgstr "Soporte en U con agujeros"
 
-# gcodekit5/crates/gcodekit5-ui/src/ui/gtk/designer_properties/builders.rs
+# crates/gcodekit5-ui/src/ui/gtk/designer_properties/builders.rs
 msgid "Position"
 msgstr "Posición"
 
@@ -1513,15 +1513,33 @@ msgstr "Radio:"
 msgid "Closed:"
 msgstr "Cerrada:"
 
-# gcodekit5/crates/gcodekit5-ui/src/ui/gtk/designer_properties/mod.rs
+# crates/gcodekit5-ui/src/ui/gtk/designer_properties/mod.rs
 msgid "Select a shape to edit its properties"
 msgstr "Seleccione una forma para editar sus propiedades"
 
-# gcodekit5/crates/gcodekit5-ui/src/ui/gtk/designer_layers_rs
+# crates/gcodekit5-ui/src/ui/gtk/designer_layers_rs
 msgid "Objects"
 msgstr "Objetos"
 
-# gcodekit5/crates/gcodekit5-ui/src/ui/gtk/editor.rs
+msgid "Move to start"
+msgstr "Mover a inicio"
+
+msgid "Move up"
+msgstr "Subir uno"
+
+msgid "Move down"
+msgstr "Bajar uno"
+
+msgid "Move to end"
+msgstr "Mover al final"
+
+msgid "It cannot be moved"
+msgstr "No se puede mover"
+
+msgid "The move would split a group. The members of a group must remain contiguous."
+msgstr "El movimiento partiría un grupo. Los miembros de un grupo deben permanecer contiguos."
+
+# crates/gcodekit5-ui/src/ui/gtk/editor.rs
 msgid "Calculating..."
 msgstr "Calculando..."
 
@@ -1573,7 +1591,7 @@ msgstr "No se pudo guardar"
 msgid "Save G-Code File"
 msgstr "Guardar Archivo G-Code"
 
-# gcodekit5/crates/gcodekit5-ui/src/ui/gtk/help_browser.rs
+# crates/gcodekit5-ui/src/ui/gtk/help_browser.rs
 msgid "🏠 Index"
 msgstr "🏠 Índice"
 
@@ -1645,3 +1663,59 @@ msgstr "Adelante"
 
 msgid "Help (F1)"
 msgstr "Ayuda (F1)"
+
+# crates/gcodekit5-ui/src/ui/gtk/designer_canvas/input.rs
+msgid "Delete"
+msgstr "Borrar"
+
+msgid "Group"
+msgstr "Agrupar"
+
+msgid "Ungroup"
+msgstr "Desagrupar"
+
+msgid "Align"
+msgstr "Alinear"
+
+msgid "Difference"
+msgstr "Diferencia"
+
+msgid "Intersection"
+msgstr "Intersección"
+
+msgid "Union"
+msgstr "Union"
+
+msgid "Diff"
+msgstr "Difer"
+
+msgid "Inter"
+msgstr "Inter"
+
+msgid "Mirror on X"
+msgstr "Simetria X"
+
+msgid "Mirror on Y"
+msgstr "Simetria Y"
+
+msgid "Align ▸"
+msgstr "Alinear ▸"
+
+msgid "Align Left"
+msgstr "Izquierda"
+
+msgid "Align Right"
+msgstr "Derecha"
+
+msgid "Align Top"
+msgstr "Arriba"
+
+msgid "Align Bottom"
+msgstr "Abajo"
+
+msgid "Align Center X"
+msgstr "Centrado en X"
+
+msgid "Align Center Y"
+msgstr "Centrado en Y"
+
