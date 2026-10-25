@@ -34,6 +34,26 @@ use std::rc::Rc;
 use tracing::{debug, info};
 
 pub fn main() {
+
+    // GTK 4.20+ on Wayland no longer internally handles dead keys or
+    // composition sequences. Without an active input method (IBus, Fcitx5),
+    // typing '´' + 'a' does not produce 'á'—only the 'a' is entered.
+    // We force the use of GTK's "simple" module, which restores the
+    // classic behavior without requiring the user to install or
+    // activate an input method. We only set this if the user has not
+    // already configured a different value (e.g., GTK_IM_MODULE=ibus
+    // for Japanese/Chinese).
+    //
+    // SAFETY: This runs before GTK is initialized and before any threads
+    // are created, so there are no race conditions when reading
+    // environment variables.
+    if std::env::var_os("GTK_IM_MODULE").is_none() {
+        unsafe {
+            std::env::set_var("GTK_IM_MODULE", "simple");
+        }
+    }
+    // end
+
     let app = Application::builder()
         .application_id("com.gcodekit5.app")
         .build();

@@ -608,10 +608,38 @@ You may choose either license for your use of this software.
 
 ## Project Status
 
-  - **Current Version**: 1.2.0-beta.2
+  - **Current Version**: 1.2.0-beta.2a
   - **Status**: Active Development
   - **Stability**: Beta
 
+## Updates
+
+### Recent Updates (1.2.0-beta.2a) Fixed an issue with moving multiple objects using grips and Fix Dead Keys on Wayland (2026-10-25)
+  - When modifying the grips of a set of objects, they would lose their position. This issue has been fixed.
+
+- #### Fix: Accents and Dead Keys on Wayland (GTK 4.20+)
+
+  - As of GTK 4.19.2/4.20, the Wayland backend no longer processes dead keys or
+composition sequences internally; this responsibility is delegated to the
+compositor or an input method (such as IBus or Fcitx5). If no input method
+is active, typing `´` followed by `a` results in `a` instead of `á`. This
+affects any text requiring accents, diacritics, or the character `ñ`.
+
+  - To avoid this issue without requiring the user to install or configure an
+input method, the application sets `GTK_IM_MODULE=simple` upon startup—**provided
+the user has not already set a different value** (`src/gtk_app.rs`, at the
+beginning of `main()`). This restores the classic GTK behavior on Wayland
+and has no effect on X11 or Windows:
+
+    - **X11**: GTK retains its original internal processing; the variable is
+ignored in this context.
+    - **Windows**: Input is handled via the native IME, which does not depend
+on `GTK_IM_MODULE`.
+
+  - If you need to use a specific input method (for example, for Japanese or
+Chinese), set the environment variable `GTK_IM_MODULE=ibus` (or `fcitx`)
+before launching the application; the app will respect that value and
+will not overwrite it.
 
 ### Recent Updates (1.2.0-beta.2) - refactor: consolidate Sender trait, enforce protocol consistency, and dead code cleanup (2026-10-20)
 - This update consolidates communication architecture, enforces strict protocol validation, and removes obsolete code. All changes have been verified in real-world environments

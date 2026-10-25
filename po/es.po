@@ -1417,6 +1417,9 @@ msgstr "Esquina"
 msgid "Slot Mode:"
 msgstr "Modo ranura:"
 
+msgid "Text:"
+msgstr "Texto:"
+
 msgid "Content:"
 msgstr "Contenido:"
 
@@ -1718,4 +1721,8 @@ msgstr "Centrado en X"
 
 msgid "Align Center Y"
 msgstr "Centrado en Y"
+
+msgid "Add Text"
+msgstr "Añadir Texto"
+
 

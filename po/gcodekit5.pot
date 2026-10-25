@@ -1425,6 +1425,9 @@ msgstr ""
 msgid "Slot Mode:"
 msgstr ""
 
+msgid "Text:"
+msgstr ""
+
 msgid "Content:"
 msgstr ""
 
@@ -1726,4 +1729,7 @@ msgid "Align Center X"
 msgstr ""
 
 msgid "Align Center Y"
+msgstr ""
+
+msgid "Add Text"
 msgstr ""
