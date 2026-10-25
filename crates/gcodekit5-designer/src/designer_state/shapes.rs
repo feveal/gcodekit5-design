@@ -257,25 +257,6 @@ impl DesignerState {
         self.push_command(cmd);
     }
 
-    /// Clears all shapes from the canvas.
-    pub fn clear_canvas(&mut self) {
-        if self.canvas.shape_count() > 0 {
-            let ids: Vec<u64> = self.canvas.shapes().map(|s| s.id).collect();
-            let mut commands = Vec::new();
-            for id in ids {
-                commands.push(DesignerCommand::RemoveShape(RemoveShape {
-                    id,
-                    object: None,
-                }));
-            }
-            let cmd = DesignerCommand::CompositeCommand(CompositeCommand {
-                commands,
-                name: "Clear Canvas".to_string(),
-            });
-            self.push_command(cmd);
-        }
-    }
-
     /// Adds a shape to the canvas with undo/redo support.
     pub fn add_shape_with_undo(&mut self, shape: Shape) -> u64 {
         let id = self.canvas.generate_id();
@@ -429,42 +410,6 @@ impl DesignerState {
             }
             DrawingMode::Pan => {}
         }
-    }
-
-    /// Adds a test rectangle to the canvas.
-    pub fn add_test_rectangle(&mut self) {
-        let id = self.canvas.generate_id();
-        let rect = Rectangle::new(10.0, 10.0, 50.0, 40.0);
-        let obj = self.new_object_with_mode_defaults(id, Shape::Rectangle(rect));
-        let cmd = DesignerCommand::AddShape(AddShape {
-            id,
-            object: Some(obj),
-        });
-        self.push_command(cmd);
-    }
-
-    /// Adds a test circle to the canvas.
-    pub fn add_test_circle(&mut self) {
-        let id = self.canvas.generate_id();
-        let circle = Circle::new(Point::new(75.0, 75.0), 20.0);
-        let obj = self.new_object_with_mode_defaults(id, Shape::Circle(circle));
-        let cmd = DesignerCommand::AddShape(AddShape {
-            id,
-            object: Some(obj),
-        });
-        self.push_command(cmd);
-    }
-
-    /// Adds a test line to the canvas.
-    pub fn add_test_line(&mut self) {
-        let id = self.canvas.generate_id();
-        let line = Line::new(Point::new(10.0, 10.0), Point::new(100.0, 100.0));
-        let obj = self.new_object_with_mode_defaults(id, Shape::Line(line));
-        let cmd = DesignerCommand::AddShape(AddShape {
-            id,
-            object: Some(obj),
-        });
-        self.push_command(cmd);
     }
 
     /// Performs a boolean union on selected shapes.

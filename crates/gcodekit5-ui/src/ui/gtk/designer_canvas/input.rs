@@ -200,12 +200,6 @@ impl DesignerCanvas {
             .selected_count(&state_borrow.canvas.shape_store)
             > 0;
 
-        // Only show context menu if we have any selected shapes
-        if !has_selection {
-            drop(state_borrow);
-            return;
-        }
-
         let selected_count = state_borrow.canvas.shapes().filter(|s| s.selected).count();
         let can_paste = !state_borrow.clipboard.is_empty();
         let can_group = state_borrow.can_group();
@@ -213,6 +207,11 @@ impl DesignerCanvas {
         let can_align = selected_count >= 2;
         let can_boolean = selected_count >= 2;
         drop(state_borrow);
+
+        if !has_selection && !can_paste {
+            return;
+        }
+
 
         let menu = Popover::new();
         menu.set_parent(&self.widget);
@@ -319,7 +318,13 @@ impl DesignerCanvas {
                     "toggle_toolpaths" => canvas.toggle_toolpaths(),
                     "cut" => canvas.cut(),
                     "copy" => canvas.copy_selected(),
-                    "paste" => canvas.paste(),
+//                    "paste" => canvas.paste(),
+"paste" => {
+    let (x, y) = *canvas.mouse_pos.borrow();
+    canvas.paste_at(x, y);
+},
+
+
                     "delete" => canvas.delete_selected(),
                     "group" => canvas.group_selected(),
                     "ungroup" => canvas.ungroup_selected(),

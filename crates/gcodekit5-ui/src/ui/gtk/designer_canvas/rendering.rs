@@ -597,6 +597,8 @@ impl DesignerCanvas {
     }
 
     fn draw_shape_geometry(cr: &gtk4::cairo::Context, shape: &Shape) {
+        cr.new_path();
+
         match shape {
             Shape::RasterImage(raster) => {
                 // Load the image from the data
