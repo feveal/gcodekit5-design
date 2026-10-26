@@ -261,6 +261,21 @@ msgstr ""
 msgid "This DXF file contains ACIS solid entities (3D solids) that are not supported and were discarded:"
 msgstr ""
 
+msgid "Error exporting SVG:"
+msgstr ""
+
+msgid "Exported SVG:"
+msgstr ""
+
+msgid "Unsaved changes"
+msgstr ""
+
+msgid "Do you want to save the changes to the current design?"
+msgstr ""
+
+msgid "Discard"
+msgstr ""
+
 # crates/gcodekit5-settings/src/config.rs
 msgid "Machine Control"
 msgstr ""
