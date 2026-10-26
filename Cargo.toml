@@ -13,7 +13,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "1.2.0-beta.2"
+version = "1.2.0-beta.2a"
 edition = "2021"
 rust-version = "1.88"
 license = "MIT OR Apache-2.0"
@@ -93,14 +93,14 @@ section = "utility"
 priority = "optional"
 assets = [
     ["target/release/gcodekit5-design", "usr/bin/", "755"],
-    ["assets/Pictures/com.github.feveal.gcodekit5-design.png", "usr/share/icons/hicolor/128x128/apps/gcodekit5-design.png", "644"],
+    ["assets/pictures/com.github.feveal.gcodekit5-design.png", "usr/share/icons/hicolor/128x128/apps/gcodekit5-design.png", "644"],
     ["flatpak/com.github.feveal.gcodekit5-design.desktop", "usr/share/applications/gcodekit5-design.desktop", "644"],
 ]
 
 [package.metadata.generate-rpm]
 assets = [
     { source = "target/release/gcodekit5-design", dest = "/usr/bin/gcodekit5-design", mode = "755" },
-    { source = "gcodekit5.png", dest = "/usr/share/icons/hicolor/128x128/apps/gcodekit5-design.png", mode = "644" },
+    { source = "gcodekit5-design.png", dest = "/usr/share/icons/hicolor/128x128/apps/gcodekit5-design.png", mode = "644" },
     { source = "flatpak/com.github.feveal.gcodekit5-design.desktop", dest = "/usr/share/applications/gcodekit5-design.desktop", mode = "644" },
 ]
 
