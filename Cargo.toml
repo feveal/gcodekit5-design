@@ -106,7 +106,7 @@ assets = [
 [package.metadata.generate-rpm]
 assets = [
     { source = "target/release/gcodekit5-design", dest = "/usr/bin/gcodekit5-design", mode = "755" },
-    { source = "gcodekit5-design.png", dest = "/usr/share/icons/hicolor/128x128/apps/gcodekit5-design.png", mode = "644" },
+    { source = "assets/pictures/48/gcodekit5-design.png", dest = "/usr/share/icons/hicolor/128x128/apps/gcodekit5-design.png", mode = "644" },
     { source = "flatpak/com.github.feveal.gcodekit5-design.desktop", dest = "/usr/share/applications/gcodekit5-design.desktop", mode = "644" },
 ]
 
