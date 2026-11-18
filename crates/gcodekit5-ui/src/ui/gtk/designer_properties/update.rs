@@ -474,7 +474,7 @@ impl PropertiesPanel {
             self.lock_aspect_ratio.set_active(false);
             *self.updating.borrow_mut() = false;
 
-            self.cam_center_check.set_active(true);  // Default center
+            self.cam_center_check.set_active(true); // Default center
             self.cam_internal_check.set_active(false);
             self.cam_external_check.set_active(false);
         }
@@ -1164,7 +1164,6 @@ impl PropertiesPanel {
         self.cam_center_check.set_sensitive(cam_entries_enabled);
         self.cam_internal_check.set_sensitive(cam_entries_enabled);
         self.cam_external_check.set_sensitive(cam_entries_enabled);
-
 
         let pocket_enabled = cam_entries_enabled && is_pocket;
         self.strategy_combo.set_sensitive(pocket_enabled);

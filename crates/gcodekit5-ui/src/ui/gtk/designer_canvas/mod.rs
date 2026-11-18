@@ -236,45 +236,45 @@ impl DesignerCanvas {
                 grid_major_width,
                 grid_minor_width,
             );
-            });
+        });
 
-            let canvas = Rc::new(Self {
-                widget: widget.clone(),
-                state: state.clone(),
-                mouse_pos: mouse_pos.clone(),
-                toolbox: toolbox.clone(),
-                properties: shared_none(),
-                layers: shared_none(),
-                creation_start: creation_start.clone(),
-                creation_current: creation_current.clone(),
-                last_drag_offset: last_drag_offset.clone(),
-                drag_applied_move: shared((0.0, 0.0)),
-                did_drag: did_drag.clone(),
-                active_resize_handle: shared_none(),
-                resize_original_bounds: shared_none(),
-                resize_original_shapes: shared_none(),
-                hadjustment: shared_none(),
-                vadjustment: shared_none(),
-                shift_pressed: shared(false),
-                ctrl_pressed: shared(false),
-                polyline_points: polyline_points.clone(),
-                preview_shapes: preview_shapes.clone(),
-                preview_tool_offset_shapes: preview_tool_offset_shapes.clone(),
-                pending_fast_shape: pending_fast_shape.clone(),
-                preview_toolpaths: preview_toolpaths.clone(),
-                preview_generating: Rc::new(std::cell::Cell::new(false)),
-                preview_pending: Rc::new(std::cell::Cell::new(false)),
-                preview_cancel: Arc::new(AtomicBool::new(false)),
-                text_tool_dialog: shared_none(),
-                text_tool_last_font_family: shared("Sans".to_string()),
-                text_tool_last_bold: shared(false),
-                text_tool_last_italic: shared(false),
-                text_tool_last_size_mm: shared(pt_to_mm(20.0)),
-                text_tool_pending_pos: shared_none(),
-                device_manager: device_manager.clone(),
-                status_bar,
-                settings_controller: settings_controller.clone(),
-            });
+        let canvas = Rc::new(Self {
+            widget: widget.clone(),
+            state: state.clone(),
+            mouse_pos: mouse_pos.clone(),
+            toolbox: toolbox.clone(),
+            properties: shared_none(),
+            layers: shared_none(),
+            creation_start: creation_start.clone(),
+            creation_current: creation_current.clone(),
+            last_drag_offset: last_drag_offset.clone(),
+            drag_applied_move: shared((0.0, 0.0)),
+            did_drag: did_drag.clone(),
+            active_resize_handle: shared_none(),
+            resize_original_bounds: shared_none(),
+            resize_original_shapes: shared_none(),
+            hadjustment: shared_none(),
+            vadjustment: shared_none(),
+            shift_pressed: shared(false),
+            ctrl_pressed: shared(false),
+            polyline_points: polyline_points.clone(),
+            preview_shapes: preview_shapes.clone(),
+            preview_tool_offset_shapes: preview_tool_offset_shapes.clone(),
+            pending_fast_shape: pending_fast_shape.clone(),
+            preview_toolpaths: preview_toolpaths.clone(),
+            preview_generating: Rc::new(std::cell::Cell::new(false)),
+            preview_pending: Rc::new(std::cell::Cell::new(false)),
+            preview_cancel: Arc::new(AtomicBool::new(false)),
+            text_tool_dialog: shared_none(),
+            text_tool_last_font_family: shared("Sans".to_string()),
+            text_tool_last_bold: shared(false),
+            text_tool_last_italic: shared(false),
+            text_tool_last_size_mm: shared(pt_to_mm(20.0)),
+            text_tool_pending_pos: shared_none(),
+            device_manager: device_manager.clone(),
+            status_bar,
+            settings_controller: settings_controller.clone(),
+        });
 
         // Mouse motion tracking
         let motion_ctrl = EventControllerMotion::new();
@@ -777,7 +777,11 @@ impl DesignerCanvas {
     /// Solo aplica en CNC 3D (en láser no hay radio de herramienta) y solo a los
     /// shapes seleccionados con `tool_offset_mode != Center`.
     pub fn refresh_tool_offset_preview(&self) {
-        let (is_cnc, tool_radius, shapes_with_offset): (bool, f64, Vec<(Shape, gcodekit5_designer::model::ToolOffsetMode)>) = {
+        let (is_cnc, tool_radius, shapes_with_offset): (
+            bool,
+            f64,
+            Vec<(Shape, gcodekit5_designer::model::ToolOffsetMode)>,
+        ) = {
             let state = self.state.borrow();
             (
                 state.machine_mode() == MachineMode::Cnc3D,

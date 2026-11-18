@@ -4,7 +4,7 @@
 //! on designer shapes using the `csgrs` and `cavalier_contours` libraries.
 //! Includes polyline cleaning utilities for robust boolean results.
 
-use crate::model::{DesignPath, DesignerShape, Point, Shape,ToolOffsetMode};
+use crate::model::{DesignPath, DesignerShape, Point, Shape, ToolOffsetMode};
 use cavalier_contours::polyline::{PlineSource, PlineSourceMut, PlineVertex, Polyline};
 use csgrs::traits::CSG;
 use lyon::path::iterator::PathIterator;
@@ -531,8 +531,14 @@ fn interpolate_polyline_arcs(pline: &Polyline, _tolerance: f64) -> Vec<[f64; 2]>
     // Paso 1: extraer segmentos rectos como (inicio, fin)
     let mut straight_segments: Vec<((f64, f64), (f64, f64))> = Vec::new();
     for i in 0..n {
-        let v = match pline.get(i) { Some(v) => v, None => continue };
-        let v_next = match pline.get((i + 1) % n) { Some(v) => v, None => continue };
+        let v = match pline.get(i) {
+            Some(v) => v,
+            None => continue,
+        };
+        let v_next = match pline.get((i + 1) % n) {
+            Some(v) => v,
+            None => continue,
+        };
         if v.bulge.abs() < 1e-6 {
             straight_segments.push(((v.x, v.y), (v_next.x, v_next.y)));
         }
@@ -618,10 +624,7 @@ pub fn perform_offset(shape: &Shape, distance: f64) -> Shape {
         }))
         .unwrap_or_default();
 
-
-
         for offset in offsets {
-
             let pts = interpolate_polyline_arcs(&offset, 0.01);
             if pts.len() >= 3 {
                 poly_sketch = poly_sketch.union(&csgrs::sketch::Sketch::polygon(&pts, None));

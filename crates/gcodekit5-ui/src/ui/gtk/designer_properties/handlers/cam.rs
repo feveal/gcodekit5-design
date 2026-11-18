@@ -5,8 +5,8 @@ use crate::ui::gtk::designer_properties::SharedMeasurementSystem;
 use gcodekit5_core::units;
 use gcodekit5_core::{Shared, SharedOption};
 use gcodekit5_designer::designer_state::DesignerState;
-use gcodekit5_designer::pocket_operations::PocketStrategy;
 use gcodekit5_designer::model::ToolOffsetMode;
+use gcodekit5_designer::pocket_operations::PocketStrategy;
 use gtk4::prelude::*;
 use gtk4::{CheckButton, DropDown, Entry};
 use std::rc::Rc;
@@ -204,8 +204,6 @@ pub fn setup_strategy_handler(
         designer_state.set_selected_pocket_strategy(strategy);
     });
 }
-
-
 
 /// Setup Center/Internal/External radio buttons.
 ///

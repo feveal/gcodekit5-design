@@ -474,21 +474,20 @@ impl PropertiesPanel {
         )
     }
 
-// ---
-
+    // ---
 
     pub(crate) fn build_cam_section() -> (
         Frame,
         CheckButton,
         DropDown,
-        Entry,    // step_down_entry
-        Entry,    // step_in_entry
-        Entry,    // ramp_angle_entry
-        DropDown, // strategy_combo
-        Entry,    // raster_fill_entry
-        Label,    // step_down_unit_label
-        Label,    // step_in_unit_label
-        Label,    // step_in_label
+        Entry,       // step_down_entry
+        Entry,       // step_in_entry
+        Entry,       // ramp_angle_entry
+        DropDown,    // strategy_combo
+        Entry,       // raster_fill_entry
+        Label,       // step_down_unit_label
+        Label,       // step_in_unit_label
+        Label,       // step_in_label
         CheckButton, // Center
         CheckButton, // Internal
         CheckButton, // External
@@ -572,7 +571,7 @@ impl PropertiesPanel {
         raster_fill_label.set_sensitive(false);
         raster_fill_hint.set_sensitive(false);
 
-// ---
+        // ---
         // New Checkbox: Center, Internal, External
         let cam_center_check = CheckButton::with_label(&t!("Center"));
         let cam_internal_check = CheckButton::with_label(&t!("Internal"));
@@ -592,8 +591,7 @@ impl PropertiesPanel {
         // Valor por defecto: Center.
         cam_center_check.set_active(true);
 
-// ---
-
+        // ---
 
         let side_box = Box::new(Orientation::Horizontal, 12);
         let cam_machining_hint = Label::new(Some("Machining:"));
@@ -603,7 +601,7 @@ impl PropertiesPanel {
         side_box.append(&cam_center_check);
         side_box.append(&cam_internal_check);
         side_box.append(&cam_external_check);
-// ---
+        // ---
 
         // Layout
         grid.attach(&op_label, 0, 0, 1, 1);
@@ -623,10 +621,10 @@ impl PropertiesPanel {
         grid.attach(&raster_fill_label, 0, 8, 1, 1);
         grid.attach(&raster_fill_entry, 1, 8, 1, 1);
         grid.attach(&raster_fill_hint, 0, 9, 3, 1);
-// ---
+        // ---
         grid.attach(&cam_machining_hint, 0, 10, 1, 1);
         grid.attach(&side_box, 0, 11, 3, 1);
-// ---
+        // ---
 
         frame.set_child(Some(&grid));
         (

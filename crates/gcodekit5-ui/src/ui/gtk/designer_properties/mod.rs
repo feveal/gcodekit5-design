@@ -811,6 +811,5 @@ impl PropertiesPanel {
             self.updating.clone(),
             self.redraw_callback.clone(),
         );
-
     }
 }
