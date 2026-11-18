@@ -2,9 +2,9 @@ name: Code Quality
 
 on:
   push:
-    branches: [main, develop]
+    branches: [master, develop, devel]
   pull_request:
-    branches: [main, develop]
+    branches: [master, develop, devel]
 
 env:
   CARGO_TERM_COLOR: always
@@ -12,9 +12,9 @@ env:
 jobs:
   clippy-unwrap-check:
     name: Check for unwrap() usage
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -24,10 +24,10 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev libgtksourceview-5-dev libudev-dev
 
       - name: Cache cargo registry
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry
@@ -38,37 +38,108 @@ jobs:
       - name: Run clippy with unwrap warning
         run: |
           cargo clippy --workspace --all-targets -- \
-            -A clippy::unwrap_used \
+            -W clippy::unwrap_used \
             -A clippy::too_many_arguments \
             -A clippy::type_complexity \
             2>&1 | tee clippy_output.txt
-
+          
           # Count unwrap warnings
-          UNWRAP_COUNT=$(grep -c "unwrap_used" clippy_output.txt || echo "0")
+          # Count the lint diagnostics themselves; a plain "unwrap_used" match also counts
+          # clippy's "run `cargo clippy --fix ... -W clippy::unwrap_used`" hint lines.
+          UNWRAP_COUNT=$(grep -c 'used `unwrap()` on ' clippy_output.txt || true)
           echo "Found $UNWRAP_COUNT unwrap() usages"
-          echo "✅ unwrap() calls allowed by configuration"
+          
+          if [ "$UNWRAP_COUNT" -gt 0 ]; then
+            echo "::error::Found $UNWRAP_COUNT unwrap() calls. Please replace with proper error handling."
+            echo ""
+            echo "Unwrap locations:"
+            grep -A1 'used `unwrap()` on ' clippy_output.txt
+            exit 1
+          fi
+          
+          echo "✅ No unwrap() calls detected"
+
+  clippy-strict:
+    name: Clippy (warnings are errors)
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev libgtksourceview-5-dev libudev-dev
+
+      - name: Cache cargo registry
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-clippy-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+  nextest:
+    name: Tests (nextest)
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-4-dev libadwaita-1-dev libgtksourceview-5-dev libudev-dev gettext
+
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@nextest
+
+      - name: Cache cargo registry
+        uses: actions/cache@v6
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-nextest-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Run tests
+        run: cargo nextest run --workspace --profile ci
+
+      - name: Run doc tests
+        run: cargo test --workspace --doc
 
   unwrap-audit:
     name: Unwrap Audit Report
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Count unwraps in source code
         run: |
           echo "## Unwrap Audit" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-
+          
           # Count unwraps excluding test code and build artifacts
           TOTAL=$(grep -r "\.unwrap()" --include="*.rs" crates/*/src/ src/ 2>/dev/null | \
                   grep -v "unwrap_or" | grep -v "unwrap_or_else" | grep -v "unwrap_or_default" | \
                   wc -l || echo "0")
-
+          
           echo "| Metric | Count |" >> $GITHUB_STEP_SUMMARY
           echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
           echo "| Total unwrap() calls | $TOTAL |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-
+          
           if [ "$TOTAL" -gt 0 ]; then
             echo "::warning::Found $TOTAL unwrap() calls in source code"
             echo "### Locations:" >> $GITHUB_STEP_SUMMARY
@@ -83,9 +154,9 @@ jobs:
 
   fmt-check:
     name: Format Check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -93,14 +164,13 @@ jobs:
           components: rustfmt
 
       - name: Check formatting
-        run: cargo fmt --all
+        run: cargo fmt --all -- --check
 
   dependency-audit:
     name: Dependency Audit
-    runs-on: ubuntu-latest
-    continue-on-error: true
+    runs-on: ubuntu-26.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
