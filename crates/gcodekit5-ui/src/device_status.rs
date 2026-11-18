@@ -4,10 +4,10 @@
 use gcodekit5_communication::firmware::grbl::status_parser::{
     BufferRxState, FeedSpindleState, MachinePosition, WorkCoordinateOffset, WorkPosition,
 };
-use gcodekit5_core::{thread_safe_rw, ThreadSafeRw};
+use gcodekit5_core::{ThreadSafeRw, thread_safe_rw};
 use once_cell::sync::Lazy;
 use std::collections::HashMap;
-use std::sync::atomic::{AtomicU8, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU8, AtomicU64, Ordering};
 
 /// Global GRBL device status
 #[derive(Debug, Clone)]
@@ -82,6 +82,19 @@ pub fn set_active_num_axes(n: u8) {
     ACTIVE_NUM_AXES.store(n, Ordering::Relaxed);
 }
 
+/// Whether the active device profile has Repetier pen mode on.
+static ACTIVE_PEN_MODE: AtomicBool = AtomicBool::new(false);
+
+/// Returns whether the active device uses Repetier pen mode.
+pub fn get_active_pen_mode() -> bool {
+    ACTIVE_PEN_MODE.load(Ordering::Relaxed)
+}
+
+/// Sets whether the active device uses Repetier pen mode.
+pub fn set_active_pen_mode(enabled: bool) {
+    ACTIVE_PEN_MODE.store(enabled, Ordering::Relaxed);
+}
+
 /// Controller type of the currently active device profile, as a debug string
 /// (e.g., "Repetier", "Grbl", "Marlin"). None means no device is active.
 ///
@@ -102,6 +115,7 @@ pub fn set_active_controller_type(ct: Option<String>) {
 
 /// Update the machine state
 pub fn update_state(state: String) {
+    STATUS_SEQ.fetch_add(1, Ordering::Relaxed);
     {
         let mut status = DEVICE_STATUS.write();
         status.state = state;
@@ -150,6 +164,8 @@ pub fn update_feed_spindle_state(feed_spindle: FeedSpindleState) {
 
 /// Update connection status
 pub fn update_connection_status(connected: bool, port: Option<String>) {
+    // Assignments sent in an earlier session will never be answered in this one.
+    clear_pending_settings();
     {
         let mut status = DEVICE_STATUS.write();
         status.is_connected = connected;
@@ -195,15 +211,6 @@ pub fn update_commanded_spindle_speed(spindle_speed: f32) {
     }
 }
 
-pub fn update_grbl_settings_bulk(settings: &[(u16, String)]) {
-    {
-        let mut status = DEVICE_STATUS.write();
-        for (n, v) in settings {
-            status.grbl_settings.insert(*n, v.clone());
-        }
-    }
-}
-
 pub fn get_grbl_setting(number: u16) -> Option<String> {
     DEVICE_STATUS.read().grbl_settings.get(&number).cloned()
 }
@@ -227,6 +234,258 @@ fn parse_numeric_prefix(s: &str) -> Option<f64> {
 
 pub fn get_grbl_setting_numeric(number: u16) -> Option<f64> {
     get_grbl_setting(number).and_then(|v| parse_numeric_prefix(&v))
+}
+
+/// Axes whose jog direction is reversed (Preferences > Machine > Invert).
+static JOG_INVERTED: Lazy<ThreadSafeRw<Vec<char>>> = Lazy::new(|| thread_safe_rw(Vec::new()));
+
+/// Sets whether jogging `axis` (X, Y, Z, A, B or C) runs in reverse.
+pub fn set_jog_inverted(axis: char, inverted: bool) {
+    let mut axes = JOG_INVERTED.write();
+    axes.retain(|a| *a != axis);
+    if inverted {
+        axes.push(axis);
+    }
+}
+
+/// `-1.0` when jogging `axis` is inverted, otherwise `1.0`.
+pub fn jog_direction(axis: char) -> f32 {
+    if JOG_INVERTED.read().contains(&axis) {
+        -1.0
+    } else {
+        1.0
+    }
+}
+
+/// Whether a job is streaming to the controller. Kept up to date by the
+/// machine control panel.
+static JOB_ACTIVE: AtomicBool = AtomicBool::new(false);
+
+/// Records whether a job is streaming to the controller.
+pub fn set_job_active(active: bool) {
+    JOB_ACTIVE.store(active, Ordering::Relaxed);
+}
+
+/// Whether a job is streaming to the controller.
+pub fn is_job_active() -> bool {
+    JOB_ACTIVE.load(Ordering::Relaxed)
+}
+
+/// Counts machine-state updates (one per status report), so a waiter can
+/// tell a fresh report from one received before it started waiting.
+static STATUS_SEQ: AtomicU64 = AtomicU64::new(0);
+
+/// Number of machine-state updates so far.
+pub fn status_seq() -> u64 {
+    STATUS_SEQ.load(Ordering::Relaxed)
+}
+
+/// A Stop sequence (feed hold, then reset) is waiting to send its reset.
+static STOP_PENDING: AtomicBool = AtomicBool::new(false);
+/// Identifies the current Stop sequence; bumped to abandon it.
+static STOP_GENERATION: AtomicU64 = AtomicU64::new(0);
+
+/// Starts a Stop sequence. Until [`end_stop`] or [`cancel_stop`], manual
+/// commands and new jobs are refused.
+///
+/// # Returns
+/// The token the sequence passes to [`stop_is_current`] and [`end_stop`].
+pub fn begin_stop() -> u64 {
+    STOP_PENDING.store(true, Ordering::Relaxed);
+    STOP_GENERATION.fetch_add(1, Ordering::Relaxed) + 1
+}
+
+/// Whether the Stop sequence with `token` is still the live one.
+pub fn stop_is_current(token: u64) -> bool {
+    STOP_GENERATION.load(Ordering::Relaxed) == token
+}
+
+/// Ends the Stop sequence with `token` (a later one is left alone).
+pub fn end_stop(token: u64) {
+    if stop_is_current(token) {
+        STOP_PENDING.store(false, Ordering::Relaxed);
+    }
+}
+
+/// Abandons any Stop sequence (the connection was replaced or closed).
+pub fn cancel_stop() {
+    STOP_GENERATION.fetch_add(1, Ordering::Relaxed);
+    STOP_PENDING.store(false, Ordering::Relaxed);
+}
+
+/// Whether a Stop sequence is in progress.
+pub fn stop_pending() -> bool {
+    STOP_PENDING.load(Ordering::Relaxed)
+}
+
+/// Why a manual command (console line, jog) must not be sent now, or `None`.
+///
+/// While a job streams, the job's sender owns the controller's responses: an
+/// extra line's `ok` would be credited to a job line and its `error:N` would
+/// stop the job.
+pub fn manual_command_blocked() -> Option<String> {
+    if stop_pending() {
+        return Some(crate::t!("the machine is stopping"));
+    }
+    is_job_active().then(|| crate::t!("a job is running"))
+}
+
+/// Why a `$` settings command (`$$`, `$n=v`) must not be sent now, or `None`.
+///
+/// Besides the job rule of [`manual_command_blocked`], GRBL rejects `$`
+/// commands unless it is Idle (or in Alarm).
+pub fn settings_command_blocked() -> Option<String> {
+    if let Some(reason) = manual_command_blocked() {
+        return Some(reason);
+    }
+    let state = get_status().state;
+    let low = state.to_ascii_lowercase();
+    if low.is_empty() || low.starts_with("idle") || low.starts_with("alarm") {
+        None
+    } else {
+        Some(format!(
+            "{} ({state})",
+            crate::t!("the machine must be idle")
+        ))
+    }
+}
+
+/// Whether a GRBL state means the machine is not moving, so a soft reset
+/// will not lose its position: a completed hold (`Hold:0`), or any state that
+/// is not motion (`Idle`, `Alarm`, `Check`, `Door:0`, ...).
+pub fn machine_is_stopped(state: &str) -> bool {
+    let low = state.trim().to_ascii_lowercase();
+    if let Some(sub) = low
+        .strip_prefix("hold")
+        .or_else(|| low.strip_prefix("door"))
+    {
+        return sub.is_empty() || sub == ":0";
+    }
+    !(low.starts_with("run") || low.starts_with("jog") || low.starts_with("home"))
+}
+
+/// A `$n=v` assignment sent to the controller and waiting for its reply.
+#[derive(Debug)]
+struct PendingSetting {
+    number: u16,
+    value: String,
+    /// `None` until the controller answers; then `Ok` for `ok`, or the error code.
+    reply: Option<Result<(), String>>,
+}
+
+/// Assignments awaiting the controller's reply, by request id.
+static PENDING_SETTINGS: Lazy<std::sync::Mutex<HashMap<u64, PendingSetting>>> =
+    Lazy::new(|| std::sync::Mutex::new(HashMap::new()));
+
+/// Source of request ids for [`begin_setting_change`].
+static NEXT_SETTING_ID: AtomicU64 = AtomicU64::new(1);
+
+fn pending_settings() -> std::sync::MutexGuard<'static, HashMap<u64, PendingSetting>> {
+    PENDING_SETTINGS
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner)
+}
+
+/// Starts tracking a `$n=v` setting assignment that is about to be sent.
+///
+/// GRBL answers an assignment with `ok` (or `error:N`), not with the new
+/// value. The cached settings (e.g. `$13`, which decides report units) take
+/// the new value only when [`note_setting_reply`] reports `ok` for this
+/// request; a rejected assignment leaves them unchanged. Send the line tagged
+/// with the returned id (`SerialCommunicator::send_tagged_command`) so its own
+/// reply is matched to it, and call [`cancel_setting_change`] if it could not
+/// be sent.
+///
+/// # Arguments
+/// * `command` - The line to send.
+///
+/// # Returns
+/// The request id, or `None` if `command` is not `$<number>=<value>`.
+pub fn begin_setting_change(command: &str) -> Option<u64> {
+    let body = command.trim().strip_prefix('$')?;
+    let (number, value) = body.split_once('=')?;
+    let number = number.trim().parse::<u16>().ok()?;
+    let id = NEXT_SETTING_ID.fetch_add(1, Ordering::Relaxed);
+    pending_settings().insert(
+        id,
+        PendingSetting {
+            number,
+            value: value.trim().to_string(),
+            reply: None,
+        },
+    );
+    Some(id)
+}
+
+/// Records the controller's reply to the assignment with request id `id`.
+/// On `ok` the cached value is updated. Replies for unknown or already
+/// answered requests are ignored.
+///
+/// # Arguments
+/// * `id` - Request id from [`begin_setting_change`].
+/// * `error` - `None` for `ok`, or the code after `error:`.
+pub fn note_setting_reply(id: u64, error: Option<&str>) {
+    let mut pending = pending_settings();
+    let Some(setting) = pending.get_mut(&id).filter(|p| p.reply.is_none()) else {
+        return;
+    };
+    match error {
+        None => {
+            update_grbl_setting(setting.number, setting.value.clone());
+            setting.reply = Some(Ok(()));
+        }
+        Some(code) => setting.reply = Some(Err(code.to_string())),
+    }
+}
+
+/// Routes one `ok` / `error:N` reply, given the tag of the line it answers
+/// (`SerialCommunicator::take_reply_tag`).
+///
+/// # Arguments
+/// * `tag` - The answered line's tag, or `None` for an untagged line.
+/// * `error` - `None` for `ok`, or the code after `error:`.
+///
+/// # Returns
+/// `true` when the reply answered a tagged setting assignment, so it must not
+/// be counted as the reply to anything else (such as a streamed job line).
+pub fn dispatch_reply(tag: Option<u64>, error: Option<&str>) -> bool {
+    match tag {
+        Some(id) => {
+            note_setting_reply(id, error);
+            true
+        }
+        None => false,
+    }
+}
+
+/// Takes the outcome of the assignment with request id `id` once the
+/// controller answered it.
+///
+/// # Returns
+/// `None` while it is unanswered (or unknown); `Some(Ok(()))` when it was
+/// accepted; `Some(Err(code))` when it was rejected.
+pub fn take_setting_reply(id: u64) -> Option<Result<(), String>> {
+    let mut pending = pending_settings();
+    let reply = pending.get(&id).and_then(|p| p.reply.clone())?;
+    pending.remove(&id);
+    Some(reply)
+}
+
+/// Stops tracking the assignment with request id `id` (it was not sent, or
+/// its reply did not arrive in time).
+pub fn cancel_setting_change(id: u64) {
+    pending_settings().remove(&id);
+}
+
+/// Forgets every pending assignment, for when the controller will not answer
+/// them (disconnect or reset).
+pub fn clear_pending_settings() {
+    pending_settings().clear();
+}
+
+/// Whether the controller reports positions in inches (`$13=1`).
+pub fn reports_in_inches() -> bool {
+    get_grbl_setting_numeric(13).is_some_and(|v| v >= 1.0)
 }
 
 /// Get a snapshot of the current device status

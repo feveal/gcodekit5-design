@@ -4,14 +4,13 @@
 //! line numbers, and integration with the editor backend bridge.
 
 use crate::t;
+use crate::ui::gtk::common::dialog::UnsavedChangesChoice;
+use crate::ui::gtk::file_dialog::FileDialogHelpers;
 use crate::ui::gtk::status_bar::StatusBar;
-use gcodekit5_core::{shared_none, SharedOption};
+use gcodekit5_core::{SharedOption, shared_none};
 use gcodekit5_settings::controller::SettingsController;
-use glib;
 use gtk4::prelude::*;
-use gtk4::{
-    Box, Button, Entry, Label, Orientation, Overlay, PolicyType, ResponseType, ScrolledWindow,
-};
+use gtk4::{Box, Button, Entry, Label, Orientation, Overlay, PolicyType, ScrolledWindow};
 use libadwaita::StyleManager;
 use sourceview5::prelude::*;
 use sourceview5::{
@@ -20,18 +19,203 @@ use sourceview5::{
 use std::fs;
 use std::path::PathBuf;
 use std::rc::Rc;
-use std::sync::mpsc;
-use std::thread;
 use tracing::error;
+
+/// G-code file extensions offered by the open and save dialogs.
+const GCODE_PATTERNS: [&str; 4] = ["*.gcode", "*.nc", "*.gc", "*.tap"];
+
+/// Clonable handles to the parts of a [`GcodeEditor`] that file operations
+/// need, so they can run from dialog callbacks.
+#[derive(Clone)]
+struct EditorFile {
+    widget: Overlay,
+    buffer: Buffer,
+    current_file: SharedOption<PathBuf>,
+    settings_controller: Option<Rc<SettingsController>>,
+}
+
+impl EditorFile {
+    /// Parent window for dialogs.
+    fn parent(&self) -> Option<gtk4::Window> {
+        super::file_dialog::parent_window(&self.widget)
+    }
+
+    /// The whole buffer text.
+    fn text(&self) -> String {
+        let start = self.buffer.start_iter();
+        let end = self.buffer.end_iter();
+        self.buffer.text(&start, &end, true).to_string()
+    }
+
+    /// Writes the buffer to `path` and makes it the current file.
+    ///
+    /// # Returns
+    /// `true` when the file was written; on failure an error is shown and
+    /// `false` returned.
+    fn write_to(&self, path: &std::path::Path) -> bool {
+        match fs::write(path, self.text()) {
+            Ok(()) => {
+                *self.current_file.borrow_mut() = Some(path.to_path_buf());
+                self.buffer.set_modified(false);
+                true
+            }
+            Err(e) => {
+                error!("Error saving file {}: {}", path.display(), e);
+                super::file_dialog::show_error_dialog(
+                    &t!("Error Saving File"),
+                    &format!("{} '{}'.\n\n{}", t!("Could not save"), path.display(), e),
+                    self.parent().as_ref(),
+                );
+                false
+            }
+        }
+    }
+
+    /// Saves to the current file, or asks for one when there is none, then
+    /// runs `on_saved` if the save succeeded.
+    fn save_then(&self, on_saved: impl FnOnce() + 'static) {
+        let current_path = self.current_file.borrow().clone();
+        match current_path {
+            Some(path) => {
+                if self.write_to(&path) {
+                    on_saved();
+                }
+            }
+            None => self.save_as_then(on_saved),
+        }
+    }
+
+    /// Asks for a file name, saves there, then runs `on_saved` if the save
+    /// succeeded. Cancelling the file dialog runs nothing.
+    fn save_as_then(&self, on_saved: impl FnOnce() + 'static) {
+        let dialog = crate::ui::gtk::file_dialog::save_dialog(&t!("Save G-Code File"));
+        super::file_dialog::set_last_working_directory(
+            &dialog,
+            self.settings_controller.as_deref(),
+        );
+
+        let filter = gtk4::FileFilter::new();
+        filter.set_name(Some("G-Code Files"));
+        for pattern in GCODE_PATTERNS {
+            filter.add_pattern(pattern);
+        }
+        dialog.add_filter(&filter);
+
+        let handles = self.clone();
+        dialog.pick_save(self.parent().as_ref(), move |file| {
+            let Some(mut path) = file.path() else {
+                return;
+            };
+            // Ensure extension
+            if path.extension().is_none() {
+                path.set_extension("gcode");
+            }
+            if handles.write_to(&path) {
+                on_saved();
+            }
+        });
+    }
+
+    /// Shows the open dialog and loads the chosen file.
+    fn show_open_dialog(&self) {
+        let parent = self.parent();
+        let dialog = crate::ui::gtk::file_dialog::open_dialog(&t!("Open G-Code File"));
+
+        let filter = gtk4::FileFilter::new();
+        filter.set_name(Some("G-Code Files"));
+        for pattern in GCODE_PATTERNS {
+            filter.add_pattern(pattern);
+        }
+        dialog.add_filter(&filter);
+
+        let all_filter = gtk4::FileFilter::new();
+        all_filter.set_name(Some("All Files"));
+        all_filter.add_pattern("*");
+        dialog.add_filter(&all_filter);
+
+        // Use saved last working directory if available
+        super::file_dialog::set_last_working_directory(
+            &dialog,
+            self.settings_controller.as_deref(),
+        );
+
+        let handles = self.clone();
+        dialog.pick_open(parent.as_ref(), move |file| {
+            let Some(path) = file.path() else {
+                return;
+            };
+            match fs::read_to_string(&path) {
+                Ok(content) => {
+                    handles.buffer.set_text(&content);
+                    handles.buffer.set_modified(false);
+                    *handles.current_file.borrow_mut() = Some(path.clone());
+                    // Move cursor to start
+                    let start_iter = handles.buffer.start_iter();
+                    handles.buffer.place_cursor(&start_iter);
+                    // Save last-used directory to settings so other dialogs default to it
+                    if let Some(controller) = handles.settings_controller.as_ref()
+                        && let Ok(mut persistence) = controller.persistence.try_borrow_mut()
+                    {
+                        persistence.config_mut().file_processing.output_directory = path.clone();
+                        persistence.persist_or_log();
+                    }
+                }
+                Err(e) => {
+                    error!("Error reading file {}: {}", path.display(), e);
+                    super::file_dialog::show_error_dialog(
+                        &t!("Error Reading File"),
+                        &format!("{} '{}'.\n\n{}", t!("Could not open"), path.display(), e),
+                        handles.parent().as_ref(),
+                    );
+                }
+            }
+        });
+    }
+
+    /// Empties the editor and forgets the current file.
+    fn clear(&self) {
+        self.buffer.set_text("");
+        self.buffer.set_modified(false);
+        *self.current_file.borrow_mut() = None;
+    }
+
+    /// Runs `proceed` right away when the editor has no unsaved hand edits;
+    /// otherwise asks whether to save them first.
+    ///
+    /// * Save: saves (asking for a file name if there is none) and runs
+    ///   `proceed` only once the save succeeded.
+    /// * Discard: runs `proceed` without saving.
+    /// * Cancel (or closing the prompt): does nothing.
+    fn confirm_unsaved_changes(&self, proceed: impl FnOnce() + 'static) {
+        if !self.buffer.is_modified() {
+            proceed();
+            return;
+        }
+        let handles = self.clone();
+        crate::ui::gtk::common::dialog::show_unsaved_changes(
+            &t!("Unsaved changes"),
+            &t!("The G-code in the editor has unsaved changes. Save them before continuing?"),
+            self.parent().as_ref(),
+            move |choice| match choice {
+                UnsavedChangesChoice::Save => handles.save_then(proceed),
+                UnsavedChangesChoice::Discard => proceed(),
+                UnsavedChangesChoice::Cancel => {}
+            },
+        );
+    }
+}
 
 pub struct GcodeEditor {
     pub widget: Overlay,
     pub view: View,
     pub buffer: Buffer,
-    _line_counter_label: Label,
     current_file: SharedOption<PathBuf>,
-    _search_context: SearchContext,
-    _search_settings: SearchSettings,
+    // Not read, but must live as long as the editor: the source view's
+    // search highlighting stops when these are dropped.
+    #[allow(dead_code)]
+    search_context: SearchContext,
+    #[allow(dead_code)]
+    search_settings: SearchSettings,
     _status_bar: Option<StatusBar>,
     settings_controller: Option<Rc<SettingsController>>,
 }
@@ -62,16 +246,16 @@ impl GcodeEditor {
 
         if let Ok(cwd) = std::env::current_dir() {
             let assets_path = cwd.join("assets");
-            if assets_path.exists() {
-                if let Some(path_str) = assets_path.to_str() {
-                    new_style_paths.push(path_str.to_string());
-                }
+            if assets_path.exists()
+                && let Some(path_str) = assets_path.to_str()
+            {
+                new_style_paths.push(path_str.to_string());
             }
             let styles_path = assets_path.join("styles");
-            if styles_path.exists() {
-                if let Some(path_str) = styles_path.to_str() {
-                    new_style_paths.push(path_str.to_string());
-                }
+            if styles_path.exists()
+                && let Some(path_str) = styles_path.to_str()
+            {
+                new_style_paths.push(path_str.to_string());
             }
         }
 
@@ -118,32 +302,35 @@ impl GcodeEditor {
             let assets_path = cwd.join("assets");
 
             // Add assets directory (manager might look for language-specs subdir)
-            if assets_path.exists() {
-                if let Some(path_str) = assets_path.to_str() {
-                    new_paths.push(path_str.to_string());
-                }
+            if assets_path.exists()
+                && let Some(path_str) = assets_path.to_str()
+            {
+                new_paths.push(path_str.to_string());
             }
 
             // Also add direct path to language-specs just in case
             let specs_path = assets_path.join("language-specs");
-            if specs_path.exists() {
-                if let Some(path_str) = specs_path.to_str() {
-                    new_paths.push(path_str.to_string());
-                }
+            if specs_path.exists()
+                && let Some(path_str) = specs_path.to_str()
+            {
+                new_paths.push(path_str.to_string());
             }
         }
 
         let path_refs: Vec<&str> = new_paths.iter().map(|s| s.as_str()).collect();
         lm.set_search_path(&path_refs);
 
-        if let Some(lang) = lm.language("gcode") {
-            buffer.set_language(Some(&lang));
-        } else {
-            // Fallback or log if needed
-            tracing::warn!(
-                "G-code language definition not found in search path: {:?}",
-                new_paths
-            );
+        match lm.language("gcode") {
+            Some(lang) => {
+                buffer.set_language(Some(&lang));
+            }
+            _ => {
+                // Fallback or log if needed
+                tracing::warn!(
+                    "G-code language definition not found in search path: {:?}",
+                    new_paths
+                );
+            }
         }
 
         let scrolled = ScrolledWindow::builder()
@@ -184,7 +371,7 @@ impl GcodeEditor {
         // Search Row
         let search_row = Box::new(Orientation::Horizontal, 4);
         let search_entry = Entry::builder()
-            .placeholder_text(&t!("Search..."))
+            .placeholder_text(t!("Search..."))
             .width_request(200)
             .build();
         let prev_btn = Button::builder()
@@ -203,7 +390,7 @@ impl GcodeEditor {
         // Replace Row
         let replace_row = Box::new(Orientation::Horizontal, 4);
         let replace_entry = Entry::builder()
-            .placeholder_text(&t!("Replace with ..."))
+            .placeholder_text(t!("Replace with ..."))
             .width_request(200)
             .build();
         let replace_btn = Button::builder()
@@ -416,114 +603,74 @@ impl GcodeEditor {
         let replace_entry_clone = replace_entry.clone();
         let view_clone = view.clone();
         replace_btn.connect_clicked(move |_| {
-            if let Some(insert) = buffer_clone.mark("insert") {
-                if let Some(selection_bound) = buffer_clone.mark("selection_bound") {
-                    let mut start = buffer_clone.iter_at_mark(&insert);
-                    let mut end = buffer_clone.iter_at_mark(&selection_bound);
+            if let Some(insert) = buffer_clone.mark("insert")
+                && let Some(selection_bound) = buffer_clone.mark("selection_bound")
+            {
+                let mut start = buffer_clone.iter_at_mark(&insert);
+                let mut end = buffer_clone.iter_at_mark(&selection_bound);
 
-                    // Ensure start is before end
-                    if start.offset() > end.offset() {
-                        std::mem::swap(&mut start, &mut end);
-                    }
+                // Ensure start is before end
+                if start.offset() > end.offset() {
+                    std::mem::swap(&mut start, &mut end);
+                }
 
-                    let replace_text = replace_entry_clone.text();
+                let replace_text = replace_entry_clone.text();
 
-                    // Check if current selection is a match
-                    // Note: This is a simplified check. Ideally we check if the selection matches the search text.
-                    // But context.replace() requires us to pass the match iterators.
-                    // If we just want to replace the current match and move to next:
+                // Check if current selection is a match
+                // Note: This is a simplified check. Ideally we check if the selection matches the search text.
+                // But context.replace() requires us to pass the match iterators.
+                // If we just want to replace the current match and move to next:
 
-                    if context_clone
-                        .replace(&mut start, &mut end, &replace_text)
-                        .is_ok()
-                    {
-                        // Move to next match
-                        let iter = end; // Continue from end of replacement
-                        if let Some((next_start, next_end, _wrapped)) = context_clone.forward(&iter)
-                        {
-                            buffer_clone.select_range(&next_start, &next_end);
-                            view_clone.scroll_to_mark(
-                                &buffer_clone.create_mark(None, &next_start, false),
-                                0.0,
-                                true,
-                                0.5,
-                                0.5,
-                            );
-                        }
+                if context_clone
+                    .replace(&mut start, &mut end, &replace_text)
+                    .is_ok()
+                {
+                    // Move to next match
+                    let iter = end; // Continue from end of replacement
+                    if let Some((next_start, next_end, _wrapped)) = context_clone.forward(&iter) {
+                        buffer_clone.select_range(&next_start, &next_end);
+                        view_clone.scroll_to_mark(
+                            &buffer_clone.create_mark(None, &next_start, false),
+                            0.0,
+                            true,
+                            0.5,
+                            0.5,
+                        );
                     }
                 }
             }
         });
 
         // Connect Replace All Button
-        let buffer_clone = buffer.clone();
+        //
+        // Replace through the search context so Replace All uses exactly the same
+        // matching options (case sensitivity, regex, word boundaries) as the search
+        // highlighting, and lands as a single undoable user action.
+        let context_clone = search_context.clone();
         let replace_entry_clone = replace_entry.clone();
         let search_settings_clone = search_settings.clone();
-        let status_bar_clone = status_bar.clone();
 
         replace_all_btn.connect_clicked(move |_| {
-            let replace_text = replace_entry_clone.text().to_string();
-            let search_text = search_settings_clone
+            let has_search_text = search_settings_clone
                 .search_text()
-                .map(|s| s.to_string())
-                .unwrap_or_default();
-
-            if search_text.is_empty() {
+                .is_some_and(|s| !s.is_empty());
+            if !has_search_text {
                 return;
             }
 
-            let buffer = buffer_clone.clone();
-            let status_bar = status_bar_clone.clone();
-
-            // Get text from buffer (must be on main thread)
-            let start = buffer.start_iter();
-            let end = buffer.end_iter();
-            let text = buffer.text(&start, &end, true).to_string();
-
-            if let Some(sb) = &status_bar {
-                sb.set_progress(10.0, &t!("Calculating..."), &t!("Please wait"));
+            let replace_text = replace_entry_clone.text().to_string();
+            if let Err(e) = context_clone.replace_all(&replace_text) {
+                tracing::warn!(error = %e, "editor replace all failed");
             }
-
-            // Spawn thread
-            let (sender, receiver) = mpsc::channel();
-
-            thread::spawn(move || {
-                // Perform replacement
-                let new_text = text.replace(&search_text, &replace_text);
-                let _ = sender.send(new_text);
-            });
-
-            let buffer = buffer_clone.clone();
-            let status_bar = status_bar_clone.clone();
-
-            glib::timeout_add_local(std::time::Duration::from_millis(50), move || {
-                match receiver.try_recv() {
-                    Ok(new_text) => {
-                        buffer.set_text(&new_text);
-                        if let Some(sb) = &status_bar {
-                            sb.set_progress(0.0, "", ""); // Clear
-                        }
-                        glib::ControlFlow::Break
-                    }
-                    Err(mpsc::TryRecvError::Empty) => glib::ControlFlow::Continue,
-                    Err(mpsc::TryRecvError::Disconnected) => {
-                        if let Some(sb) = &status_bar {
-                            sb.set_progress(0.0, "", ""); // Clear
-                        }
-                        glib::ControlFlow::Break
-                    }
-                }
-            });
         });
 
         let editor = Self {
             widget: overlay,
             view: view.clone(),
             buffer: buffer.clone(),
-            _line_counter_label: line_counter_label.clone(),
             current_file: shared_none(),
-            _search_context: search_context,
-            _search_settings: search_settings,
+            search_context,
+            search_settings,
             _status_bar: status_bar,
             settings_controller: settings_controller.clone(),
         };
@@ -565,8 +712,16 @@ impl GcodeEditor {
         label.set_text(&format!("Line {} / {}", current_line, total_lines));
     }
 
+    /// Replace the editor content with newly generated / cleared G-code.
+    ///
+    /// The content no longer corresponds to the previously opened file, so the file
+    /// association is dropped: otherwise "Save" would silently overwrite that file with
+    /// unrelated generated G-code. Generated G-code can be generated again, so it does
+    /// not count as unsaved work: only later hand edits do.
     pub fn set_text(&self, text: &str) {
+        *self.current_file.borrow_mut() = None;
         self.buffer.set_text(text);
+        self.buffer.set_modified(false);
         // Move cursor to start (line 1, column 1)
         let mut start_iter = self.buffer.start_iter();
         self.buffer.place_cursor(&start_iter);
@@ -616,171 +771,54 @@ impl GcodeEditor {
         self.buffer.paste_clipboard(&clipboard, None, true);
     }
 
-    pub fn new_file(&self) {
-        self.set_text("");
-        *self.current_file.borrow_mut() = None;
-    }
-
-    pub fn open_file(&self) {
-        let parent = super::file_dialog::parent_window(&self.widget);
-        let dialog = super::file_dialog::open_dialog(&t!("Open G-Code File"), parent.as_ref());
-
-        let filter = gtk4::FileFilter::new();
-        filter.set_name(Some("G-Code Files"));
-        filter.add_pattern("*.gcode");
-        filter.add_pattern("*.nc");
-        filter.add_pattern("*.gc");
-        filter.add_pattern("*.tap");
-        dialog.add_filter(&filter);
-
-        let all_filter = gtk4::FileFilter::new();
-        all_filter.set_name(Some("All Files"));
-        all_filter.add_pattern("*");
-        dialog.add_filter(&all_filter);
-
-        // Use saved last working directory if available
-        super::file_dialog::set_last_working_directory(
-            &dialog,
-            self.settings_controller.as_deref(),
-        );
-
-        let buffer = self.buffer.clone();
-        let current_file = self.current_file.clone();
-        let settings_controller = self.settings_controller.clone();
-
-        dialog.connect_response(move |dialog, response| {
-            if response == ResponseType::Accept {
-                if let Some(file) = dialog.file() {
-                    if let Some(path) = file.path() {
-                        match fs::read_to_string(&path) {
-                            Ok(content) => {
-                                buffer.set_text(&content);
-                                *current_file.borrow_mut() = Some(path.clone());
-                                // Move cursor to start
-                                let start_iter = buffer.start_iter();
-                                buffer.place_cursor(&start_iter);
-                                // Save last-used directory to settings so other dialogs default to it
-                                if let Some(controller) = settings_controller.as_ref() {
-                                    if let Ok(mut persistence) =
-                                        controller.persistence.try_borrow_mut()
-                                    {
-                                        persistence.config_mut().file_processing.output_directory =
-                                            path.clone();
-
-                                        // Persist config to disk
-                                        let config_path =
-                                            gcodekit5_settings::SettingsManager::config_file_path()
-                                                .unwrap_or_else(|_| {
-                                                    std::path::PathBuf::from("config.json")
-                                                });
-                                        let _ = persistence.save_to_file(&config_path);
-                                    }
-                                }
-                            }
-                            Err(e) => {
-                                error!("Error reading file {}: {}", path.display(), e);
-                                let parent = super::file_dialog::parent_window(dialog);
-                                super::file_dialog::show_error_dialog(
-                                    &t!("Error Reading File"),
-                                    &format!(
-                                        "{} '{}'.\n\n{}",
-                                        t!("Could not open"),
-                                        path.display(),
-                                        e
-                                    ),
-                                    parent.as_ref(),
-                                );
-                            }
-                        }
-                    }
-                }
-            }
-            dialog.destroy();
-        });
-
-        dialog.show();
-    }
-
-    pub fn save_file(&self) {
-        let current_path = self.current_file.borrow().clone();
-
-        if let Some(path) = current_path {
-            let start = self.buffer.start_iter();
-            let end = self.buffer.end_iter();
-            let content = self.buffer.text(&start, &end, true);
-
-            if let Err(e) = fs::write(&path, content.as_str()) {
-                error!("Error saving file {}: {}", path.display(), e);
-                let parent = super::file_dialog::parent_window(&self.widget);
-                super::file_dialog::show_error_dialog(
-                    &t!("Error Saving File"),
-                    &format!("{} '{}'.\n\n{}", t!("Could not save"), path.display(), e),
-                    parent.as_ref(),
-                );
-            }
-        } else {
-            self.save_as_file();
+    /// Clonable handles for file operations run from dialog callbacks.
+    fn file_handles(&self) -> EditorFile {
+        EditorFile {
+            widget: self.widget.clone(),
+            buffer: self.buffer.clone(),
+            current_file: self.current_file.clone(),
+            settings_controller: self.settings_controller.clone(),
         }
     }
 
+    /// Returns `true` when the editor text was edited by hand since it was
+    /// last opened, saved, generated or cleared.
+    pub fn has_unsaved_changes(&self) -> bool {
+        self.buffer.is_modified()
+    }
+
+    /// Runs `proceed` right away when there are no unsaved hand edits;
+    /// otherwise asks whether to save them. Save runs `proceed` after a
+    /// successful save, Discard runs it without saving, and Cancel runs nothing.
+    ///
+    /// # Arguments
+    /// * `proceed` - action to perform once the editor text is saved or discarded
+    pub fn confirm_unsaved_changes(&self, proceed: impl FnOnce() + 'static) {
+        self.file_handles().confirm_unsaved_changes(proceed);
+    }
+
+    /// Empties the editor, asking first if there are unsaved hand edits.
+    pub fn new_file(&self) {
+        let handles = self.file_handles();
+        let h = handles.clone();
+        handles.confirm_unsaved_changes(move || h.clear());
+    }
+
+    /// Opens a G-code file, asking first if there are unsaved hand edits.
+    pub fn open_file(&self) {
+        let handles = self.file_handles();
+        let h = handles.clone();
+        handles.confirm_unsaved_changes(move || h.show_open_dialog());
+    }
+
+    /// Saves to the current file, or asks for one when there is none.
+    pub fn save_file(&self) {
+        self.file_handles().save_then(|| {});
+    }
+
+    /// Asks for a file name and saves the editor text there.
     pub fn save_as_file(&self) {
-        let parent = super::file_dialog::parent_window(&self.widget);
-        let dialog = super::file_dialog::save_dialog(&t!("Save G-Code File"), parent.as_ref());
-        super::file_dialog::set_last_working_directory(
-            &dialog,
-            self.settings_controller.as_deref(),
-        );
-
-        let filter = gtk4::FileFilter::new();
-        filter.set_name(Some("G-Code Files"));
-        filter.add_pattern("*.gcode");
-        filter.add_pattern("*.nc");
-        filter.add_pattern("*.gc");
-        filter.add_pattern("*.tap");
-        dialog.add_filter(&filter);
-
-        let buffer = self.buffer.clone();
-        let current_file = self.current_file.clone();
-
-        dialog.connect_response(move |dialog, response| {
-            if response == ResponseType::Accept {
-                if let Some(file) = dialog.file() {
-                    if let Some(mut path) = file.path() {
-                        // Ensure extension
-                        if path.extension().is_none() {
-                            path.set_extension("gcode");
-                        }
-
-                        let start = buffer.start_iter();
-                        let end = buffer.end_iter();
-                        let content = buffer.text(&start, &end, true);
-
-                        match fs::write(&path, content.as_str()) {
-                            Ok(_) => {
-                                *current_file.borrow_mut() = Some(path);
-                            }
-                            Err(e) => {
-                                error!("Error saving file {}: {}", path.display(), e);
-                                let parent = super::file_dialog::parent_window(dialog);
-                                super::file_dialog::show_error_dialog(
-                                    &t!("Error Saving File"),
-                                    &format!(
-                                        "{} '{}'.\n\n{}",
-                                        t!("Could not save"),
-                                        path.display(),
-                                        e
-                                    ),
-                                    parent.as_ref(),
-                                );
-                            }
-                        }
-                    }
-                }
-            }
-            dialog.destroy();
-        });
-
-        dialog.show();
+        self.file_handles().save_as_then(|| {});
     }
 
     // Método público para actualizar el tema

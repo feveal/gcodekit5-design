@@ -4,7 +4,7 @@
 //! on designer shapes using the `csgrs` and `cavalier_contours` libraries.
 //! Includes polyline cleaning utilities for robust boolean results.
 
-use crate::model::{DesignPath, DesignerShape, Point, Shape};
+use crate::model::{DesignPath, DesignerShape, Point, Shape,ToolOffsetMode};
 use cavalier_contours::polyline::{PlineSource, PlineSourceMut, PlineVertex, Polyline};
 use csgrs::traits::CSG;
 use lyon::path::iterator::PathIterator;
@@ -19,12 +19,13 @@ pub enum BooleanOp {
 
 pub fn clean_polyline(mut pline: Polyline) -> Polyline {
     pline.remove_repeat_pos(1e-5);
-    if pline.is_closed() && pline.vertex_count() > 1 {
-        if let (Some(first), Some(last)) = (pline.get(0), pline.get(pline.vertex_count() - 1)) {
-            if (first.x - last.x).abs() < 1e-5 && (first.y - last.y).abs() < 1e-5 {
-                pline.remove(pline.vertex_count() - 1);
-            }
-        }
+    if pline.is_closed()
+        && pline.vertex_count() > 1
+        && let (Some(first), Some(last)) = (pline.get(0), pline.get(pline.vertex_count() - 1))
+        && (first.x - last.x).abs() < 1e-5
+        && (first.y - last.y).abs() < 1e-5
+    {
+        pline.remove(pline.vertex_count() - 1);
     }
     pline
 }
@@ -49,10 +50,8 @@ fn extract_open_polyline_points(path: &lyon::path::Path) -> Option<Vec<Point>> {
             lyon::path::Event::Line { to, .. } => {
                 points.push(Point::new(to.x as f64, to.y as f64));
             }
-            lyon::path::Event::End { close, .. } => {
-                if close {
-                    return None;
-                }
+            lyon::path::Event::End { close, .. } if close => {
+                return None;
             }
             _ => {}
         }
@@ -523,65 +522,49 @@ pub fn perform_boolean(a: &Shape, b: &Shape, op: BooleanOp) -> Shape {
     Shape::Path(DesignPath::from_csg(result_csg))
 }
 
-// ---
-// FUNCIÓN AUXILIAR: Ajustada al sistema de Cavalier
-fn interpolate_polyline_arcs(pline: &Polyline, tolerance: f64) -> Vec<[f64; 2]> {
-    if pline.vertex_count() == 0 {
+fn interpolate_polyline_arcs(pline: &Polyline, _tolerance: f64) -> Vec<[f64; 2]> {
+    let n = pline.vertex_count();
+    if n < 3 {
         return Vec::new();
     }
 
-    let mut points = Vec::new();
-    let count = pline.vertex_count();
-
-    // Iteramos explícitamente por los índices para controlar el inicio y el fin del bucle cerrado
-    for i in 0..count {
-        let v_start = pline.get(i).unwrap();
-        // Si está cerrado, el siguiente del último es el primero (0)
-        let v_end = pline.get((i + 1) % count).unwrap();
-
-        // Añadimos siempre el inicio del segmento actual
-        points.push([v_start.x, v_start.y]);
-
-        // Si el segmento actual es un arco (bulge)
-        if v_start.bulge.abs() > 1e-6 {
-            let (radius, center) =
-                cavalier_contours::polyline::seg_arc_radius_and_center(v_start, v_end);
-
-            let start_angle = (v_start.y - center.y).atan2(v_start.x - center.x);
-            let mut end_angle = (v_end.y - center.y).atan2(v_end.x - center.x);
-
-            let is_clockwise = v_start.bulge < 0.0;
-
-            if is_clockwise && end_angle > start_angle {
-                end_angle -= 2.0 * std::f64::consts::PI;
-            } else if !is_clockwise && end_angle < start_angle {
-                end_angle += 2.0 * std::f64::consts::PI;
-            }
-
-            let angle_diff = (end_angle - start_angle).abs();
-
-            let steps = if radius > tolerance {
-                let arc_cos = 1.0 - (tolerance / radius);
-                let step_angle = (2.0 * arc_cos.acos()).max(0.01);
-                (angle_diff / step_angle).ceil() as usize
-            } else {
-                5
-            };
-
-            for step in 1..steps {
-                let t = step as f64 / steps as f64;
-                let angle = start_angle + (end_angle - start_angle) * t;
-                let x = center.x + radius * angle.cos();
-                let y = center.y + radius * angle.sin();
-                points.push([x, y]);
-            }
+    // Paso 1: extraer segmentos rectos como (inicio, fin)
+    let mut straight_segments: Vec<((f64, f64), (f64, f64))> = Vec::new();
+    for i in 0..n {
+        let v = match pline.get(i) { Some(v) => v, None => continue };
+        let v_next = match pline.get((i + 1) % n) { Some(v) => v, None => continue };
+        if v.bulge.abs() < 1e-6 {
+            straight_segments.push(((v.x, v.y), (v_next.x, v_next.y)));
         }
     }
 
-    // CORRECCIÓN DEDUP
-    points.dedup_by(|a, b| (a[0] - b[0]).abs() < 1e-5 && (a[1] - b[1]).abs() < 1e-5);
+    if straight_segments.is_empty() {
+        return Vec::new();
+    }
 
-    points
+    // Paso 2: calcular intersecciones de segmentos consecutivos
+    let mut corners = Vec::new();
+    let m = straight_segments.len();
+    for i in 0..m {
+        let ((x1, y1), (x2, y2)) = straight_segments[i];
+        let ((x3, y3), (x4, y4)) = straight_segments[(i + 1) % m];
+
+        let dx1 = x2 - x1;
+        let dy1 = y2 - y1;
+        let dx2 = x4 - x3;
+        let dy2 = y4 - y3;
+
+        let denom = dx1 * dy2 - dy1 * dx2;
+        if denom.abs() > 1e-9 {
+            let t = ((x3 - x1) * dy2 - (y3 - y1) * dx2) / denom;
+            corners.push([x1 + t * dx1, y1 + t * dy1]);
+        } else {
+            // Paralelas: usar el punto final del primer segmento
+            corners.push([x2, y2]);
+        }
+    }
+
+    corners
 }
 
 pub fn perform_offset(shape: &Shape, distance: f64) -> Shape {
@@ -617,6 +600,11 @@ pub fn perform_offset(shape: &Shape, distance: f64) -> Shape {
     let mut result_sketch = csgrs::sketch::Sketch::new();
 
     for poly in mp.0 {
+        // Each polygon is offset on its own (outline minus its own holes) and
+        // then added, so cutting one polygon's holes cannot remove another
+        // polygon, such as an island inside the hole.
+        let mut poly_sketch = csgrs::sketch::Sketch::new();
+
         // --- CONTORNO EXTERIOR (Perfil del piñón / Triángulo) ---
         let mut ext_pline = Polyline::new();
         for coord in poly.exterior().0.iter() {
@@ -630,11 +618,13 @@ pub fn perform_offset(shape: &Shape, distance: f64) -> Shape {
         }))
         .unwrap_or_default();
 
+
+
         for offset in offsets {
-            // Muestreamos con una tolerancia estricta de 0.01mm para máxima fidelidad en el piñón
+
             let pts = interpolate_polyline_arcs(&offset, 0.01);
             if pts.len() >= 3 {
-                result_sketch = result_sketch.union(&csgrs::sketch::Sketch::polygon(&pts, None));
+                poly_sketch = poly_sketch.union(&csgrs::sketch::Sketch::polygon(&pts, None));
             }
         }
 
@@ -647,119 +637,31 @@ pub fn perform_offset(shape: &Shape, distance: f64) -> Shape {
             int_pline.set_is_closed(true);
             let int_pline = clean_polyline(int_pline);
 
+            // Holes wind the other way round, so the same outward offset of
+            // the shape is the opposite offset of the hole ring.
             let offsets = panic::catch_unwind(panic::AssertUnwindSafe(|| {
-                int_pline.parallel_offset(distance)
+                int_pline.parallel_offset(-distance)
             }))
             .unwrap_or_default();
 
+            // A hole's offset is cut out of the shape, as in `perform_chamfer`;
+            // a union would fill the hole in.
             for offset in offsets {
                 let pts = interpolate_polyline_arcs(&offset, 0.01);
                 if pts.len() >= 3 {
-                    result_sketch =
-                        result_sketch.union(&csgrs::sketch::Sketch::polygon(&pts, None));
+                    poly_sketch =
+                        poly_sketch.difference(&csgrs::sketch::Sketch::polygon(&pts, None));
                 }
             }
         }
+
+        result_sketch = result_sketch.union(&poly_sketch);
     }
 
     let mut result_path = DesignPath::from_csg(result_sketch);
     result_path.rotation = rotation;
     Shape::Path(result_path)
 }
-// ---
-
-/*
-pub fn perform_offset(shape: &Shape, distance: f64) -> Shape {
-    // For DesignPath, we need to apply rotation to the sketch before offsetting
-    let (sketch, rotation) = if let Some(path) = shape.as_any().downcast_ref::<DesignPath>() {
-        // If the path has rotation, apply it to the sketch first
-        if path.rotation.abs() > 1e-6 {
-            use nalgebra::{Matrix4, Vector3};
-
-            // Calculate center of rotation
-            let bb = csgrs::traits::CSG::bounding_box(&path.sketch);
-            let center_x = (bb.mins.x + bb.maxs.x) / 2.0;
-            let center_y = (bb.mins.y + bb.maxs.y) / 2.0;
-
-            // Create rotation matrix around center (rotation is in degrees)
-            let angle_rad = path.rotation.to_radians();
-            let cos_a = angle_rad.cos();
-            let sin_a = angle_rad.sin();
-
-            // Translate to origin, rotate, translate back
-            let to_origin = Matrix4::new_translation(&Vector3::new(-center_x, -center_y, 0.0));
-            let rotation_mat = Matrix4::new(
-                cos_a, -sin_a, 0.0, 0.0, sin_a, cos_a, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0,
-                1.0,
-            );
-            let from_origin = Matrix4::new_translation(&Vector3::new(center_x, center_y, 0.0));
-            let transform = from_origin * rotation_mat * to_origin;
-
-            // Apply rotation to sketch and set rotation to 0 (rotation is now baked into geometry)
-            (path.sketch.transform(&transform), 0.0)
-        } else {
-            (path.sketch.clone(), 0.0)
-        }
-    } else {
-        (shape.as_csg(), 0.0)
-    };
-
-    let mp = sketch.to_multipolygon();
-
-    let mut result_sketch = csgrs::sketch::Sketch::new();
-
-    for poly in mp.0 {
-        // Convert exterior to Polyline
-        let mut ext_pline = Polyline::new();
-        for coord in poly.exterior().0.iter() {
-            ext_pline.add_vertex(PlineVertex::new(coord.x, coord.y, 0.0));
-        }
-        ext_pline.set_is_closed(true);
-        let ext_pline = clean_polyline(ext_pline);
-
-        // Offset
-        let offsets = panic::catch_unwind(panic::AssertUnwindSafe(|| {
-            ext_pline.parallel_offset(distance)
-        }))
-        .unwrap_or_default();
-
-        for offset in offsets {
-            let pts: Vec<[f64; 2]> = offset.vertex_data.iter().map(|v| [v.x, v.y]).collect();
-            if pts.len() >= 3 {
-                result_sketch = result_sketch.union(&csgrs::sketch::Sketch::polygon(&pts, None));
-            }
-        }
-
-        // Handle interiors (holes)
-        for interior in poly.interiors() {
-            let mut int_pline = Polyline::new();
-            for coord in interior.0.iter() {
-                int_pline.add_vertex(PlineVertex::new(coord.x, coord.y, 0.0));
-            }
-            int_pline.set_is_closed(true);
-            let int_pline = clean_polyline(int_pline);
-
-            // Offset holes
-            let offsets = panic::catch_unwind(panic::AssertUnwindSafe(|| {
-                int_pline.parallel_offset(distance)
-            }))
-            .unwrap_or_default();
-
-            for offset in offsets {
-                let pts: Vec<[f64; 2]> = offset.vertex_data.iter().map(|v| [v.x, v.y]).collect();
-                if pts.len() >= 3 {
-                    result_sketch =
-                        result_sketch.difference(&csgrs::sketch::Sketch::polygon(&pts, None));
-                }
-            }
-        }
-    }
-
-    let mut result_path = DesignPath::from_csg(result_sketch);
-    result_path.rotation = rotation;
-    Shape::Path(result_path)
-}
-*/
 
 pub fn perform_fillet(shape: &Shape, radius: f64) -> Shape {
     if let Shape::Path(path) = shape {
@@ -905,4 +807,21 @@ pub fn perform_chamfer(shape: &Shape, distance: f64) -> Shape {
     }
 
     Shape::Path(DesignPath::from_csg(result_sketch))
+}
+
+/// Distancia de offset para que la fresa pase por Center / Internal / External.
+///
+/// Convención (la misma que el entry `offset` de Geometry Ops):
+///   positivo = hacia dentro, negativo = hacia fuera.
+///
+/// Devuelve `None` cuando no hay offset que aplicar (Center o radio <= 0).
+pub fn tool_offset_distance(mode: ToolOffsetMode, tool_radius: f64) -> Option<f64> {
+    if !tool_radius.is_finite() || tool_radius <= 0.0 {
+        return None;
+    }
+    match mode {
+        ToolOffsetMode::Center => None,
+        ToolOffsetMode::Internal => Some(tool_radius),
+        ToolOffsetMode::External => Some(-tool_radius),
+    }
 }

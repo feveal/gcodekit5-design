@@ -190,6 +190,7 @@ impl Canvas {
                 lock_aspect_ratio: obj.lock_aspect_ratio,
                 use_global_laser: obj.use_global_laser,
                 laser_params: LaserParams::default(),
+                tool_offset_mode: crate::model::ToolOffsetMode::default(),
             };
 
             self.shape_store.insert(id, new_obj);
@@ -560,6 +561,17 @@ impl Canvas {
         let target_center_y = if update_position { y } else { old_center_y };
         let target_w = if update_size { w } else { old_w };
         let target_h = if update_size { h } else { old_h };
+
+        // Nothing to do: returning no updates keeps no-op edits (e.g. committing an
+        // unchanged property field) from pushing empty undo steps.
+        const NO_CHANGE_EPS: f64 = 1e-9;
+        if (target_center_x - old_center_x).abs() <= NO_CHANGE_EPS
+            && (target_center_y - old_center_y).abs() <= NO_CHANGE_EPS
+            && (target_w - old_w).abs() <= NO_CHANGE_EPS
+            && (target_h - old_h).abs() <= NO_CHANGE_EPS
+        {
+            return updates;
+        }
 
         // Calculate target top-left from center
         let target_x = target_center_x - target_w / 2.0;

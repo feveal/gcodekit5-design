@@ -1,5 +1,10 @@
 # Project Statistics
-Last Updated: 2025-12-20 (0.40.0-alpha.6)
+Last Updated: 2026-11-16 (1.2.0-beta.2)
+
+Current snapshot (`git ls-files '*.rs' | xargs cat | wc -l`, 2026-11-16, after merging PR #104):
+305 Rust files, 115,022 lines; 436 tests (`cargo nextest run --workspace --exclude gcodekit5-design`).
+
+The table below is the earlier 0.55.0-alpha.1 snapshot (2026-05-16).
 
 ===============================================================================
  Language            Files        Lines         Code     Comments       Blanks

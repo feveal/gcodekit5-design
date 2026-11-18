@@ -96,8 +96,20 @@ pub struct ToolsManagerBackend {
 }
 
 impl ToolsManagerBackend {
+    /// Creates the backend with the standard library plus the custom tools
+    /// saved in the user's configuration directory (`gcodekit5/custom_tools.json`).
     pub fn new() -> Self {
-        let storage_path = Self::get_storage_path();
+        Self::with_storage_path(Self::get_storage_path())
+    }
+
+    /// Creates the backend with custom tools loaded from, and saved to,
+    /// `storage_path` instead of the user's configuration directory.
+    ///
+    /// Tests use this so they never read or overwrite the user's library.
+    ///
+    /// # Arguments
+    /// * `storage_path` - the JSON file holding the custom tools
+    pub fn with_storage_path(storage_path: PathBuf) -> Self {
         let mut library = gcodekit5_core::data::tools::init_standard_library();
 
         // Load custom tools from disk if they exist
@@ -144,14 +156,6 @@ impl ToolsManagerBackend {
         Ok(())
     }
 
-    pub fn get_library(&self) -> &ToolLibrary {
-        &self.library
-    }
-
-    pub fn get_library_mut(&mut self) -> &mut ToolLibrary {
-        &mut self.library
-    }
-
     pub fn add_tool(&mut self, tool: Tool) {
         self.library.add_tool(tool);
         // Save custom tools to disk
@@ -160,13 +164,43 @@ impl ToolsManagerBackend {
         }
     }
 
-    pub fn remove_tool(&mut self, id: &ToolId) -> Option<Tool> {
-        let result = self.library.remove_tool(id);
-        // Save custom tools to disk
+    /// Adds `tool`, replacing any tool with the same id, and writes the custom
+    /// tools file.
+    ///
+    /// # Errors
+    /// The write error message. The library is then restored to its previous
+    /// state, so memory never holds an edit that is not on disk.
+    pub fn save_tool(&mut self, tool: Tool) -> Result<(), String> {
+        let previous = self.library.remove_tool(&tool.id);
+        let id = tool.id.clone();
+        self.library.add_tool(tool);
         if let Err(e) = self.save_to_file() {
-            tracing::warn!("Failed to save tools: {}", e);
+            self.library.remove_tool(&id);
+            if let Some(previous) = previous {
+                self.library.add_tool(previous);
+            }
+            return Err(e.to_string());
         }
-        result
+        Ok(())
+    }
+
+    /// Removes the tool with `id` and writes the custom tools file.
+    ///
+    /// # Returns
+    /// The removed tool, or `None` when no tool has that id.
+    ///
+    /// # Errors
+    /// The write error message. The tool is then put back, so memory never
+    /// differs from what is on disk.
+    pub fn remove_tool(&mut self, id: &ToolId) -> Result<Option<Tool>, String> {
+        let removed = self.library.remove_tool(id);
+        if let Err(e) = self.save_to_file() {
+            if let Some(tool) = removed {
+                self.library.add_tool(tool);
+            }
+            return Err(e.to_string());
+        }
+        Ok(removed)
     }
 
     pub fn get_tool(&self, id: &ToolId) -> Option<&Tool> {
@@ -179,15 +213,6 @@ impl ToolsManagerBackend {
         } else {
             self.library.search_by_name(query)
         }
-    }
-
-    pub fn filter_by_type(&self, tool_type: ToolType) -> Vec<&Tool> {
-        self.library.get_tools_by_type(tool_type)
-    }
-
-    pub fn filter_by_diameter(&self, diameter: f32, tolerance: f32) -> Vec<&Tool> {
-        self.library
-            .search_by_diameter(diameter - tolerance, diameter + tolerance)
     }
 
     pub fn get_all_tools(&self) -> Vec<&Tool> {
@@ -311,67 +336,5 @@ pub fn string_to_tool_material(s: &str) -> Option<ToolMaterial> {
         "Coated Carbide" => Some(ToolMaterial::CoatedCarbide),
         "Diamond" => Some(ToolMaterial::Diamond),
         _ => None,
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_backend_creation() {
-        let backend = ToolsManagerBackend::new();
-        assert!(!backend.get_all_tools().is_empty());
-    }
-
-    #[test]
-    fn test_tool_type_conversion() {
-        assert_eq!(
-            string_to_tool_type("Flat End Mill"),
-            Some(ToolType::EndMillFlat)
-        );
-        assert_eq!(string_to_tool_type("Drill Bit"), Some(ToolType::DrillBit));
-    }
-
-    #[test]
-    fn test_search_tools() {
-        let backend = ToolsManagerBackend::new();
-        let results = backend.search_tools("end");
-        assert!(!results.is_empty());
-    }
-
-    #[test]
-    fn test_persistence() {
-        // Create a test tool
-        let test_tool = Tool::new(
-            ToolId("test_persist_tool".to_string()),
-            999, // tool number
-            "Test Persist Tool".to_string(),
-            ToolType::EndMillFlat,
-            6.35, // diameter
-            38.0, // length
-        );
-
-        // Add and save
-        {
-            let mut backend = ToolsManagerBackend::new();
-            let mut tool = test_tool.clone();
-            tool.custom = true;
-            backend.add_tool(tool);
-        }
-
-        // Create new backend and verify tool was loaded
-        {
-            let backend = ToolsManagerBackend::new();
-            let loaded = backend.get_tool(&ToolId("test_persist_tool".to_string()));
-            assert!(loaded.is_some());
-            assert_eq!(loaded.expect("load failed").name, "Test Persist Tool");
-        }
-
-        // Cleanup
-        {
-            let mut backend = ToolsManagerBackend::new();
-            backend.remove_tool(&ToolId("test_persist_tool".to_string()));
-        }
     }
 }

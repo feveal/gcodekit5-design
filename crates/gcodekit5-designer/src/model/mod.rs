@@ -259,7 +259,20 @@ impl RasterImage {
     }
 } // impl RasterImage
 
-// ---
+/// Where the milling cutter travels in relation to the shape's contour.
+///
+/// Used for tool offsetting (Center/Internal/External):
+/// - `Center`: the cutter follows the contour exactly.
+/// - `Internal`: the cutter travels along the inside (inward offset).
+/// - `External`: the cutter travels along the outside (outward offset).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
+pub enum ToolOffsetMode {
+    #[default]
+    Center,
+    Internal,
+    External,
+}
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct LaserParams {
     pub feed_rate: f64,     // mm/min
@@ -278,7 +291,6 @@ impl Default for LaserParams {
         }
     }
 }
-// ---
 
 pub trait DesignerShape {
     fn render(&self) -> Path;
@@ -296,9 +308,10 @@ pub trait DesignerShape {
     }
 
     fn rotate(&mut self, angle: f64, cx: f64, cy: f64) {
-        let t = Transform::translation(cx as f32, cy as f32)
-            .then_rotate(lyon::math::Angle::radians(angle as f32))
-            .then_translate(lyon::math::vector(-cx as f32, -cy as f32));
+        // Move the pivot to the origin, rotate, then move it back.
+        let t = Transform::translation(-cx as f32, -cy as f32)
+            .then_rotate(lyon::math::Angle::degrees(angle as f32))
+            .then_translate(lyon::math::vector(cx as f32, cy as f32));
         self.transform(&t);
     }
 
@@ -539,5 +552,136 @@ pub fn rotate_point(p: Point, center: Point, angle_deg: f64) -> Point {
     Point {
         x: center.x + dx * c - dy * s,
         y: center.y + dx * s + dy * c,
+    }
+}
+
+/// Applies the linear part of `t` to a parametric shape whose rendered geometry is
+/// `R(rotation) · F · base` about its centre, where `F` is a reflection across the
+/// vertical axis when `mirrored` is set.
+///
+/// A rotation is folded into `rotation`; a reflection (negative determinant) toggles
+/// `mirrored` and adjusts `rotation` so the rendered geometry equals `t` applied to
+/// the old geometry, rather than approximating the mirror with a 180° turn.
+///
+/// # Arguments
+/// * `t` - The transform being applied.
+/// * `rotation` - Shape rotation in degrees, updated in place.
+/// * `mirrored` - Shape reflection flag, updated in place.
+///
+/// # Returns
+/// The uniform scale factor of `t`.
+pub(crate) fn apply_linear_transform_to_parametric(
+    t: &Transform,
+    rotation: &mut f64,
+    mirrored: &mut bool,
+) -> f64 {
+    let (m11, m12, m21, m22) = (t.m11 as f64, t.m12 as f64, t.m21 as f64, t.m22 as f64);
+    let det = m11 * m22 - m12 * m21;
+    if det < 0.0 {
+        // t = R(phi) · F, and F · R(rot) = R(-rot) · F, so the new rotation is
+        // phi - rot and the reflection toggles.
+        let phi = (-m12).atan2(-m11).to_degrees();
+        *rotation = normalize_degrees(phi - *rotation);
+        *mirrored = !*mirrored;
+    } else {
+        let phi = m12.atan2(m11).to_degrees();
+        *rotation = normalize_degrees(*rotation + phi);
+    }
+    (m11 * m11 + m12 * m12).sqrt()
+}
+
+/// Wraps an angle in degrees into `(-180, 180]`.
+fn normalize_degrees(angle: f64) -> f64 {
+    let mut a = angle % 360.0;
+    if a <= -180.0 {
+        a += 360.0;
+    } else if a > 180.0 {
+        a -= 360.0;
+    }
+    if a.abs() < 1e-9 { 0.0 } else { a }
+}
+
+/// Builds the render transform `R(rotation) · F` about `center` for a parametric
+/// shape, where `F` mirrors across the vertical axis through `center` when
+/// `mirrored` is set. Returns `None` when the transform is the identity.
+pub(crate) fn parametric_render_transform(
+    center: Point,
+    rotation: f64,
+    mirrored: bool,
+) -> Option<Transform> {
+    if rotation.abs() <= 1e-6 && !mirrored {
+        return None;
+    }
+    let sx = if mirrored { -1.0 } else { 1.0 };
+    Some(
+        Transform::translation(-center.x as f32, -center.y as f32)
+            .then_scale(sx, 1.0)
+            .then_rotate(lyon::math::Angle::radians(rotation.to_radians() as f32))
+            .then_translate(lyon::math::vector(center.x as f32, center.y as f32)),
+    )
+}
+
+/// Angle in degrees between consecutive items of a circular array.
+///
+/// A full circle (|`total_angle`| >= 360) places `count` items with `count` equal gaps,
+/// because the last gap closes the circle. A partial arc places the first item at the
+/// start and the last item at the end of the arc, so it has `count - 1` gaps.
+///
+/// # Arguments
+/// * `total_angle` - Angle covered by the array in degrees (negative for clockwise).
+/// * `count` - Number of items, including the original.
+///
+/// # Returns
+/// The angle step in degrees (0 for fewer than two items).
+pub fn circular_array_step(total_angle: f64, count: usize) -> f64 {
+    if count <= 1 {
+        return 0.0;
+    }
+    if total_angle.abs() >= 360.0 - 1e-9 {
+        total_angle / count as f64
+    } else {
+        total_angle / (count - 1) as f64
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_circular_array_step_full_circle_has_count_gaps() {
+        // 6 items around a full circle: the last gap closes the circle.
+        assert!((circular_array_step(360.0, 6) - 60.0).abs() < 1e-9);
+        assert!((circular_array_step(-360.0, 4) + 90.0).abs() < 1e-9);
+    }
+
+    #[test]
+    fn test_circular_array_step_partial_arc_ends_on_the_arc_end() {
+        // 3 items over 90 degrees sit at 0, 45 and 90: two gaps.
+        let step = circular_array_step(90.0, 3);
+        assert!((step - 45.0).abs() < 1e-9);
+        assert!(
+            (step * 2.0 - 90.0).abs() < 1e-9,
+            "last item must land on the arc end"
+        );
+    }
+
+    #[test]
+    fn test_circular_array_step_degenerate_counts() {
+        assert_eq!(circular_array_step(180.0, 0), 0.0);
+        assert_eq!(circular_array_step(180.0, 1), 0.0);
+    }
+
+    #[test]
+    fn test_shape_rotate_uses_degrees_not_radians() {
+        let mut shape = Shape::Circle(DesignCircle::new(Point::new(10.0, 0.0), 2.0));
+        shape.rotate(90.0, 0.0, 0.0);
+
+        let (x1, y1, x2, y2) = shape.bounds();
+        let cx = (x1 + x2) / 2.0;
+        let cy = (y1 + y2) / 2.0;
+
+        assert!(cx.abs() < 1e-5, "expected cx ~ 0.0, got {cx}");
+        assert!((cy - 10.0).abs() < 1e-5, "expected cy ~ 10.0, got {cy}");
     }
 }

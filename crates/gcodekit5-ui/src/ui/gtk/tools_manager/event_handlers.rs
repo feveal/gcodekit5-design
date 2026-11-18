@@ -181,6 +181,7 @@ impl ToolsManagerView {
                 let Some(row) = row_opt else {
                     return;
                 };
+                #[allow(unsafe_code)]
                 let tool_id = unsafe {
                     // SAFETY: row.data() retrieves a String previously stored
                     // via set_data() with the same key. Type and key match.
@@ -195,41 +196,49 @@ impl ToolsManagerView {
                 if view.is_dirty() {
                     // If we are re-selecting the currently loaded tool (e.g. programmatically reverting),
                     // don't prompt.
-                    if let Some(current) = view.selected_tool.borrow().as_ref() {
-                        if current.id.0 == tool_id {
-                            return;
-                        }
+                    if let Some(current) = view.selected_tool.borrow().as_ref()
+                        && current.id.0 == tool_id
+                    {
+                        return;
                     }
 
                     let prev = view.last_selected_tool_id.borrow().clone();
                     let window_opt = view.widget.root().and_downcast::<gtk4::Window>();
                     if let Some(window) = window_opt {
-                        let dialog = gtk4::MessageDialog::builder()
-                            .transient_for(&window)
-                            .modal(true)
-                            .message_type(gtk4::MessageType::Question)
-                            .buttons(gtk4::ButtonsType::YesNo)
-                            .text("Discard changes?")
-                            .secondary_text(
-                                "You have unsaved changes. Discard them and switch tools?",
-                            )
-                            .build();
-
                         let view2 = view.clone();
                         let list = list.clone();
-                        dialog.connect_response(move |d, resp| {
-                            if resp == gtk4::ResponseType::Yes {
-                                view2.load_tool_for_edit(&tool_id);
-                                view2.persist_ui_state();
-                            } else if let Some(prev_id) = prev.as_deref() {
-                                view2.select_row_by_tool_id(&list, prev_id);
-                            } else {
-                                list.unselect_all();
-                            }
-                            d.close();
-                        });
-
-                        dialog.show();
+                        crate::ui::gtk::common::dialog::show_unsaved_changes(
+                            &t!("Unsaved changes"),
+                            &t!("The tool has unsaved changes. Save them before continuing?"),
+                            Some(&window),
+                            move |choice| {
+                                // Save switches only if the save succeeded;
+                                // Discard switches without saving.
+                                let saved = choice == UnsavedChangesChoice::Save;
+                                let switch = match choice {
+                                    UnsavedChangesChoice::Save => view2.save_tool(),
+                                    UnsavedChangesChoice::Discard => true,
+                                    UnsavedChangesChoice::Cancel => false,
+                                };
+                                if switch {
+                                    view2.load_tool_for_edit(&tool_id);
+                                    if saved {
+                                        // Saving rebuilt the list without a selection.
+                                        view2.select_row_by_tool_id(&list, &tool_id);
+                                    }
+                                    view2.persist_ui_state();
+                                } else if *view2.is_creating.borrow() {
+                                    // A new tool has no row: re-selecting the
+                                    // previous tool would count as another switch
+                                    // away from the unsaved form and prompt again.
+                                    list.unselect_all();
+                                } else if let Some(prev_id) = prev.as_deref() {
+                                    view2.select_row_by_tool_id(&list, prev_id);
+                                } else {
+                                    list.unselect_all();
+                                }
+                            },
+                        );
                     }
 
                     return;
@@ -273,6 +282,15 @@ impl ToolsManagerView {
         {
             let view = self.clone();
             self.edit_flutes.connect_value_changed(move |_| {
+                view.update_save_state();
+            });
+        }
+
+        // Tool number is part of the saved tool; without tracking it, editing only the
+        // number never enabled Save.
+        {
+            let view = self.clone();
+            self.edit_number.connect_value_changed(move |_| {
                 view.update_save_state();
             });
         }
