@@ -86,6 +86,9 @@ pub struct ShapeData {
     pub use_custom_values: bool,
     #[serde(default)]
     pub operation_type: String,
+    /// Cutter path relative to the shape contour. Older files default to `Center`.
+    #[serde(default)]
+    pub tool_offset_mode: ToolOffsetMode,
     #[serde(default)]
     pub pocket_depth: f64,
     #[serde(default)]
@@ -595,6 +598,7 @@ impl DesignFile {
                 OperationType::Profile => "profile".to_string(),
                 OperationType::Pocket => "pocket".to_string(),
             },
+            tool_offset_mode: obj.tool_offset_mode,
             pocket_depth: obj.pocket_depth,
             start_depth: obj.start_depth,
             step_down: obj.step_down,
@@ -867,6 +871,7 @@ impl DesignFile {
             selected: data.selected,
             operation_type,
             use_custom_values: data.use_custom_values,
+            tool_offset_mode: data.tool_offset_mode,
             pocket_depth: data.pocket_depth,
             start_depth: data.start_depth,
             step_down: data.step_down,
@@ -880,7 +885,6 @@ impl DesignFile {
             lock_aspect_ratio: data.lock_aspect_ratio,
             use_global_laser: data.use_global_laser,
             laser_params,
-            tool_offset_mode: crate::model::ToolOffsetMode::default(),
         })
     }
 }

@@ -698,16 +698,10 @@ impl ToolpathToGcode {
 
     /// Reports whether a toolpath leaves the allowed working volume.
     ///
-    /// XY coordinates (segment endpoints and arc centres) are checked against
-    /// [`Self::machine_limits`] when set. Z is checked only against
-    /// [`Self::z_min_limit`] when set: a negative Z on its own is a normal cut
-    /// below a Z0-at-stock-top origin and is not a violation.
-    ///
-    /// # Arguments
-    /// * `toolpath` - Toolpath to check.
-    ///
-    /// # Returns
-    /// `true` when any coordinate is outside the configured limits.
+    /// XY coordinates (segment endpoints) are checked against
+    /// [`Self::machine_limits`] when set. Arc centres are NOT checked:
+    /// they are auxiliary geometry, not tool positions, and the tool
+    /// never passes through them.
     pub fn has_boundary_violation(&self, toolpath: &Toolpath) -> bool {
         const EPS: f64 = 1e-6;
 
@@ -739,7 +733,6 @@ impl ToolpathToGcode {
         toolpath.segments.iter().any(|segment| {
             outside(&segment.start)
                 || outside(&segment.end)
-                || segment.center.as_ref().is_some_and(outside)
         })
     }
 

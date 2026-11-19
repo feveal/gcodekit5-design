@@ -35,6 +35,8 @@ mod test_dxf_z_metadata;
 mod test_import_transforms_units;
 #[path = "test_pocket_holes.rs"]
 mod test_pocket_holes;
+#[path = "test_serialization_tool_offset_mode.rs"]
+mod test_serialization_tool_offset_mode;
 #[path = "test_shape_model_mirror_bounds.rs"]
 mod test_shape_model_mirror_bounds;
 #[path = "test_undo_order_and_groups.rs"]

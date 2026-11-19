@@ -2997,3 +2997,12 @@ msgstr "o controlador respondeu"
 
 msgid "no reply from the controller"
 msgstr "sem resposta do controlador"
+
+msgid "Machining:"
+msgstr "Usinagem:"
+
+msgid "Internal"
+msgstr "Interno"
+
+msgid "External"
+msgstr "Externo"

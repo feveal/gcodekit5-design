@@ -590,7 +590,7 @@ impl PropertiesPanel {
         cam_center_check.set_active(true);
 
         let side_box = Box::new(Orientation::Horizontal, 12);
-        let cam_machining_hint = Label::new(Some("Machining:"));
+        let cam_machining_hint = Label::new(Some(&t!("Machining:")));
         cam_machining_hint.add_css_class("dim-label");
         cam_machining_hint.set_halign(gtk4::Align::Start);
 

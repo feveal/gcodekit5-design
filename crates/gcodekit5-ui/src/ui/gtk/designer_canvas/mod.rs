@@ -643,6 +643,7 @@ impl DesignerCanvas {
         if show_toolpaths {
             self.generate_preview_toolpaths();
         }
+        self.refresh_tool_offset_preview();
         self.widget.queue_draw();
     }
 
@@ -812,6 +813,15 @@ impl DesignerCanvas {
             .collect();
 
         *self.preview_tool_offset_shapes.borrow_mut() = preview;
+        self.widget.queue_draw();
+    }
+
+    /// Limpia todos los previews (offset de geometría, offset de herramienta,
+    /// trayectorias) y repinta el canvas.
+    pub fn clear_previews(&self) {
+        self.preview_shapes.borrow_mut().clear();
+        self.preview_tool_offset_shapes.borrow_mut().clear();
+        self.preview_toolpaths.borrow_mut().clear();
         self.widget.queue_draw();
     }
 }

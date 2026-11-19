@@ -3005,3 +3005,12 @@ msgstr "il controller ha risposto"
 
 msgid "no reply from the controller"
 msgstr "nessuna risposta dal controller"
+
+msgid "Machining:"
+msgstr "Lavorazione meccanica:"
+
+msgid "Internal"
+msgstr "Interno"
+
+msgid "External"
+msgstr "Esterno"

@@ -885,7 +885,10 @@ fn on_activate(app: &Application) {
     new_2d_action.connect_activate(move |_, _| {
         if let Some(name) = stack_clone.visible_child_name() {
             match name.as_str() {
-                "designer" => designer_clone.new_file_2d(),
+                "designer" => {
+                    designer_clone.new_file_2d();
+                    designer_clone.canvas.clear_previews();
+                }
                 "editor" => editor_clone.new_file(),
                 "machine" => editor_clone.new_file(),
                 _ => {}
@@ -901,7 +904,10 @@ fn on_activate(app: &Application) {
     new_3d_action.connect_activate(move |_, _| {
         if let Some(name) = stack_clone.visible_child_name() {
             match name.as_str() {
-                "designer" => designer_clone.new_file_3d(),
+                "designer" => {
+                    designer_clone.new_file_2d();
+                    designer_clone.canvas.clear_previews();
+                }
                 "editor" => editor_clone.new_file(),
                 "machine" => editor_clone.new_file(),
                 _ => {}

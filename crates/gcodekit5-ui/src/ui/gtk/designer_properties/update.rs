@@ -367,6 +367,9 @@ impl PropertiesPanel {
             self.op_type_combo.set_sensitive(cam_entries_enabled);
             self.step_down_entry.set_sensitive(cam_entries_enabled);
             self.ramp_angle_entry.set_sensitive(cam_entries_enabled);
+            self.cam_center_check.set_sensitive(cam_entries_enabled);
+            self.cam_internal_check.set_sensitive(cam_entries_enabled);
+            self.cam_external_check.set_sensitive(cam_entries_enabled);
 
             self.op_type_combo
                 .set_selected(if op_type == OperationType::Pocket {
@@ -469,6 +472,9 @@ impl PropertiesPanel {
             self.ramp_angle_entry.set_sensitive(false);
             self.strategy_combo.set_sensitive(false);
             self.raster_fill_entry.set_sensitive(false);
+            self.cam_center_check.set_sensitive(false);
+            self.cam_internal_check.set_sensitive(false);
+            self.cam_external_check.set_sensitive(false);
 
             self.raster_fill_entry.set_text("");
             self.lock_aspect_ratio.set_active(false);
