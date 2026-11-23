@@ -1247,7 +1247,9 @@ impl GcodeVisualizer {
             ))));
             help_box.append(&Label::new(Some(&t!("Shift+Left button+Drag: Pan"))));
             help_box.append(&Label::new(Some(&t!("Mouse wheel: Zoom+/-"))));
+            help_box.append(&Label::new(Some(&t!("Ctrl+Mouse wheel: Fast Zoom+/-"))));
             help_box.append(&Label::new(Some(&t!("Left Button+Drag: Orbit"))));
+
             help_popover.set_child(Some(&help_box));
         }
         {
@@ -3075,10 +3077,17 @@ impl GcodeVisualizer {
         let gl_area_scroll = gl_area.clone();
         let update_scroll_3d = update_3d_scrollbars.clone();
 
-        scroll_3d.connect_scroll(move |_controller, _dx, dy| {
+        scroll_3d.connect_scroll(move |controller, _dx, dy| {
             let mut cam = camera_scroll.borrow_mut();
-            let sensitivity = 5.0;
-            cam.zoom(dy as f32 * sensitivity);
+
+            let is_ctrl = controller
+                .current_event_state()
+                .contains(gtk4::gdk::ModifierType::CONTROL_MASK);
+
+            let base_sensitivity = 5.0;
+            let multiplier = if is_ctrl { 5.0 } else { 1.0 };
+
+            cam.zoom(dy as f32 * base_sensitivity * multiplier);
             drop(cam);
             update_scroll_3d();
             gl_area_scroll.queue_render();

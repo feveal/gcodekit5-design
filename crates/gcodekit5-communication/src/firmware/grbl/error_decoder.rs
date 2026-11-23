@@ -123,3 +123,99 @@ pub fn format_error(code: u8) -> String {
 pub fn format_alarm(code: u8) -> String {
     format!("ALARM:{} - {}", code, decode_alarm(code))
 }
+
+/// Información detallada sobre un error, con causas probables y sugerencias.
+#[derive(Debug, Clone)]
+pub struct ErrorDetails {
+    pub code: u8,
+    pub message: String,
+    /// Causas probables ordenadas por relevancia.
+    pub probable_causes: Vec<String>,
+    /// Cómo diagnosticar o resolver.
+    pub hints: Vec<String>,
+}
+
+pub fn decode_error_details(code: u8) -> ErrorDetails {
+    let message = decode_error(code);
+    let (probable_causes, hints): (Vec<&str>, Vec<&str>) = match code {
+        20 => (
+            vec![
+                "Comando G/M desconocido o mal escrito (p. ej. `G0X` sin valor, `M99` no soportado).",
+                "Firmware no soporta el comando (grblHAL vs GRBL clásico).",
+            ],
+            vec![
+                "Revisa la línea exacta reportada en el log.",
+                "Verifica `$I` para conocer el firmware y sus comandos soportados.",
+            ],
+        ),
+        22 => (
+            vec!["Se ejecutó G1/G2/G3 sin haber fijado antes un F (feed rate)."],
+            vec!["Añade un `F<valor>` antes del primer movimiento de avance del programa."],
+        ),
+        26 => (
+            vec!["Movimiento sin palabras de eje (p. ej. `G1 F100` sin X/Y/Z)."],
+            vec!["Comprueba que la línea no haya perdido las coordenadas al editar."],
+        ),
+        28 => (
+            vec!["Falta un parámetro P, L, I, J, K, etc. requerido por el comando."],
+            vec!["Verifica G10/G28/G30/G38.2/G43.1/G92 según el caso."],
+        ),
+        33 => (
+            vec![
+                "G2/G3 con geometría imposible: el radio no alcanza entre el punto actual y el destino.",
+                "Arco con I/J/K que describe un círculo de radio 0.",
+                "G38.2 donde el destino es la posición actual (distancia 0).",
+                "Punto de inicio == punto final en un arco completo sin I/J/K.",
+            ],
+            vec![
+                "Revisa la línea del log: normalmente el problema está en los parámetros I/J/K o el destino.",
+                "Usa 'simular' / visualizador para ver el arco antes de ejecutarlo.",
+                "Para G38.2: asegúrate de que la distancia de sonda no sea 0.",
+            ],
+        ),
+        34 => (
+            vec!["G2/G3 con radio R: no existe arco posible entre los dos puntos con ese radio."],
+            vec!["Aumenta R o divide el arco en dos movimientos."],
+        ),
+        35 => (
+            vec!["G2/G3 sin I/J/K y sin R."],
+            vec!["Añade I/J/K o usa la forma con R."],
+        ),
+        37 => (
+            vec!["G43.1 intenta aplicar offset a un eje no configurado como eje de herramienta."],
+            vec!["Revisa `$13x` (tool change mode) y el eje configurado."],
+        ),
+        38 => (
+            vec!["Número de herramienta superior al máximo soportado por el firmware."],
+            vec!["Consulta `$341`/`$342` o el manual de tu firmware."],
+        ),
+        _ => (vec![], vec![]),
+    };
+    ErrorDetails {
+        code,
+        message,
+        probable_causes: probable_causes.into_iter().map(str::to_string).collect(),
+        hints: hints.into_iter().map(str::to_string).collect(),
+    }
+}
+
+/// Formatea el error con causas y sugerencias en varias líneas.
+pub fn format_error_detailed(code: u8) -> String {
+    let d = decode_error_details(code);
+    let mut out = format!("error:{} - {}", d.code, d.message);
+    if !d.probable_causes.is_empty() {
+        out.push_str("\n  Causas probables:");
+        for c in &d.probable_causes {
+            out.push_str("\n    • ");
+            out.push_str(c);
+        }
+    }
+    if !d.hints.is_empty() {
+        out.push_str("\n  Sugerencias:");
+        for h in &d.hints {
+            out.push_str("\n    → ");
+            out.push_str(h);
+        }
+    }
+    out
+}

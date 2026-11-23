@@ -18,9 +18,14 @@ use std::collections::VecDeque;
 
 use gcodekit5_communication::ConnectionDriver;
 use gcodekit5_communication::firmware::grbl::status_parser::MachinePosition;
+use gcodekit5_core::gcode::{
+    arc,
+    words::{Word, code_number, parse_line, word_value},
+};
 use gcodekit5_core::units::{
     FeedRateUnits, MeasurementSystem, format_feed_rate, get_unit_label, parse_feed_rate,
 };
+use std::f64::consts::PI;
 
 /// Usable size of GRBL's serial RX buffer in bytes (the buffer is 128 bytes; one slot is
 /// kept free by the ring buffer, so at most 127 bytes may be outstanding).
@@ -28,6 +33,7 @@ pub const GRBL_RX_BUFFER_BYTES: usize = 127;
 
 /// Millimetres per inch.
 const MM_PER_INCH: f32 = 25.4;
+const MAX_ARC_LINEARIZATION_SEGMENTS: usize = 10_000;
 
 /// Returns the number of RX-buffer bytes a G-code line occupies once sent
 /// (its bytes plus the terminating newline).
@@ -427,7 +433,36 @@ pub fn prepare_program(
     preserve_comments: bool,
     max_line_length: usize,
 ) -> Result<String, String> {
+    prepare_program_with_arc_linearization(
+        content,
+        preserve_comments,
+        max_line_length,
+        false,
+        0.5,
+        0.5,
+    )
+}
+
+/// Prepares a program for streaming and optionally linearizes short G2/G3 arcs.
+///
+/// Arc centers and endpoints are interpreted in the active plane, distance mode,
+/// and units. Arcs with a radius or endpoint chord below
+/// `minimum_arc_length` are emitted as G1 moves no longer than
+/// `arc_segment_length` along the arc.
+///
+/// # Errors
+/// Returns an error if a prepared line exceeds `max_line_length` or an arc
+/// would require more than the supported segment limit.
+pub fn prepare_program_with_arc_linearization(
+    content: &str,
+    preserve_comments: bool,
+    max_line_length: usize,
+    linearize_arcs: bool,
+    minimum_arc_length: f64,
+    arc_segment_length: f64,
+) -> Result<String, String> {
     let mut out = String::with_capacity(content.len());
+    let mut modal = GcodeModalState::default();
     for (index, raw) in content.lines().enumerate() {
         let line = if preserve_comments {
             raw.trim().to_string()
@@ -437,17 +472,546 @@ pub fn prepare_program(
         if line.is_empty() {
             continue;
         }
-        let length = line.chars().count();
-        if max_line_length > 0 && length > max_line_length {
-            return Err(format!(
-                "line {} has {length} characters; the maximum is {max_line_length}",
-                index + 1
-            ));
+
+        let prepared_lines = if linearize_arcs {
+            modal.prepare_line(
+                raw,
+                &line,
+                index + 1,
+                preserve_comments,
+                false,
+                ArcLinearizationConfig {
+                    minimum_arc_length,
+                    arc_segment_length,
+                },
+            )?
+        } else {
+            vec![line]
+        };
+        for prepared_line in prepared_lines {
+            let length = prepared_line.chars().count();
+            if max_line_length > 0 && length > max_line_length {
+                return Err(format!(
+                    "line {} has {length} characters; the maximum is {max_line_length}",
+                    index + 1
+                ));
+            }
+            out.push_str(&prepared_line);
+            out.push('\n');
         }
-        out.push_str(&line);
-        out.push('\n');
     }
     Ok(out)
+}
+
+/// Linearizes eligible arcs while leaving every other program line unchanged.
+///
+/// This form is used for generated-code previews and exports. It preserves
+/// comments, whitespace, blank lines, and the original line endings unless a
+/// line needs conversion or a modal motion command must be restored.
+///
+/// # Errors
+/// Returns an error if an arc would require more than the supported segment limit.
+pub fn linearize_program_for_display(
+    content: &str,
+    minimum_arc_length: f64,
+    arc_segment_length: f64,
+) -> Result<String, String> {
+    let mut out = String::with_capacity(content.len());
+    let mut modal = GcodeModalState::default();
+
+    for (index, line_with_ending) in content.split_inclusive('\n').enumerate() {
+        let (line, line_ending) = if let Some(line) = line_with_ending.strip_suffix("\r\n") {
+            (line, "\r\n")
+        } else if let Some(line) = line_with_ending.strip_suffix('\n') {
+            (line, "\n")
+        } else {
+            (line_with_ending, "")
+        };
+        let prepared_lines = modal.prepare_line(
+            line,
+            line,
+            index + 1,
+            true,
+            true,
+            ArcLinearizationConfig {
+                minimum_arc_length,
+                arc_segment_length,
+            },
+        )?;
+
+        if prepared_lines.len() == 1 && prepared_lines[0] == line {
+            out.push_str(line_with_ending);
+            continue;
+        }
+
+        for (line_index, prepared_line) in prepared_lines.iter().enumerate() {
+            out.push_str(prepared_line);
+            if line_index + 1 < prepared_lines.len() || !line_ending.is_empty() {
+                out.push_str(if line_ending.is_empty() {
+                    "\n"
+                } else {
+                    line_ending
+                });
+            }
+        }
+    }
+
+    Ok(out)
+}
+
+#[derive(Debug, Clone, Copy)]
+struct GcodeModalState {
+    motion_mode: Option<u8>,
+    output_motion_mode: Option<u8>,
+    plane: u8,
+    absolute_distance: bool,
+    absolute_arc_center: bool,
+    units_to_mm: f64,
+    inverse_time_feed: bool,
+    position: [f64; 9],
+    absolute_position_known: [bool; 9],
+}
+
+#[derive(Clone, Copy)]
+struct ArcLinearizationConfig {
+    minimum_arc_length: f64,
+    arc_segment_length: f64,
+}
+
+impl Default for GcodeModalState {
+    fn default() -> Self {
+        Self {
+            motion_mode: Some(0),
+            output_motion_mode: Some(0),
+            plane: 17,
+            absolute_distance: true,
+            absolute_arc_center: false,
+            units_to_mm: 1.0,
+            inverse_time_feed: false,
+            position: [0.0; 9],
+            absolute_position_known: [false; 9],
+        }
+    }
+}
+
+impl GcodeModalState {
+    fn prepare_line(
+        &mut self,
+        raw_line: &str,
+        line: &str,
+        line_number: usize,
+        preserve_comments: bool,
+        preserve_passthrough: bool,
+        arc_config: ArcLinearizationConfig,
+    ) -> Result<Vec<String>, String> {
+        let words = parse_line(line);
+        let mut explicit_motion = false;
+        let mut reset_coordinates = false;
+        let mut invalidate_position = false;
+        let mut machine_coordinates = false;
+        let mut coordinate_data_command = false;
+        let mut non_modal_motion_command = false;
+
+        for word in &words {
+            if word.letter != 'G' {
+                continue;
+            }
+            match code_number(word.value) {
+                (motion @ 0..=3, 0) => {
+                    self.motion_mode = Some(motion as u8);
+                    explicit_motion = true;
+                }
+                (80, 0) => {
+                    self.motion_mode = None;
+                    explicit_motion = true;
+                }
+                (17..=19, 0) => self.plane = word.value as u8,
+                (20, 0) => self.units_to_mm = 25.4,
+                (21, 0) => self.units_to_mm = 1.0,
+                (90, 0) => self.absolute_distance = true,
+                (91, 0) => self.absolute_distance = false,
+                (90, 1) => self.absolute_arc_center = true,
+                (91, 1) => self.absolute_arc_center = false,
+                (93, 0) => self.inverse_time_feed = true,
+                (94 | 95, 0) => self.inverse_time_feed = false,
+                (92, 0) => reset_coordinates = true,
+                (92, 1 | 2) => invalidate_position = true,
+                (54..=59, 0) => invalidate_position = true,
+                (53, 0) => machine_coordinates = true,
+                (10, 0) => {
+                    coordinate_data_command = true;
+                    invalidate_position = true;
+                }
+                (28 | 30, 0) => {
+                    invalidate_position = true;
+                    non_modal_motion_command = true;
+                }
+                (38, 2..=5) => {
+                    invalidate_position = true;
+                    non_modal_motion_command = true;
+                }
+                _ => {}
+            }
+        }
+
+        if invalidate_position {
+            self.absolute_position_known = [false; 9];
+        }
+
+        if reset_coordinates {
+            self.set_absolute_coordinates(&words);
+            return Ok(vec![if preserve_passthrough {
+                line.to_string()
+            } else {
+                line.trim().to_string()
+            }]);
+        }
+
+        let has_axis_words = words.iter().any(|word| axis_index(word.letter).is_some());
+        let has_arc_words = words.iter().any(|word| {
+            axis_index(word.letter).is_some() || matches!(word.letter, 'I' | 'J' | 'K' | 'R')
+        });
+        let has_repeat_count = words.iter().any(|word| word.letter == 'P');
+        let has_checksum = line.contains('*');
+        let is_block_delete = line.trim_start().starts_with('/');
+        let has_expression = line.contains(['#', '[', ']', '=']);
+
+        if !invalidate_position
+            && !machine_coordinates
+            && !self.inverse_time_feed
+            && arc_config.minimum_arc_length.is_finite()
+            && arc_config.minimum_arc_length > 0.0
+            && arc_config.arc_segment_length.is_finite()
+            && arc_config.arc_segment_length > 0.0
+            && !has_repeat_count
+            && !has_checksum
+            && !is_block_delete
+            && !has_expression
+            && !non_modal_motion_command
+            && !coordinate_data_command
+            && has_arc_words
+            && matches!(self.motion_mode, Some(2 | 3))
+            && let Some(expanded) =
+                self.expand_arc(&words, raw_line, line_number, preserve_comments, arc_config)?
+        {
+            self.output_motion_mode = Some(1);
+            return Ok(expanded);
+        }
+
+        if has_axis_words {
+            if machine_coordinates {
+                self.set_machine_coordinates(&words);
+            } else if !coordinate_data_command && !invalidate_position {
+                self.apply_axis_words(&words);
+            }
+        }
+
+        if explicit_motion {
+            self.output_motion_mode = self.motion_mode;
+        }
+
+        let mut output = if preserve_passthrough {
+            line.to_string()
+        } else {
+            line.trim().to_string()
+        };
+        if has_axis_words
+            && !explicit_motion
+            && !coordinate_data_command
+            && !non_modal_motion_command
+            && !machine_coordinates
+            && self.output_motion_mode != self.motion_mode
+        {
+            output = match self.motion_mode {
+                Some(mode) => format!("G{mode} {output}"),
+                None => format!("G80 {output}"),
+            };
+            self.output_motion_mode = self.motion_mode;
+        }
+        Ok(vec![output])
+    }
+
+    fn expand_arc(
+        &mut self,
+        words: &[Word],
+        raw_line: &str,
+        line_number: usize,
+        preserve_comments: bool,
+        arc_config: ArcLinearizationConfig,
+    ) -> Result<Option<Vec<String>>, String> {
+        let clockwise = self.motion_mode == Some(2);
+        let (axis_a, axis_b, linear_axis, center_a, center_b) = match self.plane {
+            17 => (0, 1, 2, 'I', 'J'),
+            18 => (2, 0, 1, 'K', 'I'),
+            19 => (1, 2, 0, 'J', 'K'),
+            _ => return Ok(None),
+        };
+        if self.absolute_distance
+            && (!self.absolute_position_known[axis_a] || !self.absolute_position_known[axis_b])
+        {
+            return Ok(None);
+        }
+
+        let start = self.position;
+        let mut end = start;
+        let mut end_known = self.absolute_position_known;
+        for word in words {
+            if let Some(axis) = axis_index(word.letter) {
+                let value = word.value * self.units_to_mm;
+                if self.absolute_distance {
+                    end[axis] = value;
+                    end_known[axis] = true;
+                } else {
+                    end[axis] += value;
+                }
+            }
+        }
+
+        let start_plane = (start[axis_a], start[axis_b]);
+        let end_plane = (end[axis_a], end[axis_b]);
+        let delta = (end_plane.0 - start_plane.0, end_plane.1 - start_plane.1);
+        let offsets =
+            if word_value(words, center_a).is_some() || word_value(words, center_b).is_some() {
+                let offset_a = if self.absolute_arc_center {
+                    word_value(words, center_a)
+                        .map(|value| value * self.units_to_mm - start_plane.0)
+                        .unwrap_or(0.0)
+                } else {
+                    word_value(words, center_a).unwrap_or(0.0) * self.units_to_mm
+                };
+                let offset_b = if self.absolute_arc_center {
+                    word_value(words, center_b)
+                        .map(|value| value * self.units_to_mm - start_plane.1)
+                        .unwrap_or(0.0)
+                } else {
+                    word_value(words, center_b).unwrap_or(0.0) * self.units_to_mm
+                };
+                (offset_a, offset_b)
+            } else {
+                let Some(radius) = word_value(words, 'R') else {
+                    return Ok(None);
+                };
+                let Some(offsets) = arc::center_offset_from_radius(
+                    delta.0,
+                    delta.1,
+                    radius * self.units_to_mm,
+                    clockwise,
+                ) else {
+                    return Ok(None);
+                };
+                offsets
+            };
+
+        let center = (start_plane.0 + offsets.0, start_plane.1 + offsets.1);
+        let Some(sweep) = arc::arc_sweep(center, start_plane, end_plane, clockwise) else {
+            return Ok(None);
+        };
+        let chord_length = delta.0.hypot(delta.1);
+        let is_full_circle = chord_length <= 1e-6;
+        if sweep.radius >= arc_config.minimum_arc_length
+            && (is_full_circle || chord_length >= arc_config.minimum_arc_length)
+        {
+            return Ok(None);
+        }
+
+        let arc_length = sweep.radius * sweep.sweep.abs();
+        let segment_count = ((arc_length / arc_config.arc_segment_length).ceil() as usize)
+            .max((sweep.sweep.abs() / (PI / 18.0)).ceil() as usize)
+            .max(1);
+        if segment_count > MAX_ARC_LINEARIZATION_SEGMENTS {
+            return Err(format!(
+                "line {line_number} needs {segment_count} segments to linearize this arc; maximum is {MAX_ARC_LINEARIZATION_SEGMENTS}"
+            ));
+        }
+
+        let mut axes = vec![axis_a, axis_b];
+        if words
+            .iter()
+            .any(|word| axis_index(word.letter) == Some(linear_axis))
+        {
+            axes.push(linear_axis);
+        }
+        for word in words {
+            if let Some(axis) = axis_index(word.letter)
+                && !axes.contains(&axis)
+            {
+                axes.push(axis);
+            }
+        }
+
+        let extras = format_non_geometry_words(words);
+        let comments = if preserve_comments {
+            extract_gcode_comments(raw_line)
+        } else {
+            String::new()
+        };
+        let mut output = Vec::with_capacity(segment_count);
+        let mut previous = start;
+
+        for segment in 1..=segment_count {
+            let fraction = segment as f64 / segment_count as f64;
+            let mut point = start;
+            if segment == segment_count {
+                point = end;
+            } else {
+                let angle = sweep.start_angle + sweep.sweep * fraction;
+                point[axis_a] = center.0 + sweep.radius * angle.cos();
+                point[axis_b] = center.1 + sweep.radius * angle.sin();
+                point[linear_axis] =
+                    start[linear_axis] + (end[linear_axis] - start[linear_axis]) * fraction;
+                for axis in 3..point.len() {
+                    point[axis] = start[axis] + (end[axis] - start[axis]) * fraction;
+                }
+            }
+
+            let coordinates = axes
+                .iter()
+                .map(|&axis| {
+                    let value = if self.absolute_distance {
+                        point[axis] / self.units_to_mm
+                    } else {
+                        (point[axis] - previous[axis]) / self.units_to_mm
+                    };
+                    format!("{}{}", axis_letter(axis), format_gcode_number(value))
+                })
+                .collect::<Vec<_>>()
+                .join(" ");
+            let mut line = format!("G1 {coordinates}");
+            if segment == 1 && !extras.is_empty() {
+                line.push(' ');
+                line.push_str(&extras);
+            }
+            if segment == segment_count && !comments.is_empty() {
+                line.push(' ');
+                line.push_str(&comments);
+            }
+            output.push(line);
+            previous = point;
+        }
+
+        self.position = end;
+        self.absolute_position_known = end_known;
+        Ok(Some(output))
+    }
+
+    fn apply_axis_words(&mut self, words: &[Word]) {
+        for word in words {
+            if let Some(axis) = axis_index(word.letter) {
+                let value = word.value * self.units_to_mm;
+                if self.absolute_distance {
+                    self.position[axis] = value;
+                    self.absolute_position_known[axis] = true;
+                } else {
+                    self.position[axis] += value;
+                }
+            }
+        }
+    }
+
+    fn set_absolute_coordinates(&mut self, words: &[Word]) {
+        for word in words {
+            if let Some(axis) = axis_index(word.letter) {
+                self.position[axis] = word.value * self.units_to_mm;
+                self.absolute_position_known[axis] = true;
+            }
+        }
+    }
+
+    fn set_machine_coordinates(&mut self, words: &[Word]) {
+        for word in words {
+            if let Some(axis) = axis_index(word.letter) {
+                self.position[axis] = word.value * self.units_to_mm;
+                self.absolute_position_known[axis] = false;
+            }
+        }
+    }
+}
+
+fn axis_index(letter: char) -> Option<usize> {
+    match letter {
+        'X' => Some(0),
+        'Y' => Some(1),
+        'Z' => Some(2),
+        'A' => Some(3),
+        'B' => Some(4),
+        'C' => Some(5),
+        'U' => Some(6),
+        'V' => Some(7),
+        'W' => Some(8),
+        _ => None,
+    }
+}
+
+fn axis_letter(axis: usize) -> char {
+    match axis {
+        0 => 'X',
+        1 => 'Y',
+        2 => 'Z',
+        3 => 'A',
+        4 => 'B',
+        5 => 'C',
+        6 => 'U',
+        7 => 'V',
+        8 => 'W',
+        _ => unreachable!("axis index is bounded by the coordinate array"),
+    }
+}
+
+fn format_non_geometry_words(words: &[Word]) -> String {
+    words
+        .iter()
+        .filter(|word| {
+            if axis_index(word.letter).is_some() || matches!(word.letter, 'I' | 'J' | 'K' | 'R') {
+                return false;
+            }
+            if word.letter == 'G' {
+                return !matches!(code_number(word.value), (0..=3, 0));
+            }
+            true
+        })
+        .map(|word| format!("{}{}", word.letter, format_gcode_number(word.value)))
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+fn format_gcode_number(value: f64) -> String {
+    let value = if value.abs() < 0.0000005 { 0.0 } else { value };
+    let mut formatted = format!("{value:.6}");
+    while formatted.contains('.') && formatted.ends_with('0') {
+        formatted.pop();
+    }
+    if formatted.ends_with('.') {
+        formatted.pop();
+    }
+    formatted
+}
+
+fn extract_gcode_comments(line: &str) -> String {
+    let mut comments = String::new();
+    let mut depth = 0usize;
+    for (index, character) in line.char_indices() {
+        match character {
+            '(' => {
+                if depth == 0 {
+                    comments.push(' ');
+                }
+                depth += 1;
+                comments.push(character);
+            }
+            ')' if depth > 0 => {
+                depth -= 1;
+                comments.push(character);
+            }
+            ';' if depth == 0 => {
+                comments.push(' ');
+                comments.push_str(&line[index..]);
+                break;
+            }
+            _ if depth > 0 => comments.push(character),
+            _ => {}
+        }
+    }
+    comments
 }
 
 /// Removes `( ... )` and `; ...` comments from one G-code line and trims it.

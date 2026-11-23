@@ -1,3 +1,13 @@
+## [Unreleased] (2026-11-23)
+
+### Changed
+- **File Processing Settings:** Unified arc linearization configuration into a single `Arc Segment Length (mm)` setting (`0` disables arc linearization; positive values enable it consistently across G-code generation, previews, and streaming), removing the redundant `Linearize Arcs` toggle and `Minimum Arc Length` field.
+- **Designer Warnings:** Removed the obsolete warning dialog and G-code comment notice for arc centers falling outside the machine working area.
+
+### Fixed
+- **Arc Generation (`ToolpathToGcode`):** Validated start and end radii using rounded output coordinates and actual emitted start positions (`current_xy`), automatically falling back to linear `G01` moves when radius mismatch exceeds `0.002 mm` to prevent GRBL `error:33` controller stalls.
+
+
 ## [Unreleased] (2026-11-18) Offset for CNC machining in Designer
 - Geometry offset with sharp corners (the fix for `interpolate_polyline_arcs`).
 

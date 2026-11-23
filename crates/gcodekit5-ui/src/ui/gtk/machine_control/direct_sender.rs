@@ -54,6 +54,9 @@ pub struct DirectSender {
     // True only while this sender's worker thread owns the serial port.
     running: Arc<AtomicBool>,
     progress_tx: mpsc::Sender<SenderEvent>,
+    /// Última línea enviada al firmware: (índice 1-based en el programa preparado, texto).
+    /// Actualizada por el worker justo antes de cada `send_all`. Compartida con el panel.
+    pub last_sent: std::sync::Arc<std::sync::Mutex<Option<(usize, String)>>>,
 }
 
 impl DirectSender {
@@ -77,6 +80,7 @@ impl DirectSender {
                 should_stop: Arc::new(AtomicBool::new(false)),
                 running: Arc::new(AtomicBool::new(false)),
                 progress_tx: tx,
+                last_sent: Arc::new(std::sync::Mutex::new(None)),
             },
             rx,
         )
@@ -148,9 +152,10 @@ impl DirectSender {
         let running_flag = self.running.clone();
         let stop_flag = self.should_stop.clone();
         let tx = self.progress_tx.clone();
+        let last_sent = self.last_sent.clone();
 
         thread::spawn(move || {
-            let outcome = stream_lines(&lines, &comm, &stop_flag, &tx);
+            let outcome = stream_lines(&lines, &comm, &stop_flag, &tx, &last_sent);
             *streaming_flag.lock() = false;
             running_flag.store(false, Ordering::SeqCst);
             let _ = tx.send(SenderEvent::Finished(outcome));
@@ -237,6 +242,7 @@ impl Clone for DirectSender {
             should_stop: self.should_stop.clone(),
             running: self.running.clone(),
             progress_tx: self.progress_tx.clone(),
+            last_sent: self.last_sent.clone(),
         }
     }
 }
@@ -280,10 +286,19 @@ fn stream_lines(
     comm: &ThreadSafe<SerialCommunicator>,
     stop_flag: &AtomicBool,
     tx: &mpsc::Sender<SenderEvent>,
+    last_sent: &Arc<std::sync::Mutex<Option<(usize, String)>>>,
 ) -> JobOutcome {
     let mut splitter = ResponseLineSplitter::new();
     let mut unprocessed: Vec<String> = Vec::new();
-    let outcome = stream_job(lines, comm, stop_flag, tx, &mut splitter, &mut unprocessed);
+    let outcome = stream_job(
+        lines,
+        comm,
+        stop_flag,
+        tx,
+        &mut splitter,
+        &mut unprocessed,
+        last_sent,
+    );
 
     let mut rest: Vec<u8> = unprocessed
         .iter()
@@ -309,6 +324,7 @@ fn stream_job(
     tx: &mpsc::Sender<SenderEvent>,
     splitter: &mut ResponseLineSplitter,
     unprocessed: &mut Vec<String>,
+    last_sent: &Arc<std::sync::Mutex<Option<(usize, String)>>>,
 ) -> JobOutcome {
     let total = lines.len();
     let mut next = 0usize;
@@ -339,6 +355,10 @@ fn stream_job(
             // lock to send the soft reset, so no line can follow the reset.
             while next < total && !stop_flag.load(Ordering::SeqCst) && window.can_send(&lines[next])
             {
+                // Registra la línea que vamos a enviar, para diagnóstico si el firmware la rechaza.
+                if let Ok(mut guard) = last_sent.lock() {
+                    *guard = Some((next + 1, lines[next].clone()));
+                }
                 let cmd = format!("{}\n", lines[next]);
                 if let Err(e) = send_all(&mut c, cmd.as_bytes()) {
                     return JobOutcome::Stopped(format!("{} {e}", t!("send failed:")));

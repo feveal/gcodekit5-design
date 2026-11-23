@@ -115,7 +115,15 @@ impl SettingsWindow {
         let page = PreferencesPage::builder().title(title).build();
         let group = PreferencesGroup::builder().title(title).build();
 
-        let settings = self.controller.get_settings_for_ui(Some(category));
+        let mut settings = self.controller.get_settings_for_ui(Some(category.clone()));
+        if category == SettingsCategory::FileProcessing {
+            settings.sort_by_key(|setting| match setting.id.as_str() {
+                "preserve_comments" => 0,
+                "arc_segment_length" => 1,
+                "max_line_length" => 2,
+                _ => 3,
+            });
+        }
         for setting in settings {
             let row = self.create_setting_row(&setting);
             group.add(&row);
@@ -133,7 +141,10 @@ impl SettingsWindow {
         self.notebook.append_page(&scroller, Some(&tab_label));
     }
 
-    fn create_setting_row(&self, setting: &SettingUiModel) -> PreferencesRow {
+    fn create_setting_row(
+        &self,
+        setting: &SettingUiModel,
+    ) -> PreferencesRow {
         let controller = self.controller.clone();
         let id = setting.id.clone();
 
@@ -151,7 +162,6 @@ impl SettingsWindow {
 
                 let id_clone = id.clone();
                 let controller_clone = controller.clone();
-
                 switch.connect_state_set(move |_, state| {
                     controller_clone.update_setting(&id_clone, &state.to_string());
                     glib::Propagation::Proceed
@@ -250,7 +260,6 @@ impl SettingsWindow {
                 entry.connect_changed(move |e| {
                     controller_clone.update_setting(&id_clone, &e.text());
                 });
-
                 row.add_suffix(&entry);
                 row.upcast()
             }

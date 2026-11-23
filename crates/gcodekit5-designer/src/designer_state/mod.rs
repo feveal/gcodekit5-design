@@ -85,6 +85,8 @@ pub struct DesignerState {
     pub show_stock_removal: bool,
     /// Number of axes on the active device (default 3).
     pub num_axes: u8,
+    /// Minimum arc chord/radius length before converting to linear G01 (mm).
+    pub arc_segment_length: f64,
 }
 
 impl DesignerState {
@@ -133,6 +135,7 @@ impl DesignerState {
             }),
             show_stock_removal: false,
             num_axes: 3,
+            arc_segment_length: 0.5,
         }
     }
 
@@ -241,6 +244,14 @@ impl DesignerState {
             MachineMode::Cnc3D => Self::CNC_DEFAULT_TOOL_DIAMETER_MM,
         };
         self.set_tool_diameter(default_tool_diameter);
+    }
+
+    /// Sets the minimum arc segment length (mm) from file processing preferences.
+    pub fn set_arc_segment_length(&mut self, length: f64) {
+        if length.is_finite() && length > 0.0 {
+            self.arc_segment_length = length;
+            self.gcode_generated = false;
+        }
     }
 }
 

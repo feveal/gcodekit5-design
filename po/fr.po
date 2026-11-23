@@ -1180,10 +1180,14 @@ msgid "Unsaved changes"
 msgstr "Modifications non enregistrées"
 
 msgid "The current design has unsaved changes. Save them before continuing?"
-msgstr "Le dessin actuel contient des modifications non enregistrées. Les enregistrer avant de continuer ?"
+msgstr ""
+"Le dessin actuel contient des modifications non enregistrées. Les "
+"enregistrer avant de continuer ?"
 
 msgid "The tool has unsaved changes. Save them before continuing?"
-msgstr "L'outil contient des modifications non enregistrées. Les enregistrer avant de continuer ?"
+msgstr ""
+"L'outil contient des modifications non enregistrées. Les enregistrer avant "
+"de continuer ?"
 
 msgid "Could not save the tool:"
 msgstr "Impossible d'enregistrer l'outil :"
@@ -1194,8 +1198,11 @@ msgstr "Échec de la suppression"
 msgid "Could not delete the tool:"
 msgstr "Impossible de supprimer l'outil :"
 
-msgid "The G-code in the editor has unsaved changes. Save them before continuing?"
-msgstr "Le G-code de l'éditeur contient des modifications non enregistrées. Les enregistrer avant de continuer ?"
+msgid ""
+"The G-code in the editor has unsaved changes. Save them before continuing?"
+msgstr ""
+"Le G-code de l'éditeur contient des modifications non enregistrées. Les "
+"enregistrer avant de continuer ?"
 
 msgid "Discard"
 msgstr "Abandonner"
@@ -1329,6 +1336,9 @@ msgstr "G-code exporté :"
 
 msgid "Export Failed"
 msgstr "Échec de l'export"
+
+msgid "G-code processing failed"
+msgstr "Échec du traitement du G-code"
 
 msgid "Export SVG"
 msgstr "Exporter en SVG"
@@ -2286,7 +2296,6 @@ msgstr "Déconnecté"
 msgid "Connect to enable controls."
 msgstr "Connectez-vous pour activer les commandes."
 
-#, rust-format
 msgid ""
 "Connection rejected: active machine is configured as {} but the device "
 "responded as {}. Change the active machine in the Device Manager."
@@ -2319,7 +2328,6 @@ msgstr "Connecté"
 msgid "Connected to"
 msgstr "Connecté à"
 
-#, rust-format
 msgid ""
 "→ Protocol: {}\n"
 "  sender: {}"
@@ -2884,7 +2892,9 @@ msgstr "En bas à gauche"
 msgid ""
 "Where on the stock the program's work X0 Y0 is set: the lower-left corner or "
 "the centre of the stock."
-msgstr "Où se trouve le X0 Y0 de travail du programme sur le brut : le coin inférieur gauche ou le centre du brut."
+msgstr ""
+"Où se trouve le X0 Y0 de travail du programme sur le brut : le coin "
+"inférieur gauche ou le centre du brut."
 
 msgid "Stock XY0 at:"
 msgstr "XY0 du brut sur :"
@@ -2930,6 +2940,9 @@ msgstr "Maj+bouton gauche+glisser : déplacer"
 
 msgid "Mouse wheel: Zoom+/-"
 msgstr "Molette : zoom +/-"
+
+msgid "Ctrl+Mouse wheel: Fast Zoom+/-"
+msgstr "Ctrl+molette : zoom rapide +/-"
 
 msgid "Left Button+Drag: Orbit"
 msgstr "Bouton gauche+glisser : orbite"
@@ -3002,7 +3015,8 @@ msgid "Retrieving settings and device info..."
 msgstr "Récupération des paramètres et des informations de l'appareil..."
 
 msgid "Settings retrieval incomplete (timed out), settings received:"
-msgstr "Récupération des paramètres incomplète (délai dépassé), paramètres reçus :"
+msgstr ""
+"Récupération des paramètres incomplète (délai dépassé), paramètres reçus :"
 
 msgid "the controller replied"
 msgstr "le contrôleur a répondu"
@@ -3018,3 +3032,17 @@ msgstr "Intérieur"
 
 msgid "External"
 msgstr "Extérieur"
+
+msgid "Arc Segment Length (mm)"
+msgstr "Longueur du segment d'arc (mm)"
+
+msgid "Length of arc segments for arc-to-line expansion"
+msgstr ""
+"Longueur des segments d’arc pour le développement d’arcs en segments "
+"linéaires"
+
+msgid "Max Line Length"
+msgstr "Longueur maximale de ligne"
+
+msgid "Maximum characters per line in output files"
+msgstr "Nombre maximal de caractères par ligne dans les fichiers de sortie"

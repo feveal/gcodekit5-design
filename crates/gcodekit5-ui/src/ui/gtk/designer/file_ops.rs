@@ -524,13 +524,23 @@ impl DesignerView {
         let status_label = self.status_label.clone();
         let settings_persistence_clone = self.settings_persistence.clone();
         let toolbox = self.toolbox.clone();
+        let parent_for_cursor = parent.clone();
         // Open dialogs take no file name (`set_initial_name` only applies to Save).
 
         dialog.pick_open(parent.as_ref(), move |file| {
                     if let Some(path) = file.path() {
+                        let previous_window_cursor = parent_for_cursor
+                            .as_ref()
+                            .and_then(|window| window.cursor());
+                        let previous_canvas_cursor = canvas.widget.cursor();
+                        if let Some(window) = parent_for_cursor.as_ref() {
+                            window.set_cursor_from_name(Some("wait"));
+                        }
+                        canvas.widget.set_cursor_from_name(Some("wait"));
 
-
-
+                        gtk4::glib::timeout_add_local_once(
+                            std::time::Duration::from_millis(100),
+                            move || {
 
                         // --- SAVE THE PATH ON IMPORT ---
                         if let Some(ref settings) = settings_persistence_clone
@@ -707,6 +717,12 @@ impl DesignerView {
                                 ));
                             }
                         }
+                        canvas.widget.set_cursor(previous_canvas_cursor.as_ref());
+                        if let Some(window) = parent_for_cursor.as_ref() {
+                            window.set_cursor(previous_window_cursor.as_ref());
+                        }
+                            },
+                        );
                     }
                 });
     }
@@ -852,14 +868,28 @@ impl DesignerView {
 
                         // The same working area Generate checks: the active
                         // device profile, else the Preferences limits.
-                        let limits = settings_persistence_for_limits.as_ref().and_then(|p| {
-                            super::designer_machine_limits(
-                                canvas.device_manager.as_ref(),
-                                &p.borrow(),
-                            )
-                        });
+                        let (limits, arc_segment_length) = settings_persistence_for_limits
+                            .as_ref()
+                            .map(|p| {
+                                let s = p.borrow();
+                                (
+                                    super::designer_machine_limits(
+                                        canvas.device_manager.as_ref(),
+                                        &s,
+                                    ),
+                                    Some(s.config().file_processing.arc_segment_length),
+                                )
+                            })
+                            .unwrap_or((None, None));
+
+                        if let Some(arc_len) = arc_segment_length {
+                            state.set_arc_segment_length(arc_len);
+                        }
+
                         let (gcode, has_out_of_limits_warning) =
                             state.generate_gcode_with_warning_info(limits);
+
+                        drop(state);
 
                         if has_out_of_limits_warning {
                             let parent = crate::ui::gtk::file_dialog::parent_window(&canvas.widget);
@@ -869,6 +899,24 @@ impl DesignerView {
                                 parent.as_ref(),
                             );
                         }
+
+                        let gcode = match super::linearize_generated_gcode(
+                            &gcode,
+                            settings_persistence_for_limits.as_ref(),
+                        ) {
+                            Ok(gcode) => gcode,
+                            Err(reason) => {
+                                status_label.set_text(&t!("G-code processing failed"));
+                                let parent =
+                                    crate::ui::gtk::file_dialog::parent_window(&canvas.widget);
+                                crate::ui::gtk::common::dialog::show_warning(
+                                    &t!("G-code processing failed"),
+                                    &reason,
+                                    parent.as_ref(),
+                                );
+                                return;
+                            }
+                        };
 
                         match std::fs::write(&path, gcode) {
                             Ok(_) => {

@@ -177,45 +177,34 @@ impl DesignerState {
     /// Phase 1 of G-code generation: the G-code writer set up for the
     /// stock (safe Z, Z floor), the machine limits and the machine mode.
     fn configured_gcode_generator(&self, machine_limits: Option<MachineLimits>) -> ToolpathToGcode {
-        // Get safe_z from stock_material, default to 10.0 if not set
         let safe_z = self
             .stock_material
             .as_ref()
             .map(|s| s.safe_z as f64)
             .unwrap_or(10.0);
         let mut gcode_gen = ToolpathToGcode::new(Units::MM, safe_z)
-            .with_continuous_z_between_passes(self.tool_settings.continuous_z_between_passes);
+            .with_continuous_z_between_passes(self.tool_settings.continuous_z_between_passes)
+            .with_arc_segment_length(self.arc_segment_length);
 
         if let Some(limits) = machine_limits {
             gcode_gen = gcode_gen.with_machine_limits(limits);
         }
 
-        // In CNC mode machine Z is absolute with the table at 0 and the stock top
-        // at the stock thickness, so a configured stock bounds Z from below at 0.
         if self.machine_mode() == MachineMode::Cnc3D && self.stock_material.is_some() {
             gcode_gen = gcode_gen.with_z_min_limit(0.0);
         }
 
-        // Use state mode:
+        gcode_gen.num_axes = self.num_axes;
+
         match self.machine_mode() {
             MachineMode::Laser2D => {
-                gcode_gen = gcode_gen.with_laser_2d();
+                gcode_gen = gcode_gen
+                    .with_laser_2d()
+                    .with_coordinate_precision(4)
+                    .with_curve_tolerance(0.05)
+                    .with_min_point_distance(0.15);
             }
             MachineMode::Cnc3D => {}
-        }
-
-        gcode_gen.num_axes = self.num_axes;
-        if self.num_axes < 3 {
-            // Use state mode:
-            match self.machine_mode() {
-                MachineMode::Laser2D => {
-                    gcode_gen = gcode_gen
-                        .with_laser_2d()
-                        .with_curve_tolerance(0.05) // Adjust as needed (0.03 ~ 0.15)
-                        .with_min_point_distance(0.15);
-                }
-                MachineMode::Cnc3D => {}
-            }
         }
         gcode_gen
     }
@@ -846,6 +835,7 @@ impl DesignerState {
         self.gcode_generated = self.canvas.shape_count() > 0;
         (gcode, has_violation)
     }
+
 
     /// Generates G-code from the current design.
     pub fn generate_gcode(&mut self, machine_limits: Option<MachineLimits>) -> String {

@@ -1171,10 +1171,13 @@ msgid "Unsaved changes"
 msgstr "Ungespeicherte Änderungen"
 
 msgid "The current design has unsaved changes. Save them before continuing?"
-msgstr "Das aktuelle Design hat ungespeicherte Änderungen. Vor dem Fortfahren speichern?"
+msgstr ""
+"Das aktuelle Design hat ungespeicherte Änderungen. Vor dem Fortfahren "
+"speichern?"
 
 msgid "The tool has unsaved changes. Save them before continuing?"
-msgstr "Das Werkzeug hat ungespeicherte Änderungen. Vor dem Fortfahren speichern?"
+msgstr ""
+"Das Werkzeug hat ungespeicherte Änderungen. Vor dem Fortfahren speichern?"
 
 msgid "Could not save the tool:"
 msgstr "Das Werkzeug konnte nicht gespeichert werden:"
@@ -1185,8 +1188,11 @@ msgstr "Löschen fehlgeschlagen"
 msgid "Could not delete the tool:"
 msgstr "Das Werkzeug konnte nicht gelöscht werden:"
 
-msgid "The G-code in the editor has unsaved changes. Save them before continuing?"
-msgstr "Der G-Code im Editor hat ungespeicherte Änderungen. Vor dem Fortfahren speichern?"
+msgid ""
+"The G-code in the editor has unsaved changes. Save them before continuing?"
+msgstr ""
+"Der G-Code im Editor hat ungespeicherte Änderungen. Vor dem Fortfahren "
+"speichern?"
 
 msgid "Discard"
 msgstr "Verwerfen"
@@ -1318,6 +1324,9 @@ msgstr "G-Code exportiert:"
 
 msgid "Export Failed"
 msgstr "Export fehlgeschlagen"
+
+msgid "G-code processing failed"
+msgstr "G-Code-Verarbeitung fehlgeschlagen"
 
 msgid "Export SVG"
 msgstr "SVG exportieren"
@@ -2276,7 +2285,6 @@ msgstr "Getrennt"
 msgid "Connect to enable controls."
 msgstr "Verbinden, um die Steuerung zu aktivieren."
 
-#, rust-format
 msgid ""
 "Connection rejected: active machine is configured as {} but the device "
 "responded as {}. Change the active machine in the Device Manager."
@@ -2308,7 +2316,6 @@ msgstr "Verbunden"
 msgid "Connected to"
 msgstr "Verbunden mit"
 
-#, rust-format
 msgid ""
 "→ Protocol: {}\n"
 "  sender: {}"
@@ -2876,7 +2883,9 @@ msgstr "Unten links"
 msgid ""
 "Where on the stock the program's work X0 Y0 is set: the lower-left corner or "
 "the centre of the stock."
-msgstr "Wo auf dem Rohteil der Werkstücknullpunkt X0 Y0 des Programms liegt: an der unteren linken Ecke oder in der Mitte des Rohteils."
+msgstr ""
+"Wo auf dem Rohteil der Werkstücknullpunkt X0 Y0 des Programms liegt: an der "
+"unteren linken Ecke oder in der Mitte des Rohteils."
 
 msgid "Stock XY0 at:"
 msgstr "Rohteil-XY0 bei:"
@@ -2922,6 +2931,9 @@ msgstr "Umschalt+Linke Taste+Ziehen: Verschieben"
 
 msgid "Mouse wheel: Zoom+/-"
 msgstr "Mausrad: Zoom +/-"
+
+msgid "Ctrl+Mouse wheel: Fast Zoom+/-"
+msgstr "Strg+Mausrad: Schnellzoom +/-"
 
 msgid "Left Button+Drag: Orbit"
 msgstr "Linke Taste+Ziehen: Drehen"
@@ -2975,7 +2987,6 @@ msgstr "Repetier EEPROM"
 msgid "Tpulley"
 msgstr "Tpulley"
 
-
 msgid "Edit EEPROM Pos"
 msgstr "EEPROM-Position bearbeiten"
 
@@ -2995,7 +3006,9 @@ msgid "Retrieving settings and device info..."
 msgstr "Einstellungen und Geräteinformationen werden abgerufen..."
 
 msgid "Settings retrieval incomplete (timed out), settings received:"
-msgstr "Einstellungen unvollständig abgerufen (Zeitüberschreitung), empfangene Einstellungen:"
+msgstr ""
+"Einstellungen unvollständig abgerufen (Zeitüberschreitung), empfangene "
+"Einstellungen:"
 
 msgid "the controller replied"
 msgstr "die Steuerung antwortete"
@@ -3011,3 +3024,15 @@ msgstr "Innen"
 
 msgid "External"
 msgstr "Außen"
+
+msgid "Arc Segment Length (mm)"
+msgstr "Bogenabschnittslänge (mm)"
+
+msgid "Length of arc segments for arc-to-line expansion"
+msgstr "Länge von Bogensegmenten für die Erweiterung von Bögen zu Geraden"
+
+msgid "Max Line Length"
+msgstr "Maximale Zeilenlänge"
+
+msgid "Maximum characters per line in output files"
+msgstr "Maximale Zeichenanzahl pro Zeile in Ausgabedateien"

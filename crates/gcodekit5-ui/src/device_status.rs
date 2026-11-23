@@ -492,3 +492,30 @@ pub fn reports_in_inches() -> bool {
 pub fn get_status() -> GrblDeviceStatus {
     DEVICE_STATUS.read().clone()
 }
+
+/// Resumen legible del estado actual, para diagnóstico de errores en el log.
+///
+/// Incluye estado, posiciones (MPos/WPos), offset de coordenadas de trabajo,
+/// número de ejes y si el controlador reporta en pulgadas.
+pub fn get_status_snapshot() -> String {
+    let s = get_status();
+    let mut out = format!("State: {}", s.state);
+    match s.machine_position.as_ref() {
+        Some(p) => out.push_str(&format!(" | MPos: {:?}", p)),
+        None => out.push_str(" | MPos: -"),
+    }
+    match s.work_position.as_ref() {
+        Some(w) => out.push_str(&format!(" | WPos: {:?}", w)),
+        None => out.push_str(" | WPos: -"),
+    }
+    if let Some(wco) = s.work_coordinate_offset.as_ref() {
+        out.push_str(&format!(" | WCO: {:?}", wco));
+    }
+    out.push_str(&format!(" | Axes: {}", get_active_num_axes()));
+    if reports_in_inches() {
+        out.push_str(" | Units: in");
+    } else {
+        out.push_str(" | Units: mm");
+    }
+    out
+}

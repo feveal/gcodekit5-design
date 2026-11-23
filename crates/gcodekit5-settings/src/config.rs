@@ -554,8 +554,8 @@ impl Config {
         }
 
         // Validate file processing
-        if self.file_processing.arc_segment_length <= 0.0 {
-            return Err(Error::other("Arc segment length must be > 0".to_string()));
+        if self.file_processing.arc_segment_length < 0.0 {
+            return Err(Error::other("Arc segment length must be >= 0".to_string()));
         }
 
         if self.file_processing.max_line_length == 0 {

@@ -57,6 +57,23 @@ pub(crate) fn designer_machine_limits(
     )
 }
 
+fn linearize_generated_gcode(
+    content: &str,
+    settings: Option<&Shared<gcodekit5_settings::SettingsPersistence>>,
+) -> Result<String, String> {
+    let Some(settings) = settings else {
+        return Ok(content.to_string());
+    };
+    let settings = settings.borrow();
+    let file = &settings.config().file_processing;
+
+    crate::ui::gtk::machine_control::grbl_stream::linearize_program_for_display(
+        content,
+        f64::INFINITY,
+        file.arc_segment_length,
+    )
+}
+
 // Complex type due to GTK widget and callback fields.
 #[allow(clippy::type_complexity)]
 pub struct DesignerView {
@@ -85,6 +102,16 @@ impl DesignerView {
 
         // Create designer state
         let state = shared(DesignerState::new());
+
+        {
+            let arc_len = settings_controller
+                .persistence
+                .borrow()
+                .config()
+                .file_processing
+                .arc_segment_length;
+            state.borrow_mut().set_arc_segment_length(arc_len);
+        }
 
         // Create main horizontal layout (toolbox + canvas + properties)
         let main_box = Box::new(Orientation::Horizontal, 0);
@@ -669,9 +696,26 @@ impl DesignerView {
                 match image_engraver::ImageEngraver::from_raster_image(&raster_image, params) {
                     Ok(engraver) => match engraver.generate_gcode() {
                         Ok(gcode) => {
-                            status_label_gen.set_text(&t!("G-Code generated for image"));
-                            if let Some(callback) = on_gen.borrow().as_ref() {
-                                callback(gcode);
+                            match linearize_generated_gcode(&gcode, Some(&settings_for_limits)) {
+                                Ok(gcode) => {
+                                    status_label_gen
+                                        .set_text(&t!("G-Code generated for image"));
+                                    if let Some(callback) = on_gen.borrow().as_ref() {
+                                        callback(gcode);
+                                    }
+                                }
+                                Err(reason) => {
+                                    status_label_gen
+                                        .set_text(&t!("G-code processing failed"));
+                                    let parent = crate::ui::gtk::file_dialog::parent_window(
+                                        &canvas_gen.widget,
+                                    );
+                                    crate::ui::gtk::common::dialog::show_warning(
+                                        &t!("G-code processing failed"),
+                                        &reason,
+                                        parent.as_ref(),
+                                    );
+                                }
                             }
                         }
                         Err(e) => {
@@ -735,12 +779,17 @@ impl DesignerView {
                 state.toolpath_generator.set_start_depth(start_depth);
                 state.toolpath_generator.set_step_in(tool_diameter * 0.4);
 
-                let limits = designer_machine_limits(
-                    device_manager.as_ref(),
-                    &settings_for_limits.borrow(),
-                );
+                let (limits, arc_segment_length) = {
+                    let s = settings_for_limits.borrow();
+                    (
+                        designer_machine_limits(device_manager.as_ref(), &s),
+                        s.config().file_processing.arc_segment_length,
+                    )
+                };
+                state.set_arc_segment_length(arc_segment_length);
 
-                let (gcode, has_out_of_limits_warning) = state.generate_gcode_with_warning_info(limits);
+                let (gcode, has_out_of_limits_warning) =
+                    state.generate_gcode_with_warning_info(limits);
 
                 drop(state);
 
@@ -752,6 +801,21 @@ impl DesignerView {
                         parent.as_ref(),
                     );
                 }
+
+                let gcode = match linearize_generated_gcode(&gcode, Some(&settings_for_limits)) {
+                    Ok(gcode) => gcode,
+                    Err(reason) => {
+                        status_label_gen.set_text(&t!("G-code processing failed"));
+                        let parent =
+                            crate::ui::gtk::file_dialog::parent_window(&canvas_gen.widget);
+                        crate::ui::gtk::common::dialog::show_warning(
+                            &t!("G-code processing failed"),
+                            &reason,
+                            parent.as_ref(),
+                        );
+                        return;
+                    }
+                };
 
                 status_label_gen.set_text(&t!("G-Code generated"));
 
@@ -783,13 +847,6 @@ impl DesignerView {
             settings_persistence: Some(settings_controller.persistence.clone()),
         });
 
-        // Empty state actions
-        /*
-                {
-                    let v = view.clone();
-                    empty_new_btn.connect_clicked(move |_| v.new_file());
-                }
-        */
         {
             let v = view.clone();
             empty_open_btn.connect_clicked(move |_| v.open_file());
@@ -816,6 +873,17 @@ impl DesignerView {
                 }
                 let enabled = value == "true";
                 empty_import_stl_btn.set_visible(enabled);
+            });
+        }
+
+        {
+            let state_arc = state.clone();
+            settings_controller.on_setting_changed(move |key, value| {
+                if key == "arc_segment_length"
+                    && let Ok(len) = value.parse::<f64>()
+                {
+                    state_arc.borrow_mut().set_arc_segment_length(len);
+                }
             });
         }
 

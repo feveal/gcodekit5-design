@@ -182,7 +182,7 @@ fn test_designer_cnc_cut_within_stock_has_no_warning() {
     let mut state = DesignerState::new();
     state.set_machine_mode(MachineMode::Cnc3D);
     state.canvas.add_rectangle(10.0, 10.0, 20.0, 20.0);
-    let (gcode, warn) = state.generate_gcode_with_warning_info(Some(limits()));
+    let (gcode, warn, _) = state.generate_gcode_with_warning_info(Some(limits()));
     assert!(!warn, "{gcode}");
     assert!(!gcode.contains("OUT OF LIMITS"));
 }
@@ -195,7 +195,7 @@ fn test_designer_cnc_cut_below_stock_bottom_warns() {
     let obj = state.canvas.get_shape_mut(id).expect("shape");
     // Stock is 10 mm thick; cutting 12 mm deep goes below the stock bottom.
     obj.start_depth = 12.0;
-    let (_, warn) = state.generate_gcode_with_warning_info(Some(limits()));
+    let (_, warn, _) = state.generate_gcode_with_warning_info(Some(limits()));
     assert!(warn);
 }
 
@@ -308,6 +308,73 @@ fn test_laser_program_does_not_start_spindle() {
         !gcode_words(&gcode).iter().any(|l| l.starts_with("M3")),
         "{gcode}"
     );
+}
+
+#[test]
+fn test_vector_laser_gcode_uses_four_coordinate_decimals() {
+    let mut state = DesignerState::new();
+    state.set_machine_mode(MachineMode::Laser2D);
+    let id = state
+        .canvas
+        .add_rectangle(0.12345, 0.23456, 10.12345, 8.23456);
+    let object = state
+        .canvas
+        .get_shape_mut(id)
+        .expect("shape was just added");
+    let gcodekit5_designer::model::Shape::Rectangle(rectangle) = &mut object.shape else {
+        panic!("added shape must be a rectangle");
+    };
+    rectangle.corner_radius = 1.5;
+
+    let gcode = state.generate_gcode(None);
+    let move_lines: Vec<&str> = gcode
+        .lines()
+        .filter(|line| {
+            matches!(
+                line.split_whitespace().next(),
+                Some("G00" | "G01" | "G02" | "G03")
+            )
+        })
+        .collect();
+
+    assert!(!move_lines.is_empty(), "{gcode}");
+    assert!(
+        move_lines
+            .iter()
+            .any(|line| line.starts_with("G02 ") || line.starts_with("G03 ")),
+        "{gcode}"
+    );
+    for line in move_lines {
+        for word in line
+            .split_whitespace()
+            .filter(|word| matches!(word.chars().next(), Some('X' | 'Y' | 'Z' | 'I' | 'J')))
+        {
+            let Some((_, decimals)) = word[1..].split_once('.') else {
+                assert_eq!(&word[1..], "0", "{line}");
+                continue;
+            };
+            assert_eq!(decimals.len(), 4, "{line}");
+        }
+    }
+}
+
+#[test]
+fn test_gcode_coordinate_precision_can_be_set_to_two_decimals() {
+    let mut toolpath = Toolpath::new(1.0, 0.0);
+    toolpath.segments.push(ToolpathSegment::new(
+        ToolpathSegmentType::LinearMove,
+        Point::new(0.0, 0.0),
+        Point::new(1.23456, 2.34567),
+        100.0,
+        1000,
+    ));
+
+    let gcode = ToolpathToGcode::new(Units::MM, 5.0)
+        .with_laser_2d()
+        .with_coordinate_precision(2)
+        .generate_body(&toolpath, 10);
+
+    assert!(gcode.contains("X1.23 Y2.35"), "{gcode}");
 }
 
 /// Value of word `k` (e.g. `X`) on a G-code line.

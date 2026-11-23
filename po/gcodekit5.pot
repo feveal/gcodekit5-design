@@ -1281,6 +1281,9 @@ msgstr ""
 msgid "Export Failed"
 msgstr ""
 
+msgid "G-code processing failed"
+msgstr ""
+
 msgid "Export SVG"
 msgstr ""
 
@@ -2848,6 +2851,9 @@ msgstr ""
 msgid "Mouse wheel: Zoom+/-"
 msgstr ""
 
+msgid "Ctrl+Mouse wheel: Fast Zoom+/-"
+msgstr ""
+
 msgid "Left Button+Drag: Orbit"
 msgstr ""
 
@@ -2934,4 +2940,16 @@ msgid "Internal"
 msgstr ""
 
 msgid "External"
+msgstr ""
+
+msgid "Arc Segment Length (mm)"
+msgstr ""
+
+msgid "Length of arc segments for arc-to-line expansion"
+msgstr ""
+
+msgid "Max Line Length"
+msgstr ""
+
+msgid "Maximum characters per line in output files"
 msgstr ""

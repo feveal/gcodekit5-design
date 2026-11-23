@@ -1178,10 +1178,12 @@ msgid "Unsaved changes"
 msgstr "Cambios sin guardar"
 
 msgid "The current design has unsaved changes. Save them before continuing?"
-msgstr "El diseño actual tiene cambios sin guardar. ¿Guardarlos antes de continuar?"
+msgstr ""
+"El diseño actual tiene cambios sin guardar. ¿Guardarlos antes de continuar?"
 
 msgid "The tool has unsaved changes. Save them before continuing?"
-msgstr "La herramienta tiene cambios sin guardar. ¿Guardarlos antes de continuar?"
+msgstr ""
+"La herramienta tiene cambios sin guardar. ¿Guardarlos antes de continuar?"
 
 msgid "Could not save the tool:"
 msgstr "No se pudo guardar la herramienta:"
@@ -1192,8 +1194,11 @@ msgstr "Error al eliminar"
 msgid "Could not delete the tool:"
 msgstr "No se pudo eliminar la herramienta:"
 
-msgid "The G-code in the editor has unsaved changes. Save them before continuing?"
-msgstr "El G-code del editor tiene cambios sin guardar. ¿Guardarlos antes de continuar?"
+msgid ""
+"The G-code in the editor has unsaved changes. Save them before continuing?"
+msgstr ""
+"El G-code del editor tiene cambios sin guardar. ¿Guardarlos antes de "
+"continuar?"
 
 msgid "Discard"
 msgstr "Descartar"
@@ -1324,6 +1329,9 @@ msgstr "G-Code Exportado:"
 
 msgid "Export Failed"
 msgstr "Error de exportación"
+
+msgid "G-code processing failed"
+msgstr "Error al procesar el G-code"
 
 msgid "Export SVG"
 msgstr "Exportar SVG"
@@ -2281,7 +2289,6 @@ msgstr "Desconectado"
 msgid "Connect to enable controls."
 msgstr "Conectarse para habilitar controles."
 
-#, rust-format
 msgid ""
 "Connection rejected: active machine is configured as {} but the device "
 "responded as {}. Change the active machine in the Device Manager."
@@ -2314,7 +2321,6 @@ msgstr "Conectado"
 msgid "Connected to"
 msgstr "Conectado a"
 
-#, rust-format
 msgid ""
 "→ Protocol: {}\n"
 "  sender: {}"
@@ -2880,7 +2886,9 @@ msgstr "Abajo a la izquierda"
 msgid ""
 "Where on the stock the program's work X0 Y0 is set: the lower-left corner or "
 "the centre of the stock."
-msgstr "Dónde está el X0 Y0 de trabajo del programa en el material: la esquina inferior izquierda o el centro del material."
+msgstr ""
+"Dónde está el X0 Y0 de trabajo del programa en el material: la esquina "
+"inferior izquierda o el centro del material."
 
 msgid "Stock XY0 at:"
 msgstr "XY0 del material en:"
@@ -2926,6 +2934,9 @@ msgstr "Shift+botón izq.+arrastrar: Encuadre"
 
 msgid "Mouse wheel: Zoom+/-"
 msgstr "Rueda del Ratón: Zoom +/-"
+
+msgid "Ctrl+Mouse wheel: Fast Zoom+/-"
+msgstr "Ctrl+Rueda ratón: Zoom rápido+/-"
 
 msgid "Left Button+Drag: Orbit"
 msgstr "Botón izq.+arrastrar: Orbita"
@@ -3014,3 +3025,15 @@ msgstr "Interno"
 
 msgid "External"
 msgstr "Externo"
+
+msgid "Arc Segment Length (mm)"
+msgstr "Longitud del segmento de arco (mm)"
+
+msgid "Length of arc segments for arc-to-line expansion"
+msgstr "Longitud de los segmentos de arco para la expansión de arcos a líneas"
+
+msgid "Max Line Length"
+msgstr "Longitud máxima de línea"
+
+msgid "Maximum characters per line in output files"
+msgstr "Número máximo de caracteres por línea en los archivos de salida"

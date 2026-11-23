@@ -1174,7 +1174,8 @@ msgid "Unsaved changes"
 msgstr "Modifiche non salvate"
 
 msgid "The current design has unsaved changes. Save them before continuing?"
-msgstr "Il progetto corrente ha modifiche non salvate. Salvarle prima di continuare?"
+msgstr ""
+"Il progetto corrente ha modifiche non salvate. Salvarle prima di continuare?"
 
 msgid "The tool has unsaved changes. Save them before continuing?"
 msgstr "L'utensile ha modifiche non salvate. Salvarle prima di continuare?"
@@ -1188,8 +1189,10 @@ msgstr "Eliminazione non riuscita"
 msgid "Could not delete the tool:"
 msgstr "Impossibile eliminare l'utensile:"
 
-msgid "The G-code in the editor has unsaved changes. Save them before continuing?"
-msgstr "Il G-code nell'editor ha modifiche non salvate. Salvarle prima di continuare?"
+msgid ""
+"The G-code in the editor has unsaved changes. Save them before continuing?"
+msgstr ""
+"Il G-code nell'editor ha modifiche non salvate. Salvarle prima di continuare?"
 
 msgid "Discard"
 msgstr "Scarta"
@@ -1321,6 +1324,9 @@ msgstr "G-Code esportato:"
 
 msgid "Export Failed"
 msgstr "Esportazione non riuscita"
+
+msgid "G-code processing failed"
+msgstr "Elaborazione del G-code non riuscita"
 
 msgid "Export SVG"
 msgstr "Esporta SVG"
@@ -2277,7 +2283,6 @@ msgstr "Disconnesso"
 msgid "Connect to enable controls."
 msgstr "Connettiti per abilitare i controlli."
 
-#, rust-format
 msgid ""
 "Connection rejected: active machine is configured as {} but the device "
 "responded as {}. Change the active machine in the Device Manager."
@@ -2310,7 +2315,6 @@ msgstr "Connesso"
 msgid "Connected to"
 msgstr "Connesso a"
 
-#, rust-format
 msgid ""
 "→ Protocol: {}\n"
 "  sender: {}"
@@ -2880,7 +2884,9 @@ msgstr "In basso a sinistra"
 msgid ""
 "Where on the stock the program's work X0 Y0 is set: the lower-left corner or "
 "the centre of the stock."
-msgstr "Dove si trova l'X0 Y0 di lavoro del programma sul grezzo: l'angolo in basso a sinistra o il centro del grezzo."
+msgstr ""
+"Dove si trova l'X0 Y0 di lavoro del programma sul grezzo: l'angolo in basso "
+"a sinistra o il centro del grezzo."
 
 msgid "Stock XY0 at:"
 msgstr "XY0 del grezzo a:"
@@ -2926,6 +2932,9 @@ msgstr "Maiusc+tasto sinistro+trascina: sposta"
 
 msgid "Mouse wheel: Zoom+/-"
 msgstr "Rotellina: zoom +/-"
+
+msgid "Ctrl+Mouse wheel: Fast Zoom+/-"
+msgstr "Ctrl+rotellina: zoom rapido +/-"
 
 msgid "Left Button+Drag: Orbit"
 msgstr "Tasto sinistro+trascina: orbita"
@@ -2998,7 +3007,9 @@ msgid "Retrieving settings and device info..."
 msgstr "Recupero delle impostazioni e delle informazioni del dispositivo..."
 
 msgid "Settings retrieval incomplete (timed out), settings received:"
-msgstr "Recupero delle impostazioni incompleto (tempo scaduto), impostazioni ricevute:"
+msgstr ""
+"Recupero delle impostazioni incompleto (tempo scaduto), impostazioni "
+"ricevute:"
 
 msgid "the controller replied"
 msgstr "il controller ha risposto"
@@ -3014,3 +3025,15 @@ msgstr "Interno"
 
 msgid "External"
 msgstr "Esterno"
+
+msgid "Arc Segment Length (mm)"
+msgstr "Lunghezza del segmento d'arco (mm)"
+
+msgid "Length of arc segments for arc-to-line expansion"
+msgstr "Lunghezza dei segmenti d'arco per l'espansione da arco a linea"
+
+msgid "Max Line Length"
+msgstr "Lunghezza massima della riga"
+
+msgid "Maximum characters per line in output files"
+msgstr "Numero massimo di caratteri per riga nei file di output"

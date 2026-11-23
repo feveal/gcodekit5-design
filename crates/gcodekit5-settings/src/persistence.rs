@@ -427,10 +427,10 @@ impl SettingsPersistence {
         dialog.add_setting(
             Setting::new(
                 "arc_segment_length",
-                "Arc Segment Length (mm)",
+                t!("Arc Segment Length (mm)"),
                 SettingValue::String(file.arc_segment_length.to_string()),
             )
-            .with_description("Length of arc segments for arc-to-line expansion")
+            .with_description(t!("Length of arc segments for arc-to-line expansion"))
             .with_category(SettingsCategory::FileProcessing),
         );
 
@@ -438,10 +438,10 @@ impl SettingsPersistence {
         dialog.add_setting(
             Setting::new(
                 "max_line_length",
-                "Max Line Length",
+                t!("Max Line Length"),
                 SettingValue::Integer(file.max_line_length as i32),
             )
-            .with_description("Maximum characters per line in output files")
+            .with_description(t!("Maximum characters per line in output files"))
             .with_category(SettingsCategory::FileProcessing),
         );
     }
