@@ -836,7 +836,6 @@ impl DesignerState {
         (gcode, has_violation)
     }
 
-
     /// Generates G-code from the current design.
     pub fn generate_gcode(&mut self, machine_limits: Option<MachineLimits>) -> String {
         self.generate_gcode_with_warning_info(machine_limits).0

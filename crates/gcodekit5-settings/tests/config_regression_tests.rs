@@ -66,12 +66,8 @@ fn test_arc_segment_length_settings_default_and_persist() {
         .load_from_dialog(&dialog)
         .expect("load zero arc segment length");
 
-    assert_eq!(
-        persistence.config().file_processing.arc_segment_length,
-        0.0
-    );
+    assert_eq!(persistence.config().file_processing.arc_segment_length, 0.0);
 }
-
 
 #[test]
 fn test_settings_invalid_numeric_input_is_ignored() {

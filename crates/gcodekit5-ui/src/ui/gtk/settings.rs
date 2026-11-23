@@ -141,10 +141,7 @@ impl SettingsWindow {
         self.notebook.append_page(&scroller, Some(&tab_label));
     }
 
-    fn create_setting_row(
-        &self,
-        setting: &SettingUiModel,
-    ) -> PreferencesRow {
+    fn create_setting_row(&self, setting: &SettingUiModel) -> PreferencesRow {
         let controller = self.controller.clone();
         let id = setting.id.clone();
 

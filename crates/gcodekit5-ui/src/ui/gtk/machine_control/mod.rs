@@ -253,6 +253,7 @@ pub struct MachineControlView {
     /// Línea que el `DirectSender` tenía en vuelo cuando el firmware rechazó
     /// el job. Compartida con el worker del sender (Arc<Mutex<...>>) y entre
     /// los clones del panel (Rc<RefCell<...>>).
+    #[allow(clippy::type_complexity)]
     pub(crate) last_sender_line:
         Rc<RefCell<Option<std::sync::Arc<std::sync::Mutex<Option<(usize, String)>>>>>>,
 }
@@ -3063,22 +3064,19 @@ impl MachineControlView {
     /// Returns a message when a prepared line is too long or an arc would
     /// exceed the segment limit.
     fn prepare_job_content(&self, content: String) -> Result<String, String> {
-        let (
-            preserve_comments,
-            max_line_length,
-            arc_segment_length,
-        ) = match &self.settings_controller {
-            Some(controller) => {
-                let p = controller.persistence.borrow();
-                let file = &p.config().file_processing;
-                (
-                    file.preserve_comments,
-                    file.max_line_length as usize,
-                    file.arc_segment_length,
-                )
-            }
-            None => (true, 0, 0.5),
-        };
+        let (preserve_comments, max_line_length, arc_segment_length) =
+            match &self.settings_controller {
+                Some(controller) => {
+                    let p = controller.persistence.borrow();
+                    let file = &p.config().file_processing;
+                    (
+                        file.preserve_comments,
+                        file.max_line_length as usize,
+                        file.arc_segment_length,
+                    )
+                }
+                None => (true, 0, 0.5),
+            };
         let content = prepare_program_with_arc_linearization(
             &content,
             preserve_comments,

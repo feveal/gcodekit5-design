@@ -669,7 +669,6 @@ impl ToolpathToGcode {
 
                     line_number += 10;
                     current_xy = Some((end_x, end_y));
-
                 }
             }
         }
@@ -784,7 +783,6 @@ impl ToolpathToGcode {
         self.z_min_limit = Some(z_min);
         self
     }
-
 }
 
 impl Default for ToolpathToGcode {
